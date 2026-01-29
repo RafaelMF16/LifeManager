@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="LifeManager.Application/LifeManager.Application.csproj" />
+  <Project Path="LifeManager.Domain/LifeManager.Domain.csproj" />
+  <Project Path="LifeManager.Infrastructure/LifeManager.Infrastructure.csproj" />
+  <Project Path="LifeManager.WebApi/LifeManager.WebApi.csproj" />
+</Solution>
