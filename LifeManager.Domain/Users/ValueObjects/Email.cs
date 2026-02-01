@@ -1,6 +1,6 @@
 ﻿using LifeManager.Domain.Exceptions;
 
-namespace LifeManager.Domain.Users
+namespace LifeManager.Domain.Users.ValueObjects
 {
     public sealed class Email
     {

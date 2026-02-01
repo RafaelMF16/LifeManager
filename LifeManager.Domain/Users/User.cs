@@ -1,4 +1,6 @@
-﻿namespace LifeManager.Domain.Users
+﻿using LifeManager.Domain.Users.ValueObjects;
+
+namespace LifeManager.Domain.Users
 {
     public class User
     {
