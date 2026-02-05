@@ -18,7 +18,7 @@ namespace LifeManager.Domain.Users.ValueObjects
 
             const string atSign = "@";
             if (!value.Contains(atSign) || value.StartsWith(atSign) || value.EndsWith(atSign))
-                throw new DomainException();
+                throw new DomainException($"{nameof(Email)} is invalid");
 
             return new Email(value);
         }
