@@ -14,7 +14,7 @@ namespace LifeManager.Domain.MonthlySummaries.ValueObjects
         public static TotalIncome Create(decimal value)
         {
             if (decimal.IsNegative(value))
-                throw new DomainException($"{nameof(TotalIncome)} cannot be negative.");
+                throw new DomainException($"{nameof(TotalIncome)} cannot be negative");
 
             return new TotalIncome(value);
         }

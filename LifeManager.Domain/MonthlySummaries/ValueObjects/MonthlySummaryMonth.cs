@@ -16,7 +16,7 @@ namespace LifeManager.Domain.MonthlySummaries.ValueObjects
             const short firstMonth = 1;
             const short lastMonth = 12;
             if (value is < firstMonth or > lastMonth)
-                throw new DomainException($"{nameof(MonthlySummaryMonth)} {value} is invalid month.");
+                throw new DomainException($"{nameof(MonthlySummaryMonth)} {value} is invalid month");
 
             return new MonthlySummaryMonth(value);
         }

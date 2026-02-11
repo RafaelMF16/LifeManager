@@ -15,7 +15,7 @@ namespace LifeManager.Domain.MonthlySummaries.ValueObjects
         {
             var currentYear = DateTimeOffset.UtcNow.Year;
             if (value != currentYear)
-                throw new DomainException($"{nameof(MonthlySummaryYear)} can only be created for the current year.");
+                throw new DomainException($"{nameof(MonthlySummaryYear)} can only be created for the current year");
 
             return new MonthlySummaryYear(value);
         }

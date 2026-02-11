@@ -1,5 +1,4 @@
 ﻿using LifeManager.Domain.Exceptions;
-using LifeManager.Domain.Transactions.ValueObjects;
 
 namespace LifeManager.Domain.Categories.ValueObjects
 {
