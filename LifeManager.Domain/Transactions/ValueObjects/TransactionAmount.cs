@@ -1,5 +1,4 @@
 ﻿using LifeManager.Domain.Exceptions;
-using LifeManager.Domain.MonthlySummaries.ValueObjects;
 
 namespace LifeManager.Domain.Transactions.ValueObjects
 {
@@ -15,7 +14,7 @@ namespace LifeManager.Domain.Transactions.ValueObjects
         public static TransactionAmount Create(decimal value)
         {
             if (decimal.IsNegative(value))
-                throw new DomainException($"{nameof(TransactionAmount)} cannot be negative.");
+                throw new DomainException($"{nameof(TransactionAmount)} cannot be negative");
 
             return new TransactionAmount(value);
         }

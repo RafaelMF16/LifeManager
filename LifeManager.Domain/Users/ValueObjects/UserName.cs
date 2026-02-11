@@ -18,7 +18,7 @@ namespace LifeManager.Domain.Users.ValueObjects
             
             const short MaxLength = 100;
             if (value.Length > MaxLength)
-                throw new DomainException($"{nameof(UserName)} cannot be longer than {MaxLength} characters.");
+                throw new DomainException($"{nameof(UserName)} cannot be longer than {MaxLength} characters");
 
             return new UserName(value);
         }

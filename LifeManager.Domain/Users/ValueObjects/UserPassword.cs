@@ -18,11 +18,11 @@ namespace LifeManager.Domain.Users
 
             const short MaxLength = 50;
             if (value.Length > MaxLength)
-                throw new DomainException($"{nameof(UserPassword)} cannot be longer than {MaxLength} characters.");
+                throw new DomainException($"{nameof(UserPassword)} cannot be longer than {MaxLength} characters");
 
             const short MinLength = 8;
             if (value.Length < MinLength)
-                throw new DomainException($"{nameof(UserPassword)} must be at least {MaxLength} characters long.");
+                throw new DomainException($"{nameof(UserPassword)} must be at least {MinLength} characters long");
 
             return new UserPassword(value);
         }
