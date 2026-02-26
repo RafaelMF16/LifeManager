@@ -13,6 +13,11 @@ namespace LifeManager.Domain.Users
 
         public static UserPassword Create(string value)
         {
+            return new UserPassword(value);
+        }
+
+        public static void ValidatePassword(string value)
+        {
             if (string.IsNullOrWhiteSpace(value))
                 throw new DomainException($"{nameof(UserPassword)} is required");
 
@@ -23,8 +28,6 @@ namespace LifeManager.Domain.Users
             const short MinLength = 8;
             if (value.Length < MinLength)
                 throw new DomainException($"{nameof(UserPassword)} must be at least {MinLength} characters long");
-
-            return new UserPassword(value);
         }
 
         public override bool Equals(object? obj)

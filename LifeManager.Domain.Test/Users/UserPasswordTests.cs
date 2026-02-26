@@ -6,36 +6,36 @@ namespace LifeManager.Domain.Test.Users
     public class UserPasswordTests
     {
         [Fact]
-        public void Create_ShouldThrowDomainException_WhenUserPasswordIsNull()
+        public void ValidatePassword_ShouldThrowDomainException_WhenUserPasswordIsNull()
         {
             const string errorMessageExpected = $"{nameof(UserPassword)} is required";
-            var exception = Assert.Throws<DomainException>(() => UserPassword.Create(null!));
+            var exception = Assert.Throws<DomainException>(() => UserPassword.ValidatePassword(null!));
             Assert.Equal(errorMessageExpected, exception.Message);
         }
 
         [Fact]
-        public void Create_ShouldThrowDomainException_WhenUserPasswordIsEmpty()
+        public void ValidatePassword_ShouldThrowDomainException_WhenUserPasswordIsEmpty()
         {
             const string errorMessageExpected = $"{nameof(UserPassword)} is required";
-            var exception = Assert.Throws<DomainException>(() => UserPassword.Create(string.Empty));
+            var exception = Assert.Throws<DomainException>(() => UserPassword.ValidatePassword(string.Empty));
             Assert.Equal(errorMessageExpected, exception.Message);
         }
 
         [Fact]
-        public void Create_ShouldThrowDomainException_WhenUserPasswordIsGreaterThan50()
+        public void ValidatePassword_ShouldThrowDomainException_WhenUserPasswordIsGreaterThan50()
         {
             const string errorMessageExpected = $"{nameof(UserPassword)} cannot be longer than 50 characters";
             const string longPassword = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-            var exception = Assert.Throws<DomainException>(() => UserPassword.Create(longPassword));
+            var exception = Assert.Throws<DomainException>(() => UserPassword.ValidatePassword(longPassword));
             Assert.Equal(errorMessageExpected, exception.Message);
         }
 
         [Fact]
-        public void Create_ShouldThrowDomainException_WhenUserPasswordIsLessThan8()
+        public void ValidatePassword_ShouldThrowDomainException_WhenUserPasswordIsLessThan8()
         {
             const string errorMessageExpected = $"{nameof(UserPassword)} must be at least 8 characters long";
             const string longPassword = "aaaa";
-            var exception = Assert.Throws<DomainException>(() => UserPassword.Create(longPassword));
+            var exception = Assert.Throws<DomainException>(() => UserPassword.ValidatePassword(longPassword));
             Assert.Equal(errorMessageExpected, exception.Message);
         }
 
