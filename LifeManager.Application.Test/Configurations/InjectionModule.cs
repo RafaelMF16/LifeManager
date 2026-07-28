@@ -1,6 +1,8 @@
 ﻿using LifeManager.Application.Auth;
+using LifeManager.Application.Test.Auth.Mocks;
 using LifeManager.Application.Test.Users.Mocks;
 using LifeManager.Application.Users;
+using LifeManager.Domain.Auth.Interfaces;
 using LifeManager.Domain.Users.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,6 +19,7 @@ namespace LifeManager.Application.Test.Configurations
             services.AddScoped<IUserRepository, UserRepositoryMock>();
 
             services.AddScoped<AuthService>();
+            services.AddScoped<IRefreshTokenRepository, RefreshTokenRepositoryMock>();
         }
     }
 }

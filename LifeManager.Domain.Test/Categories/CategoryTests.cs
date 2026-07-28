@@ -8,15 +8,14 @@ namespace LifeManager.Domain.Test.Categories
         [Fact]
         public void Create_ShouldReturnCategory_WhenValuesAreValid()
         {
-            var id = 1;
             var userId = 1;
             var type = MoneyFlowType.Income;
             var name = "name";
-            var category = Category.Create(id, userId, type, name);
+            var category = Category.Create(userId, type, name);
 
             Assert.NotNull(category);
             Assert.IsType<Category>(category);
-            Assert.Equal(id, category.Id.Value);
+            Assert.Null(category.Id);
             Assert.Equal(userId, category.UserId.Value);
             Assert.Equal(type, category.Type);
             Assert.Equal(name, category.Name.Value);

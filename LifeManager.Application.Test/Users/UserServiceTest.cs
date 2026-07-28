@@ -1,6 +1,7 @@
 ﻿using LifeManager.Application.Test.Configurations;
 using LifeManager.Application.Test.Configurations.SingletonLists;
 using LifeManager.Application.Users;
+using LifeManager.Domain.Exceptions;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LifeManager.Application.Test.Users
@@ -19,14 +20,25 @@ namespace LifeManager.Application.Test.Users
         [Fact]
         public void Add_ShouldAddUser_WhenUserIsValid()
         {
-            var id = 1;
             var name = "name";
             var email = "email@email.com";
             var password = "password";
-            var userDto = new UserDto(id, email, name, password);
+            var userDto = new UserDto(email, name, password);
             var newUser = _userService.AddUser(userDto);
 
             Assert.Contains(UserSingleton.Instance, user => user == newUser);
+        }
+
+        [Fact]
+        public void Add_ShouldNotAddUser_WhenUserIsInvalid()
+        {
+            var name = "name";
+            var email = "email";
+            var password = "password";
+            var userDto = new UserDto(email, name, password);
+
+            Assert.Throws<DomainException>(() => _userService.AddUser(userDto));
+            Assert.Empty(UserSingleton.Instance);
         }
     }
 }

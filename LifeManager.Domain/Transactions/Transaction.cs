@@ -8,7 +8,7 @@ namespace LifeManager.Domain.Transactions
 {
     public class Transaction
     {
-        public TransactionId Id { get; }
+        public TransactionId? Id { get; }
         public MoneyFlowType Type { get; private set; }
         public Category Category { get; private set; }
         public TransactionAmount Amount { get; private set; }
@@ -17,7 +17,6 @@ namespace LifeManager.Domain.Transactions
         public MonthlySummaryId MonthlySummaryId { get; }
 
         private Transaction(
-            TransactionId id,
             MoneyFlowType type,
             Category category,
             TransactionAmount amount,
@@ -25,7 +24,6 @@ namespace LifeManager.Domain.Transactions
             DateTimeOffset transactionDate,
             MonthlySummaryId monthlySummaryId)
         {
-            Id = id;
             Type = type;
             Category = category;
             Amount = amount;
@@ -35,7 +33,6 @@ namespace LifeManager.Domain.Transactions
         }
 
         public static Transaction Create(
-            int id,
             MoneyFlowType type,
             Category category,
             decimal amount,
@@ -46,12 +43,11 @@ namespace LifeManager.Domain.Transactions
             if (type != category.Type)
                 throw new DomainException("The money flow type must be the same in the transaction and in the category");
 
-            var transactionId = new TransactionId(id);
             var transactionAmount = TransactionAmount.Create(amount);
             var transactionDescription = TransactionDescription.Create(description);
             var monthlySummaryId = new MonthlySummaryId(idMonthlySummary);
 
-            return new Transaction(transactionId, type, category, transactionAmount, transactionDescription, transactionDate, monthlySummaryId);
+            return new Transaction(type, category, transactionAmount, transactionDescription, transactionDate, monthlySummaryId);
         }
     }
 }

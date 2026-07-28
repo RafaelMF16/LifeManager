@@ -7,11 +7,10 @@ namespace LifeManager.Domain.Test.Users
         [Fact]
         public void Create_ShouldReturnUser_WhenUserIsValid()
         {
-            var id = 1;
             var userName = "test";
             var email = "r@email.com";
             var password = "password";
-            var user = User.Create(id, userName, email, password);
+            var user = User.Create(userName, email, password);
 
             Assert.NotNull(user);
             Assert.IsType<User>(user);
