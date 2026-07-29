@@ -12,9 +12,10 @@ namespace LifeManager.Application.Auth
     public class AuthService(IConfiguration configuration, IRefreshTokenRepository refreshTokenRepository)
     {
         private const short WORK_FACTOR = 10;
-        private const string SECRET_KEY_ENVIRONMENT_VARIABLE = "secretKey";
-        public const short ACCESS_TOKEN_EXPIRATION_MINUTES = 15;
-        public const short REFRESH_TOKEN_EXPIRATION_DAYS = 7;
+        private const string ACCESS_TOKEN_SECRET_KEY_ENVIRONMENT_VARIABLE = "accessTokenSecretKey";
+        private const string REFRESH_TOKEN_SECRET_KEY_ENVIRONMENT_VARIABLE = "refreshTokenSecretKey";
+        private const short ACCESS_TOKEN_EXPIRATION_MINUTES = 15;
+        private const short REFRESH_TOKEN_EXPIRATION_DAYS = 7;
 
         private readonly IConfiguration _configuration = configuration;
         private readonly IRefreshTokenRepository _refreshTokenRepository = refreshTokenRepository;
@@ -31,25 +32,30 @@ namespace LifeManager.Application.Auth
 
         public LoginResponseDto GenerateTokens(int userId)
         {
-            var secretKey = GetSecretKey();
-
-            var accessToken = GenerateAccessToken(secretKey, userId);
+            var accessToken = GenerateAccessToken(userId);
             var refreshToken = GenerateRefreshToken();
-            var hashedRefreshToken = HashRefreshToken(refreshToken, secretKey);
+            var hashedRefreshToken = HashRefreshToken(refreshToken);
 
             SaveRefreshToken(hashedRefreshToken, userId);
 
             return new LoginResponseDto(accessToken, refreshToken);
         }
 
-        private string GetSecretKey()
+        private string GetAccessTokenSecretKey()
         {
-            return _configuration[SECRET_KEY_ENVIRONMENT_VARIABLE]
-                ?? throw new Exception($"Environment variable [{SECRET_KEY_ENVIRONMENT_VARIABLE}] not found");
+            return _configuration[ACCESS_TOKEN_SECRET_KEY_ENVIRONMENT_VARIABLE]
+                ?? throw new Exception($"Environment variable [{ACCESS_TOKEN_SECRET_KEY_ENVIRONMENT_VARIABLE}] not found");
         }
 
-        private static string GenerateAccessToken(string secretKey, int userId)
+        private string GetRefreshTokenSecretKey()
         {
+            return _configuration[REFRESH_TOKEN_SECRET_KEY_ENVIRONMENT_VARIABLE]
+                ?? throw new Exception($"Environment variable [{REFRESH_TOKEN_SECRET_KEY_ENVIRONMENT_VARIABLE}] not found");
+        }
+
+        private string GenerateAccessToken(int userId)
+        {
+            var secretKey = GetAccessTokenSecretKey();
             var claims = new ClaimsIdentity([new(ClaimTypes.NameIdentifier, userId.ToString())]);
             var encodedSecretKey = Encoding.ASCII.GetBytes(secretKey);
             var tokenConfig = new SecurityTokenDescriptor
@@ -70,8 +76,9 @@ namespace LifeManager.Application.Auth
             return Guid.NewGuid().ToString();
         }
 
-        private static string HashRefreshToken(string refreshToken, string secretKey)
+        private string HashRefreshToken(string refreshToken)
         {
+            var secretKey = GetRefreshTokenSecretKey();
             var keyBytes = Encoding.UTF8.GetBytes(secretKey);
             var tokenBytes = Encoding.UTF8.GetBytes(refreshToken);
 

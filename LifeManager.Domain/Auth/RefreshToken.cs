@@ -8,7 +8,7 @@ namespace LifeManager.Domain.Auth
         public RefreshTokenId? Id { get; }
         public UserId UserId { get; }
         public RefreshTokenHash TokenHash { get; private set; }
-        public DateTimeOffset CreatedAt { get; } = DateTimeOffset.Now;
+        public DateTimeOffset CreatedAt { get; } = DateTimeOffset.UtcNow;
         public DateTimeOffset ExpiresAt { get; private set; }
         public RefreshTokenRevoked IsRevoked { get; private set; }
 
@@ -35,6 +35,11 @@ namespace LifeManager.Domain.Auth
             var refreshTokenRevoked = RefreshTokenRevoked.Create(isRevoked);
 
             return new RefreshToken(idUser, refreshTokenHash, date, refreshTokenRevoked);
+        }
+
+        public void RevokeToken()
+        {
+            IsRevoked = RefreshTokenRevoked.Create(true);
         }
     }
 }

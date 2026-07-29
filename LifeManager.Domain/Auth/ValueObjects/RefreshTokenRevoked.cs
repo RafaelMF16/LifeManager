@@ -16,11 +16,6 @@ namespace LifeManager.Domain.Auth.ValueObjects
             return new RefreshTokenRevoked(value);
         }
 
-        public static void RevokeToken(RefreshTokenRevoked refreshTokenRevoked)
-        {
-            refreshTokenRevoked.Value = true;
-        }
-
         public override bool Equals(object? obj)
         {
             if (obj is RefreshTokenRevoked other)

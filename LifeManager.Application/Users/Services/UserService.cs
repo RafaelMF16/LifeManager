@@ -1,10 +1,13 @@
 ﻿using LifeManager.Application.Auth;
+using LifeManager.Application.Users.DTOs;
 using LifeManager.Domain.Auth.Interfaces;
 using LifeManager.Domain.Auth.ValueObjects;
+using LifeManager.Domain.Exceptions;
 using LifeManager.Domain.Users;
 using LifeManager.Domain.Users.Interfaces;
+using LifeManager.Domain.Users.ValueObjects;
 
-namespace LifeManager.Application.Users
+namespace LifeManager.Application.Users.Services
 {
     public class UserService(
         IUserRepository userRepository,
@@ -15,30 +18,34 @@ namespace LifeManager.Application.Users
         private readonly AuthService _authService = authService;
         private readonly IRefreshTokenRepository _refreshTokenRepository = refreshTokenRepository;
 
-        public User AddUser(UserDto userDto)
+        public UserResponseDto AddUser(UserDto userDto)
         {
-            UserPassword.ValidatePassword(userDto.UserPassword);
+            var existingUser = _userRepository.GetUserByEmail(userDto.Email);
+            if (existingUser is not null)
+                throw new DomainException("Something went wrong! Check the email or password.");
 
-            var hashedPassword = _authService.EncryptPassword(userDto.UserPassword);
+            var plainPassword = PlainPassword.Create(userDto.UserPassword);
+
+            var hashedPassword = _authService.EncryptPassword(plainPassword.Value);
 
             var user = User.Create(userDto.Name, userDto.Email, hashedPassword);
             
             _userRepository.Add(user);
 
-            return user;
+            return new UserResponseDto(user.Id!.Value, user.Name.Value, user.Email.Value);
         }
 
         public LoginResponseDto? AuthenticateUser(string email, string password)
         {
             var user = _userRepository.GetUserByEmail(email);
 
-            if (user == null || !_authService.VerifyPassword(password, user.Password.Value))
+            if (user == null || !_authService.VerifyPassword(password, user.PasswordHash.Value))
                 return null;
 
             var token = _refreshTokenRepository.GetValidTokenByUserId(user.Id!.Value);
             if (token is not null)
             {
-                RefreshTokenRevoked.RevokeToken(token.IsRevoked);
+                token.RevokeToken();
                 _refreshTokenRepository.UpdateRevoked(token);
             }
 

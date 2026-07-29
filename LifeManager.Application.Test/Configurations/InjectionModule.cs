@@ -1,7 +1,7 @@
 ﻿using LifeManager.Application.Auth;
 using LifeManager.Application.Test.Auth.Mocks;
 using LifeManager.Application.Test.Users.Mocks;
-using LifeManager.Application.Users;
+using LifeManager.Application.Users.Services;
 using LifeManager.Domain.Auth.Interfaces;
 using LifeManager.Domain.Users.Interfaces;
 using Microsoft.Extensions.Configuration;

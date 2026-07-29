@@ -4,20 +4,20 @@ namespace LifeManager.Domain.Users
 {
     public class User
     {
-        public UserId? Id { get; }
+        public UserId? Id { get; private set; }
         public UserName Name { get; private set; }
         public Email Email { get; private set; }
-        public UserPassword Password { get; private set; }
+        public PasswordHash PasswordHash { get; private set; }
         public DateTimeOffset CreationDate { get; } = DateTimeOffset.UtcNow;
 
         private User(
             UserName name,
             Email email,
-            UserPassword password)
+            PasswordHash password)
         {
             Name = name;
             Email = email;
-            Password = password;
+            PasswordHash = password;
         }
 
         public static User Create(
@@ -27,9 +27,14 @@ namespace LifeManager.Domain.Users
         {
             var userName = UserName.Create(name);
             var userEmail = Email.Create(email);
-            var userPassword = UserPassword.Create(password);
+            var userPassword = PasswordHash.Create(password);
 
             return new User(userName, userEmail, userPassword);
+        }
+
+        public void AssignId(int id)
+        {
+            Id = new UserId(id);
         }
     }
 }

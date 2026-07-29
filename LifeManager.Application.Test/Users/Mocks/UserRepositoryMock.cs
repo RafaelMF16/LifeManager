@@ -13,14 +13,19 @@ namespace LifeManager.Application.Test.Users.Mocks
             _instance = UserSingleton.Instance;
         }
 
-        public void Add(User user)
+        public User Add(User user)
         {
             _instance.Add(user);
+
+            var newId = _instance.Count;
+            user.AssignId(newId);
+
+            return user;
         }
 
         public User? GetUserByEmail(string email)
         {
-            throw new NotImplementedException();
+            return _instance.FirstOrDefault(user => user.Email.Value == email);
         }
     }
 }
