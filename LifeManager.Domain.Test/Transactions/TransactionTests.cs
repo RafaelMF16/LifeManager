@@ -51,5 +51,17 @@ namespace LifeManager.Domain.Test.Transactions
             Assert.Equal(date, transaction.TransactionDate);
             Assert.Equal(idMonthlySummary, transaction.MonthlySummaryId.Value);
         }
+
+        [Fact]
+        public void AssignId_ShouldSetId_WhenTransactionHasNoIdYet()
+        {
+            var category = Category.Create(1, MoneyFlowType.Expense, "name");
+            var transaction = Transaction.Create(MoneyFlowType.Expense, category, 50, "description", DateTimeOffset.UtcNow, 1);
+
+            transaction.AssignId(10);
+
+            Assert.NotNull(transaction.Id);
+            Assert.Equal(10, transaction.Id!.Value);
+        }
     }
 }

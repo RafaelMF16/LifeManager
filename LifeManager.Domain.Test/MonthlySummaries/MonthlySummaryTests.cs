@@ -23,5 +23,16 @@ namespace LifeManager.Domain.Test.MonthlySummaries
             Assert.Equal(month, monthlySummary.Month.Value);
             Assert.Equal(year, monthlySummary.Year.Value);
         }
+
+        [Fact]
+        public void AssignId_ShouldSetId_WhenMonthlySummaryHasNoIdYet()
+        {
+            var monthlySummary = MonthlySummary.Create(100, 50, 1, 11, DateTimeOffset.UtcNow.Year);
+
+            monthlySummary.AssignId(10);
+
+            Assert.NotNull(monthlySummary.Id);
+            Assert.Equal(10, monthlySummary.Id!.Value);
+        }
     }
 }

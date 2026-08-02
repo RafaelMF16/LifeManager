@@ -20,5 +20,16 @@ namespace LifeManager.Domain.Test.Categories
             Assert.Equal(type, category.Type);
             Assert.Equal(name, category.Name.Value);
         }
+
+        [Fact]
+        public void AssignId_ShouldSetId_WhenCategoryHasNoIdYet()
+        {
+            var category = Category.Create(1, MoneyFlowType.Income, "name");
+
+            category.AssignId(10);
+
+            Assert.NotNull(category.Id);
+            Assert.Equal(10, category.Id!.Value);
+        }
     }
 }

@@ -42,5 +42,16 @@ namespace LifeManager.Domain.Test.Auth
 
             Assert.True(refreshToken.IsRevoked.Value);
         }
+
+        [Fact]
+        public void AssignId_ShouldSetId_WhenRefreshTokenHasNoIdYet()
+        {
+            var refreshToken = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(7), false);
+
+            refreshToken.AssignId(10);
+
+            Assert.NotNull(refreshToken.Id);
+            Assert.Equal(10, refreshToken.Id!.Value);
+        }
     }
 }

@@ -8,7 +8,7 @@ namespace LifeManager.Domain.Transactions
 {
     public class Transaction
     {
-        public TransactionId? Id { get; }
+        public TransactionId? Id { get; private set; }
         public MoneyFlowType Type { get; private set; }
         public Category Category { get; private set; }
         public TransactionAmount Amount { get; private set; }
@@ -48,6 +48,11 @@ namespace LifeManager.Domain.Transactions
             var monthlySummaryId = new MonthlySummaryId(idMonthlySummary);
 
             return new Transaction(type, category, transactionAmount, transactionDescription, transactionDate, monthlySummaryId);
+        }
+
+        public void AssignId(int id)
+        {
+            Id = new TransactionId(id);
         }
     }
 }

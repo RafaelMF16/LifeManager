@@ -6,7 +6,7 @@ namespace LifeManager.Domain.Categories
 {
     public class Category
     {
-        public CategoryId? Id { get; }
+        public CategoryId? Id { get; private set; }
         public UserId UserId { get; }
         public MoneyFlowType Type { get; private set; }
         public CategoryName Name { get; private set; }
@@ -24,6 +24,11 @@ namespace LifeManager.Domain.Categories
             var categoryName = CategoryName.Create(name);
 
             return new Category(userId, type, categoryName);
+        }
+
+        public void AssignId(int id)
+        {
+            Id = new CategoryId(id);
         }
     }
 }

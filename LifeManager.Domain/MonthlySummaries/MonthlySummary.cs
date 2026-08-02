@@ -5,7 +5,7 @@ namespace LifeManager.Domain.MonthlySummaries
 {
     public class MonthlySummary
     {
-        public MonthlySummaryId? Id { get; }
+        public MonthlySummaryId? Id { get; private set; }
         public MonthlySummaryMonth Month { get; }
         public MonthlySummaryYear Year { get; }
         public TotalIncome TotalIncome { get; private set; }
@@ -41,6 +41,11 @@ namespace LifeManager.Domain.MonthlySummaries
             var monthlySummaryYear = MonthlySummaryYear.Create(year);
 
             return new MonthlySummary(totalIncome, totalExpense, idUser, monthlySummaryMonth, monthlySummaryYear);
+        }
+
+        public void AssignId(int id)
+        {
+            Id = new MonthlySummaryId(id);
         }
     }
 }
