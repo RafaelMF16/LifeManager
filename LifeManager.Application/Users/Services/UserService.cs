@@ -1,7 +1,6 @@
-﻿using LifeManager.Application.Auth;
+﻿using LifeManager.Application.Auth.DTOs;
+using LifeManager.Application.Auth.Services;
 using LifeManager.Application.Users.DTOs;
-using LifeManager.Domain.Auth.Interfaces;
-using LifeManager.Domain.Auth.ValueObjects;
 using LifeManager.Domain.Exceptions;
 using LifeManager.Domain.Users;
 using LifeManager.Domain.Users.Interfaces;
@@ -12,11 +11,11 @@ namespace LifeManager.Application.Users.Services
     public class UserService(
         IUserRepository userRepository,
         AuthService authService,
-        IRefreshTokenRepository refreshTokenRepository)
+        TokenService tokenService)
     {
         private readonly IUserRepository _userRepository = userRepository;
         private readonly AuthService _authService = authService;
-        private readonly IRefreshTokenRepository _refreshTokenRepository = refreshTokenRepository;
+        private readonly TokenService _tokenService = tokenService;
 
         public UserResponseDto AddUser(UserDto userDto)
         {
@@ -42,14 +41,7 @@ namespace LifeManager.Application.Users.Services
             if (user == null || !_authService.VerifyPassword(password, user.PasswordHash.Value))
                 return null;
 
-            var token = _refreshTokenRepository.GetValidTokenByUserId(user.Id!.Value);
-            if (token is not null)
-            {
-                token.RevokeToken();
-                _refreshTokenRepository.UpdateRevoked(token);
-            }
-
-            return _authService.GenerateTokens(user.Id.Value);
+            return _tokenService.GenerateTokens(user.Id!.Value);
         }
     }
 }

@@ -1,37 +1,29 @@
-﻿using LifeManager.Domain.Auth;
+﻿using LifeManager.Application.Auth.DTOs;
+using LifeManager.Application.EnvironmentVariables.Services;
+using LifeManager.Domain.Auth;
 using LifeManager.Domain.Auth.Interfaces;
-using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace LifeManager.Application.Auth
+namespace LifeManager.Application.Auth.Services
 {
-    public class AuthService(IConfiguration configuration, IRefreshTokenRepository refreshTokenRepository)
+    public class TokenService(IRefreshTokenRepository refreshTokenRepository, EnvironmentVariableService environmentVariableService)
     {
-        private const short WORK_FACTOR = 10;
         private const string ACCESS_TOKEN_SECRET_KEY_ENVIRONMENT_VARIABLE = "accessTokenSecretKey";
         private const string REFRESH_TOKEN_SECRET_KEY_ENVIRONMENT_VARIABLE = "refreshTokenSecretKey";
         private const short ACCESS_TOKEN_EXPIRATION_MINUTES = 15;
         private const short REFRESH_TOKEN_EXPIRATION_DAYS = 7;
 
-        private readonly IConfiguration _configuration = configuration;
         private readonly IRefreshTokenRepository _refreshTokenRepository = refreshTokenRepository;
-
-        public string EncryptPassword(string password)
-        {
-            return BCrypt.Net.BCrypt.HashPassword(password, WORK_FACTOR);
-        }
-
-        public bool VerifyPassword(string password, string hashedPassword)
-        {
-            return BCrypt.Net.BCrypt.Verify(password, hashedPassword);
-        }
+        private readonly EnvironmentVariableService _environmentVariableService = environmentVariableService;
 
         public LoginResponseDto GenerateTokens(int userId)
         {
+            RevokeActiveToken(userId);
+
             var accessToken = GenerateAccessToken(userId);
             var refreshToken = GenerateRefreshToken();
             var hashedRefreshToken = HashRefreshToken(refreshToken);
@@ -41,21 +33,9 @@ namespace LifeManager.Application.Auth
             return new LoginResponseDto(accessToken, refreshToken);
         }
 
-        private string GetAccessTokenSecretKey()
-        {
-            return _configuration[ACCESS_TOKEN_SECRET_KEY_ENVIRONMENT_VARIABLE]
-                ?? throw new Exception($"Environment variable [{ACCESS_TOKEN_SECRET_KEY_ENVIRONMENT_VARIABLE}] not found");
-        }
-
-        private string GetRefreshTokenSecretKey()
-        {
-            return _configuration[REFRESH_TOKEN_SECRET_KEY_ENVIRONMENT_VARIABLE]
-                ?? throw new Exception($"Environment variable [{REFRESH_TOKEN_SECRET_KEY_ENVIRONMENT_VARIABLE}] not found");
-        }
-
         private string GenerateAccessToken(int userId)
         {
-            var secretKey = GetAccessTokenSecretKey();
+            var secretKey = _environmentVariableService.GetEnvironmentVariable(ACCESS_TOKEN_SECRET_KEY_ENVIRONMENT_VARIABLE);
             var claims = new ClaimsIdentity([new(ClaimTypes.NameIdentifier, userId.ToString())]);
             var encodedSecretKey = Encoding.ASCII.GetBytes(secretKey);
             var tokenConfig = new SecurityTokenDescriptor
@@ -78,7 +58,7 @@ namespace LifeManager.Application.Auth
 
         private string HashRefreshToken(string refreshToken)
         {
-            var secretKey = GetRefreshTokenSecretKey();
+            var secretKey = _environmentVariableService.GetEnvironmentVariable(REFRESH_TOKEN_SECRET_KEY_ENVIRONMENT_VARIABLE);
             var keyBytes = Encoding.UTF8.GetBytes(secretKey);
             var tokenBytes = Encoding.UTF8.GetBytes(refreshToken);
 
@@ -94,6 +74,16 @@ namespace LifeManager.Application.Auth
             var refreshToken = RefreshToken.Create(userId, token, expiresAt, false);
 
             _refreshTokenRepository.Add(refreshToken);
+        }
+
+        private void RevokeActiveToken(int userId)
+        {
+            var activeToken = _refreshTokenRepository.GetValidTokenByUserId(userId);
+            if (activeToken is null)
+                return;
+
+            activeToken.RevokeToken();
+            _refreshTokenRepository.UpdateRevoked(activeToken);
         }
     }
 }

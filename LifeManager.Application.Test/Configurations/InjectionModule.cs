@@ -1,4 +1,5 @@
-﻿using LifeManager.Application.Auth;
+﻿using LifeManager.Application.Auth.Services;
+using LifeManager.Application.EnvironmentVariables.Services;
 using LifeManager.Application.Test.Auth.Mocks;
 using LifeManager.Application.Test.Users.Mocks;
 using LifeManager.Application.Users.Services;
@@ -19,6 +20,8 @@ namespace LifeManager.Application.Test.Configurations
             services.AddScoped<IUserRepository, UserRepositoryMock>();
 
             services.AddScoped<AuthService>();
+            services.AddScoped<TokenService>();
+            services.AddScoped<EnvironmentVariableService>();
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepositoryMock>();
         }
     }
