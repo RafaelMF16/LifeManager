@@ -24,5 +24,8 @@
 
         public static Error Failure(string code, string message)
             => new(code, message, ErrorType.Failure);
+
+        public static Error Conflict(string code, string message)
+            => new(code, message, ErrorType.Conflict);
     }
 }

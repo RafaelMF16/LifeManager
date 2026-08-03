@@ -1,8 +1,12 @@
-﻿namespace LifeManager.Domain.Shared.Results
+﻿using System.Diagnostics.CodeAnalysis;
+
+namespace LifeManager.Domain.Shared.Results
 {
     public record Result
     {
-        public bool IsSuccess { get; }
+        [MemberNotNullWhen(false, nameof(Error))]
+        public virtual bool IsSuccess { get; }
+
         public Error? Error { get; }
 
         protected Result(bool isSuccess, Error? error)
@@ -20,6 +24,9 @@
     public record Result<T> : Result
     {
         public T? Value { get; }
+
+        [MemberNotNullWhen(true, nameof(Value))]
+        public override bool IsSuccess => base.IsSuccess;
 
         private Result(T value) : base(true, null) => Value = value;
         private Result(Error error) : base(false, error) { }

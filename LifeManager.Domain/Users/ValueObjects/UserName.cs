@@ -1,4 +1,5 @@
-﻿using LifeManager.Domain.Exceptions;
+﻿using LifeManager.Domain.Shared.Results;
+using LifeManager.Domain.Users.Errors;
 
 namespace LifeManager.Domain.Users.ValueObjects
 {
@@ -11,14 +12,14 @@ namespace LifeManager.Domain.Users.ValueObjects
             Value = value;
         }
 
-        public static UserName Create(string value)
+        public static Result<UserName> Create(string value)
         {
             if (string.IsNullOrWhiteSpace(value))
-                throw new DomainException($"{nameof(UserName)} is required");
+                return UserErrors.UserNameIsNullOrWhiteSpace;
             
             const short MaxLength = 100;
             if (value.Length > MaxLength)
-                throw new DomainException($"{nameof(UserName)} cannot be longer than {MaxLength} characters");
+                return UserErrors.UserNameTooLong;
 
             return new UserName(value);
         }

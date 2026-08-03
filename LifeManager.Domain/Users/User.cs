@@ -1,4 +1,5 @@
-﻿using LifeManager.Domain.Users.ValueObjects;
+﻿using LifeManager.Domain.Shared.Results;
+using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Domain.Users
 {
@@ -20,16 +21,24 @@ namespace LifeManager.Domain.Users
             PasswordHash = password;
         }
 
-        public static User Create(
+        public static Result<User> Create(
             string name,
             string email,
             string password)
         {
-            var userName = UserName.Create(name);
-            var userEmail = Email.Create(email);
-            var userPassword = PasswordHash.Create(password);
+            var userNameResult = UserName.Create(name);
+            if (!userNameResult.IsSuccess)
+                return userNameResult.Error;
 
-            return new User(userName, userEmail, userPassword);
+            var userEmailResult = Email.Create(email);
+            if (!userEmailResult.IsSuccess)
+                return userEmailResult.Error;
+
+            var userPasswordResult = PasswordHash.Create(password);
+            if (!userPasswordResult.IsSuccess)
+                return userPasswordResult.Error;
+
+            return new User(userNameResult.Value, userEmailResult.Value, userPasswordResult.Value);
         }
 
         public void AssignId(int id)

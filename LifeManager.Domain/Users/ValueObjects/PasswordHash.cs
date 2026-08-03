@@ -1,4 +1,6 @@
 ﻿using LifeManager.Domain.Exceptions;
+using LifeManager.Domain.Shared.Results;
+using LifeManager.Domain.Users.Errors;
 
 namespace LifeManager.Domain.Users.ValueObjects
 {
@@ -11,10 +13,10 @@ namespace LifeManager.Domain.Users.ValueObjects
             Value = value;
         }
         
-        public static PasswordHash Create(string value)
+        public static Result<PasswordHash> Create(string value)
         {
             if (string.IsNullOrWhiteSpace(value))
-                throw new DomainException($"{nameof(PasswordHash)} is required");
+                return UserErrors.PasswordHashIsNullOrWhiteSpace;
 
             return new PasswordHash(value);
         }

@@ -10,7 +10,7 @@ namespace LifeManager.Domain.Test.Users
             var userName = "test";
             var email = "r@email.com";
             var password = "password";
-            var user = User.Create(userName, email, password);
+            var user = User.Create(userName, email, password).Value;
 
             Assert.NotNull(user);
             Assert.IsType<User>(user);
@@ -23,7 +23,8 @@ namespace LifeManager.Domain.Test.Users
         [Fact]
         public void AssignId_ShouldSetId_WhenUserHasNoIdYet()
         {
-            var user = User.Create("test", "r@email.com", "password");
+            var user = User.Create("test", "r@email.com", "password").Value;
+            Assert.NotNull(user);
 
             user.AssignId(10);
 
