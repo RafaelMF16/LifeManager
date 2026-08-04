@@ -25,10 +25,11 @@ namespace LifeManager.Domain.Test.Users
         public void Create_ShouldReturnPasswordHash_WhenValueIsValid()
         {
             const string hash = "$2a$10$abcdefghijklmnopqrstuvwxyz012345";
-            var passwordHash = PasswordHash.Create(hash);
+            var passwordHashResult = PasswordHash.Create(hash);
+            var passwordHash = passwordHashResult.Value;
 
-            Assert.NotNull(passwordHash);
-            Assert.IsType<PasswordHash>(passwordHash);
+            Assert.NotNull(passwordHashResult.Value);
+            Assert.IsType<PasswordHash>(passwordHashResult.Value);
             Assert.Equal(hash, passwordHash.Value);
         }
 

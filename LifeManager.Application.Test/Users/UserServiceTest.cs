@@ -27,14 +27,14 @@ namespace LifeManager.Application.Test.Users
             var email = "email@email.com";
             var password = "password";
             var userDto = new UserDto(email, name, password);
-            var newUser = _userService.AddUser(userDto);
+            var userResponseResult = _userService.AddUser(userDto);
 
             Assert.NotEmpty(UserSingleton.Instance);
             Assert.All(UserSingleton.Instance, user =>
             {
-                Assert.Equal(newUser.Id, user.Id!.Value);
-                Assert.Equal(newUser.Name, user.Name.Value);
-                Assert.Equal(newUser.Email, user.Email.Value);
+                Assert.Equal(userResponseResult.Value.Id, user.Id!.Value);
+                Assert.Equal(userResponseResult.Value.Name, user.Name.Value);
+                Assert.Equal(userResponseResult.Value.Email, user.Email.Value);
             });
         }
 

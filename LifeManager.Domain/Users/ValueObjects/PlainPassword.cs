@@ -1,4 +1,6 @@
 ﻿using LifeManager.Domain.Exceptions;
+using LifeManager.Domain.Shared.Results;
+using LifeManager.Domain.Users.Errors;
 
 namespace LifeManager.Domain.Users.ValueObjects
 {
@@ -11,18 +13,18 @@ namespace LifeManager.Domain.Users.ValueObjects
             Value = value;
         }
 
-        public static PlainPassword Create(string value)
+        public static Result<PlainPassword> Create(string value)
         {
             if (string.IsNullOrWhiteSpace(value))
-                throw new DomainException($"{nameof(PlainPassword)} is required");
+                return UserErrors.PlainPasswordIsNullOrWhiteSpace;
 
             const short MaxLength = 50;
             if (value.Length > MaxLength)
-                throw new DomainException($"{nameof(PlainPassword)} cannot be longer than {MaxLength} characters");
+                return UserErrors.PlainPasswordTooLong;
 
             const short MinLength = 8;
             if (value.Length < MinLength)
-                throw new DomainException($"{nameof(PlainPassword)} must be at least {MinLength} characters long");
+                return UserErrors.PlainPasswordTooShort;
 
             return new PlainPassword(value);
         }

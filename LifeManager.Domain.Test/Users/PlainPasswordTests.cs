@@ -43,10 +43,11 @@ namespace LifeManager.Domain.Test.Users
         public void Create_ShouldReturnPlainPassword_WhenPasswordIsValid()
         {
             const string validPassword = "password";
-            var password = PlainPassword.Create(validPassword);
+            var passwordResult = PlainPassword.Create(validPassword);
+            var password = passwordResult.Value;
 
-            Assert.NotNull(password);
-            Assert.IsType<PlainPassword>(password);
+            Assert.NotNull(passwordResult.Value);
+            Assert.IsType<PlainPassword>(passwordResult.Value);
             Assert.Equal(validPassword, password.Value);
         }
 

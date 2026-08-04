@@ -24,12 +24,18 @@ namespace LifeManager.Application.Users.Services
             if (existingUser is not null)
                 return UserErrors.EmailRegistered;
 
-            var plainPassword = PlainPassword.Create(userDto.UserPassword);
+            var plainPasswordResult = PlainPassword.Create(userDto.UserPassword);
+            if (!plainPasswordResult.IsSuccess)
+                return plainPasswordResult.Error;
 
+            var plainPassword = plainPasswordResult.Value;
             var hashedPassword = _authService.EncryptPassword(plainPassword.Value);
 
-            var user = User.Create(userDto.Name, userDto.Email, hashedPassword);
-            
+            var userResult = User.Create(userDto.Name, userDto.Email, hashedPassword);
+            if (!userResult.IsSuccess)
+                return userResult.Error;
+
+            var user = userResult.Value;
             _userRepository.Add(user);
 
             return new UserResponseDto(user.Id!.Value, user.Name.Value, user.Email.Value);
