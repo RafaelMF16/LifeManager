@@ -1,5 +1,4 @@
-﻿using LifeManager.Domain.Exceptions;
-using LifeManager.Domain.Shared.Results;
+﻿using LifeManager.Domain.Shared.Results;
 using LifeManager.Domain.Users.Errors;
 
 namespace LifeManager.Domain.Users.ValueObjects
