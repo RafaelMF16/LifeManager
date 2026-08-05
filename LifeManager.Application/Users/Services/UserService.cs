@@ -24,21 +24,17 @@ namespace LifeManager.Application.Users.Services
             if (existingUser is not null)
                 return UserErrors.EmailRegistered;
 
-            var plainPasswordResult = PlainPassword.Create(userDto.UserPassword);
-            if (!plainPasswordResult.IsSuccess)
-                return plainPasswordResult.Error;
-
-            var plainPassword = plainPasswordResult.Value;
-            var hashedPassword = _authService.EncryptPassword(plainPassword.Value);
-
-            var userResult = User.Create(userDto.Name, userDto.Email, hashedPassword);
-            if (!userResult.IsSuccess)
-                return userResult.Error;
-
-            var user = userResult.Value;
-            _userRepository.Add(user);
-
-            return new UserResponseDto(user.Id!.Value, user.Name.Value, user.Email.Value);
+            return PlainPassword.Create(userDto.UserPassword)
+                .Bind(plainPassword =>
+                {
+                    var hashedPassword = _authService.EncryptPassword(plainPassword.Value);
+                    return User.Create(userDto.Name, userDto.Email, hashedPassword);
+                })
+                .Map(user =>
+                {
+                    _userRepository.Add(user);
+                    return new UserResponseDto(user.Id!.Value, user.Name.Value, user.Email.Value);
+                });
         }
 
         public LoginResponseDto? AuthenticateUser(string email, string password)

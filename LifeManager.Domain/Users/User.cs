@@ -26,19 +26,10 @@ namespace LifeManager.Domain.Users
             string email,
             string password)
         {
-            var userNameResult = UserName.Create(name);
-            if (!userNameResult.IsSuccess)
-                return userNameResult.Error;
-
-            var userEmailResult = Email.Create(email);
-            if (!userEmailResult.IsSuccess)
-                return userEmailResult.Error;
-
-            var userPasswordResult = PasswordHash.Create(password);
-            if (!userPasswordResult.IsSuccess)
-                return userPasswordResult.Error;
-
-            return new User(userNameResult.Value, userEmailResult.Value, userPasswordResult.Value);
+            return UserName.Create(name)
+                .Bind(userName => Email.Create(email)
+                    .Bind(userEmail => PasswordHash.Create(password)
+                        .Map(passwordHash => new User(userName, userEmail, passwordHash))));
         }
 
         public void AssignId(int id)
