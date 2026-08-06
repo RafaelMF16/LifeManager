@@ -6,7 +6,7 @@ namespace LifeManager.Domain.Auth.ValueObjects
     {
         public bool Value { get; private set; }
 
-        public RefreshTokenRevoked(bool value)
+        private RefreshTokenRevoked(bool value)
         {
             Value = value;
         }
