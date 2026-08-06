@@ -3,30 +3,26 @@ using LifeManager.Domain.Users.Errors;
 
 namespace LifeManager.Domain.Users.ValueObjects
 {
-    public class UserName
+    public class PasswordHash
     {
         public string Value { get; }
 
-        private UserName(string value)
+        private PasswordHash(string value)
         {
             Value = value;
         }
-
-        public static Result<UserName> Create(string value)
+        
+        public static Result<PasswordHash> Create(string value)
         {
             if (string.IsNullOrWhiteSpace(value))
-                return UserErrors.UserNameIsNullOrWhiteSpace;
-            
-            const short MaxLength = 100;
-            if (value.Length > MaxLength)
-                return UserErrors.UserNameTooLong;
+                return UserErrors.PasswordHashIsNullOrWhiteSpace;
 
-            return new UserName(value);
+            return new PasswordHash(value);
         }
 
         public override bool Equals(object? obj)
         {
-            if (obj is UserName other)
+            if (obj is PasswordHash other)
                 return Value == other.Value;
 
             return false;

@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="LifeManager.Application.Test/LifeManager.Application.Test.csproj" Id="0eb165e9-34a7-4728-8397-99c7ce8a5f72" />
   <Project Path="LifeManager.Application/LifeManager.Application.csproj" />
   <Project Path="LifeManager.Domain.Test/LifeManager.Domain.Test.csproj" Id="2f872792-c3a6-48f5-901c-90704cbbb0d6" />
   <Project Path="LifeManager.Domain/LifeManager.Domain.csproj" />

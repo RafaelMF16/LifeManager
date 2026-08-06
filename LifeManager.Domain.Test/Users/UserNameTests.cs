@@ -1,4 +1,4 @@
-﻿using LifeManager.Domain.Exceptions;
+using LifeManager.Domain.Users.Errors;
 using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Domain.Test.Users
@@ -6,46 +6,49 @@ namespace LifeManager.Domain.Test.Users
     public class UserNameTests
     {
         [Fact]
-        public void Create_ShouldThrowDomainException_WhenUserNameIsNull()
+        public void Create_ShouldReturnFailure_WhenUserNameIsNull()
         {
-            const string errorMessageExpected = $"{nameof(UserName)} is required";
-            var exception = Assert.Throws<DomainException>(() => UserName.Create(null!));
-            Assert.Equal(errorMessageExpected, exception.Message);
+            var result = UserName.Create(null!);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(UserErrors.UserNameIsNullOrWhiteSpace, result.Error);
         }
 
         [Fact]
-        public void Create_ShouldThrowDomainException_WhenUserNameIsEmpty()
+        public void Create_ShouldReturnFailure_WhenUserNameIsEmpty()
         {
-            const string errorMessageExpected = $"{nameof(UserName)} is required";
-            var exception = Assert.Throws<DomainException>(() => UserName.Create(string.Empty));
-            Assert.Equal(errorMessageExpected, exception.Message);
+            var result = UserName.Create(string.Empty);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(UserErrors.UserNameIsNullOrWhiteSpace, result.Error);
         }
 
         [Fact]
-        public void Create_ShouldThrowDomainException_WhenUserNameGreaterThan100()
+        public void Create_ShouldReturnFailure_WhenUserNameGreaterThan100()
         {
-            const string errorMessageExpected = $"{nameof(UserName)} cannot be longer than 100 characters";
             const string longUserName = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-            var exception = Assert.Throws<DomainException>(() => UserName.Create(longUserName));
-            Assert.Equal(errorMessageExpected, exception.Message);
+            var result = UserName.Create(longUserName);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(UserErrors.UserNameTooLong, result.Error);
         }
 
         [Fact]
         public void Create_ShouldReturnUserName_WhenUserNameIsValid()
         {
             const string validUserName = "userName";
-            var userName = UserName.Create(validUserName);
+            var result = UserName.Create(validUserName);
 
-            Assert.NotNull(userName);
-            Assert.IsType<UserName>(userName);
+            Assert.True(result.IsSuccess);
+            Assert.IsType<UserName>(result.Value);
         }
 
         [Fact]
         public void Equals_ShouldBeEqual_WhenValuesAreEquals()
         {
             const string userName = "userName";
-            var valueOne = UserName.Create(userName);
-            var valueTwo = UserName.Create(userName);
+            var valueOne = UserName.Create(userName).Value;
+            var valueTwo = UserName.Create(userName).Value;
             var result = valueOne.Equals(valueTwo);
 
             Assert.True(result);
@@ -55,8 +58,8 @@ namespace LifeManager.Domain.Test.Users
         public void GetHashCode_ShouldBeEqual_WhenValuesAreEquals()
         {
             const string userName = "userName";
-            var valueOne = UserName.Create(userName);
-            var valueTwo = UserName.Create(userName);
+            var valueOne = UserName.Create(userName).Value;
+            var valueTwo = UserName.Create(userName).Value;
 
             Assert.Equal(valueOne.GetHashCode(), valueTwo.GetHashCode());
         }

@@ -1,4 +1,5 @@
-﻿using LifeManager.Domain.Exceptions;
+﻿using LifeManager.Domain.Shared.Results;
+using LifeManager.Domain.Users.Errors;
 
 namespace LifeManager.Domain.Users.ValueObjects
 {
@@ -11,14 +12,14 @@ namespace LifeManager.Domain.Users.ValueObjects
             Value = value;
         }
 
-        public static Email Create(string value)
+        public static Result<Email> Create(string value)
         {
             if (string.IsNullOrWhiteSpace(value))
-                throw new DomainException($"{nameof(Email)} is required");
+                return UserErrors.EmailIsNullOrWhiteSpace;
 
             const string atSign = "@";
             if (!value.Contains(atSign) || value.StartsWith(atSign) || value.EndsWith(atSign))
-                throw new DomainException($"{nameof(Email)} is invalid");
+                return UserErrors.EmailIsInvalid;
 
             return new Email(value);
         }

@@ -1,39 +1,40 @@
-﻿using LifeManager.Domain.Users.ValueObjects;
+﻿using LifeManager.Domain.Shared.Results;
+using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Domain.Users
 {
     public class User
     {
-        public UserId Id { get; }
+        public UserId? Id { get; private set; }
         public UserName Name { get; private set; }
         public Email Email { get; private set; }
-        public UserPassword Password { get; private set; }
+        public PasswordHash PasswordHash { get; private set; }
         public DateTimeOffset CreationDate { get; } = DateTimeOffset.UtcNow;
 
         private User(
-            UserId id,
             UserName name,
             Email email,
-            UserPassword password)
+            PasswordHash password)
         {
-            Id = id;
             Name = name;
             Email = email;
-            Password = password;
+            PasswordHash = password;
         }
 
-        public static User Create(
-            int id,
+        public static Result<User> Create(
             string name,
             string email,
-            string password)
+            string passwordHash)
         {
-            var userId = new UserId(id);
-            var userName = UserName.Create(name);
-            var userEmail = Email.Create(email);
-            var userPassword = UserPassword.Create(password);
+            return UserName.Create(name)
+                .Bind(userName => Email.Create(email)
+                    .Bind(userEmail => PasswordHash.Create(passwordHash)
+                        .Map(hash => new User(userName, userEmail, hash))));
+        }
 
-            return new User(userId, userName, userEmail, userPassword);
+        public void AssignId(int id)
+        {
+            Id = new UserId(id);
         }
     }
 }

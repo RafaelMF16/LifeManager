@@ -10,13 +10,11 @@ namespace LifeManager.Domain.Test.Transactions
         [Fact]
         public void Create_ShouldThrowDomainException_WhenTypeIsDifferentOfCategoryType()
         {
-            var categoryId = 1;
             var userId = 1;
             var categoryType = MoneyFlowType.Expense;
             var name = "name";
-            var category = Category.Create(categoryId, userId, categoryType, name);
-            
-            var id = 1;
+            var category = Category.Create(userId, categoryType, name);
+
             var type = MoneyFlowType.Income;
             var amount = 50;
             var description = "description";
@@ -24,36 +22,46 @@ namespace LifeManager.Domain.Test.Transactions
             var idMonthlySummary = 1;
 
             const string errorMessageExpected = "The money flow type must be the same in the transaction and in the category";
-            var exception = Assert.Throws<DomainException>(() => Transaction.Create(id, type, category, amount, description, date, idMonthlySummary));
+            var exception = Assert.Throws<DomainException>(() => Transaction.Create(type, category, amount, description, date, idMonthlySummary));
             Assert.Equal(errorMessageExpected, exception.Message);
         }
 
         [Fact]
         public void Create_ShouldReturnTransaction_WhenTheValuesAreValid()
         {
-            var categoryId = 1;
             var userId = 1;
             var categoryType = MoneyFlowType.Expense;
             var name = "name";
-            var category = Category.Create(categoryId, userId, categoryType, name);
-            
-            var id = 1;
+            var category = Category.Create(userId, categoryType, name);
+
             var type = MoneyFlowType.Expense;
             var amount = 50;
             var description = "description";
             var date = DateTimeOffset.UtcNow;
             var idMonthlySummary = 1;
 
-            var transaction = Transaction.Create(id, type, category, amount, description, date, idMonthlySummary);
+            var transaction = Transaction.Create(type, category, amount, description, date, idMonthlySummary);
 
             Assert.NotNull(transaction);
             Assert.IsType<Transaction>(transaction);
-            Assert.Equal(id, transaction.Id.Value);
+            Assert.Null(transaction.Id);
             Assert.Equal(type, transaction.Type);
             Assert.Equal(amount, transaction.Amount.Value);
             Assert.Equal(description, transaction.Description.Value);
             Assert.Equal(date, transaction.TransactionDate);
             Assert.Equal(idMonthlySummary, transaction.MonthlySummaryId.Value);
+        }
+
+        [Fact]
+        public void AssignId_ShouldSetId_WhenTransactionHasNoIdYet()
+        {
+            var category = Category.Create(1, MoneyFlowType.Expense, "name");
+            var transaction = Transaction.Create(MoneyFlowType.Expense, category, 50, "description", DateTimeOffset.UtcNow, 1);
+
+            transaction.AssignId(10);
+
+            Assert.NotNull(transaction.Id);
+            Assert.Equal(10, transaction.Id!.Value);
         }
     }
 }

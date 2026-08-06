@@ -3,30 +3,34 @@ using LifeManager.Domain.Users.Errors;
 
 namespace LifeManager.Domain.Users.ValueObjects
 {
-    public class UserName
+    public class PlainPassword
     {
         public string Value { get; }
 
-        private UserName(string value)
+        private PlainPassword(string value)
         {
             Value = value;
         }
 
-        public static Result<UserName> Create(string value)
+        public static Result<PlainPassword> Create(string value)
         {
             if (string.IsNullOrWhiteSpace(value))
-                return UserErrors.UserNameIsNullOrWhiteSpace;
-            
-            const short MaxLength = 100;
-            if (value.Length > MaxLength)
-                return UserErrors.UserNameTooLong;
+                return UserErrors.PlainPasswordIsNullOrWhiteSpace;
 
-            return new UserName(value);
+            const short MaxLength = 50;
+            if (value.Length > MaxLength)
+                return UserErrors.PlainPasswordTooLong;
+
+            const short MinLength = 8;
+            if (value.Length < MinLength)
+                return UserErrors.PlainPasswordTooShort;
+
+            return new PlainPassword(value);
         }
 
         public override bool Equals(object? obj)
         {
-            if (obj is UserName other)
+            if (obj is PlainPassword other)
                 return Value == other.Value;
 
             return false;
