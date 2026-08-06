@@ -25,11 +25,12 @@ namespace LifeManager.Domain.Test.Auth
         public void Create_ShouldReturnRefreshTokenHash_WhenValueIsValid()
         {
             const string hash = "hash";
-            var refreshTokenHash = RefreshTokenHash.Create(hash);
+            var result = RefreshTokenHash.Create(hash);
+            var tokenHash = result.Value;
 
-            Assert.NotNull(refreshTokenHash);
-            Assert.IsType<RefreshTokenHash>(refreshTokenHash);
-            Assert.Equal(hash, refreshTokenHash.Value);
+            Assert.NotNull(tokenHash);
+            Assert.IsType<RefreshTokenHash>(tokenHash);
+            Assert.Equal(hash, tokenHash.Value);
         }
 
         [Fact]

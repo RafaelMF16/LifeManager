@@ -2,6 +2,8 @@
 using LifeManager.Application.EnvironmentVariables.Services;
 using LifeManager.Domain.Auth;
 using LifeManager.Domain.Auth.Interfaces;
+using LifeManager.Domain.Exceptions;
+using LifeManager.Domain.Shared.Results;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -71,9 +73,11 @@ namespace LifeManager.Application.Auth.Services
         private void SaveRefreshToken(string token, int userId)
         {
             var expiresAt = DateTimeOffset.UtcNow.AddDays(REFRESH_TOKEN_EXPIRATION_DAYS);
-            var refreshToken = RefreshToken.Create(userId, token, expiresAt, false);
+            var result = RefreshToken.Create(userId, token, expiresAt, false);
+            if (!result.IsSuccess)
+                throw new DomainException(result.Error.Message);
 
-            _refreshTokenRepository.Add(refreshToken);
+            _refreshTokenRepository.Add(result.Value);
         }
 
         private void RevokeActiveToken(int userId)

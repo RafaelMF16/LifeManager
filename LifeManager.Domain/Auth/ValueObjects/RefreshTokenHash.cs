@@ -1,4 +1,5 @@
-﻿using LifeManager.Domain.Exceptions;
+﻿using LifeManager.Domain.Auth.Errors;
+using LifeManager.Domain.Shared.Results;
 
 namespace LifeManager.Domain.Auth.ValueObjects
 {
@@ -11,10 +12,10 @@ namespace LifeManager.Domain.Auth.ValueObjects
             Value = value;
         }
 
-        public static RefreshTokenHash Create(string value)
+        public static Result<RefreshTokenHash> Create(string value)
         {
             if (string.IsNullOrWhiteSpace(value))
-                throw new DomainException($"{nameof(RefreshTokenHash)} is required");
+                return AuthErrors.RefreshTokenHashIsNullOrWhiteSpace;
 
             return new RefreshTokenHash(value);
         }

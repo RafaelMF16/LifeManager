@@ -1,4 +1,5 @@
 using LifeManager.Domain.Auth;
+using LifeManager.Domain.Shared.Results;
 
 namespace LifeManager.Domain.Test.Auth
 {
@@ -12,7 +13,8 @@ namespace LifeManager.Domain.Test.Auth
             var expiresAt = DateTimeOffset.UtcNow.AddDays(7);
             var isRevoked = false;
 
-            var refreshToken = RefreshToken.Create(userId, tokenHash, expiresAt, isRevoked);
+            var result = RefreshToken.Create(userId, tokenHash, expiresAt, isRevoked);
+            var refreshToken = result.Value;
 
             Assert.NotNull(refreshToken);
             Assert.IsType<RefreshToken>(refreshToken);
@@ -20,38 +22,43 @@ namespace LifeManager.Domain.Test.Auth
             Assert.Equal(userId, refreshToken.UserId.Value);
             Assert.Equal(tokenHash, refreshToken.TokenHash.Value);
             Assert.Equal(expiresAt, refreshToken.ExpiresAt);
-            Assert.Equal(isRevoked, refreshToken.IsRevoked.Value);
+            Assert.Equal(isRevoked, refreshToken.IsRevoked);
         }
 
         [Fact]
         public void RevokeToken_ShouldSetIsRevokedToTrue_WhenTokenIsNotRevoked()
         {
-            var refreshToken = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(7), false);
+            var result = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(7), false);
+            var refreshToken = result.Value;
 
-            refreshToken.RevokeToken();
+            refreshToken!.RevokeToken();
 
-            Assert.True(refreshToken.IsRevoked.Value);
+            Assert.True(refreshToken.IsRevoked);
         }
 
         [Fact]
         public void RevokeToken_ShouldKeepIsRevokedTrue_WhenTokenIsAlreadyRevoked()
         {
-            var refreshToken = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(7), true);
+            var result = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(7), true);
+            var refreshToken = result.Value;
 
-            refreshToken.RevokeToken();
+            refreshToken!.RevokeToken();
 
-            Assert.True(refreshToken.IsRevoked.Value);
+            Assert.True(refreshToken.IsRevoked);
         }
 
         [Fact]
         public void AssignId_ShouldSetId_WhenRefreshTokenHasNoIdYet()
         {
-            var refreshToken = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(7), false);
+            const short id = 10;
 
-            refreshToken.AssignId(10);
+            var result = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(7), false);
+            var refreshToken = result.Value;
+
+            refreshToken!.AssignId(id);
 
             Assert.NotNull(refreshToken.Id);
-            Assert.Equal(10, refreshToken.Id!.Value);
+            Assert.Equal(id, refreshToken.Id!.Value);
         }
     }
 }

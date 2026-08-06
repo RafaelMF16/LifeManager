@@ -1,4 +1,5 @@
 ﻿using LifeManager.Domain.Auth.ValueObjects;
+using LifeManager.Domain.Shared.Results;
 using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Domain.Auth
@@ -10,13 +11,13 @@ namespace LifeManager.Domain.Auth
         public RefreshTokenHash TokenHash { get; private set; }
         public DateTimeOffset CreatedAt { get; } = DateTimeOffset.UtcNow;
         public DateTimeOffset ExpiresAt { get; private set; }
-        public RefreshTokenRevoked IsRevoked { get; private set; }
+        public bool IsRevoked { get; private set; }
 
         private RefreshToken(
             UserId userId,
             RefreshTokenHash tokenHash,
             DateTimeOffset expiresAt,
-            RefreshTokenRevoked isRevoked)
+            bool isRevoked)
         {
             UserId = userId;
             TokenHash = tokenHash;
@@ -24,22 +25,23 @@ namespace LifeManager.Domain.Auth
             IsRevoked = isRevoked;
         }
 
-        public static RefreshToken Create(
+        public static Result<RefreshToken> Create(
             int userId,
             string tokenHash,
             DateTimeOffset date,
             bool isRevoked)
         {
-            var idUser = new UserId(userId);
-            var refreshTokenHash = RefreshTokenHash.Create(tokenHash);
-            var refreshTokenRevoked = RefreshTokenRevoked.Create(isRevoked);
-
-            return new RefreshToken(idUser, refreshTokenHash, date, refreshTokenRevoked);
+            return RefreshTokenHash.Create(tokenHash)
+                .Map(tokenHash =>
+                {
+                    var idUser = new UserId(userId);
+                    return new RefreshToken(idUser, tokenHash, date, isRevoked);
+                });
         }
 
         public void RevokeToken()
         {
-            IsRevoked = RefreshTokenRevoked.Create(true);
+            IsRevoked = true;
         }
 
         public void AssignId(int id)
