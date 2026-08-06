@@ -1,6 +1,5 @@
-﻿using LifeManager.Domain.Exceptions;
+using LifeManager.Domain.Users.Errors;
 using LifeManager.Domain.Users.ValueObjects;
-using System;
 
 namespace LifeManager.Domain.Test.Users
 {
@@ -10,45 +9,48 @@ namespace LifeManager.Domain.Test.Users
         [InlineData("@email")]
         [InlineData("email@")]
         [InlineData("email")]
-        public void Create_ShouldThrowDomainException_WhenEmailIsInvalid(string email)
+        public void Create_ShouldReturnFailure_WhenEmailIsInvalid(string email)
         {
-            const string errorMessageExpected = $"{nameof(Email)} is invalid";
-            var exception = Assert.Throws<DomainException>(() => Email.Create(email));
-            Assert.Equal(errorMessageExpected, exception.Message);
+            var result = Email.Create(email);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(UserErrors.EmailIsInvalid, result.Error);
         }
 
         [Fact]
-        public void Create_ShouldThrowDomainException_WhenEmailIsNull()
+        public void Create_ShouldReturnFailure_WhenEmailIsNull()
         {
-            const string errorMessageExpected = $"{nameof(Email)} is required";
-            var exception = Assert.Throws<DomainException>(() => Email.Create(null!));
-            Assert.Equal(errorMessageExpected, exception.Message);
+            var result = Email.Create(null!);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(UserErrors.EmailIsNullOrWhiteSpace, result.Error);
         }
 
         [Fact]
-        public void Create_ShouldThrowDomainException_WhenEmailIsEmpty()
+        public void Create_ShouldReturnFailure_WhenEmailIsEmpty()
         {
-            const string errorMessageExpected = $"{nameof(Email)} is required";
-            var exception = Assert.Throws<DomainException>(() => Email.Create(string.Empty));
-            Assert.Equal(errorMessageExpected, exception.Message);
+            var result = Email.Create(string.Empty);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(UserErrors.EmailIsNullOrWhiteSpace, result.Error);
         }
 
         [Fact]
         public void Create_ShouldReturnEmail_WhenEmailIsValid()
         {
             const string validEmail = "email@email.com";
-            var email = Email.Create(validEmail);
+            var result = Email.Create(validEmail);
 
-            Assert.NotNull(email);
-            Assert.IsType<Email>(email);
+            Assert.True(result.IsSuccess);
+            Assert.IsType<Email>(result.Value);
         }
 
         [Fact]
         public void Equals_ShouldBeEqual_WhenValuesAreEquals()
         {
             const string email = "email@email.com";
-            var valueOne = Email.Create(email);
-            var valueTwo = Email.Create(email);
+            var valueOne = Email.Create(email).Value;
+            var valueTwo = Email.Create(email).Value;
             var result = valueOne.Equals(valueTwo);
 
             Assert.True(result);
@@ -58,8 +60,8 @@ namespace LifeManager.Domain.Test.Users
         public void GetHashCode_ShouldBeEqual_WhenValuesAreEquals()
         {
             const string email = "email@email.com";
-            var valueOne = Email.Create(email);
-            var valueTwo = Email.Create(email);
+            var valueOne = Email.Create(email).Value;
+            var valueTwo = Email.Create(email).Value;
 
             Assert.Equal(valueOne.GetHashCode(), valueTwo.GetHashCode());
         }

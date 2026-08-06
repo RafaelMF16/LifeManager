@@ -16,5 +16,6 @@ namespace LifeManager.Domain.Users.Errors
         public static readonly Error PlainPasswordTooShort = Error.Validation("User.PlainPasswordTooShort", "PlainPassword must be at least 8 characters long");
 
         public static readonly Error EmailRegistered = Error.Conflict("User.EmailRegistered", "Email already registered");
+        public static readonly Error InvalidCredentials = Error.Unauthorized("User.InvalidCredentials", "Invalid email or password");
     }
 }

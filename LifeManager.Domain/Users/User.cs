@@ -24,12 +24,12 @@ namespace LifeManager.Domain.Users
         public static Result<User> Create(
             string name,
             string email,
-            string password)
+            string passwordHash)
         {
             return UserName.Create(name)
                 .Bind(userName => Email.Create(email)
-                    .Bind(userEmail => PasswordHash.Create(password)
-                        .Map(passwordHash => new User(userName, userEmail, passwordHash))));
+                    .Bind(userEmail => PasswordHash.Create(passwordHash)
+                        .Map(hash => new User(userName, userEmail, hash))));
         }
 
         public void AssignId(int id)

@@ -2,7 +2,7 @@
 using LifeManager.Application.Test.Configurations.SingletonLists;
 using LifeManager.Application.Users.DTOs;
 using LifeManager.Application.Users.Services;
-using LifeManager.Domain.Exceptions;
+using LifeManager.Domain.Users.Errors;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LifeManager.Application.Test.Users
@@ -46,7 +46,10 @@ namespace LifeManager.Application.Test.Users
             var password = "password";
             var userDto = new UserDto(email, name, password);
 
-            Assert.Throws<DomainException>(() => _userService.AddUser(userDto));
+            var result = _userService.AddUser(userDto);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(UserErrors.EmailIsInvalid, result.Error);
             Assert.Empty(UserSingleton.Instance);
         }
 
@@ -59,27 +62,32 @@ namespace LifeManager.Application.Test.Users
             var userDto = new UserDto(email, name, password);
             _userService.AddUser(userDto);
 
-            Assert.Throws<DomainException>(() => _userService.AddUser(userDto));
+            var result = _userService.AddUser(userDto);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(UserErrors.EmailRegistered, result.Error);
             Assert.Single(UserSingleton.Instance);
         }
 
         [Fact]
-        public void AuthenticateUser_ShouldReturnNull_WhenEmailDoesNotExist()
+        public void AuthenticateUser_ShouldReturnFailure_WhenEmailDoesNotExist()
         {
             var result = _userService.AuthenticateUser("missing@email.com", "password");
 
-            Assert.Null(result);
+            Assert.False(result.IsSuccess);
+            Assert.Equal(UserErrors.InvalidCredentials, result.Error);
         }
 
         [Fact]
-        public void AuthenticateUser_ShouldReturnNull_WhenPasswordIsIncorrect()
+        public void AuthenticateUser_ShouldReturnFailure_WhenPasswordIsIncorrect()
         {
             var userDto = new UserDto("email@email.com", "name", "password");
             _userService.AddUser(userDto);
 
             var result = _userService.AuthenticateUser(userDto.Email, "wrongPassword");
 
-            Assert.Null(result);
+            Assert.False(result.IsSuccess);
+            Assert.Equal(UserErrors.InvalidCredentials, result.Error);
         }
 
         [Fact]
@@ -90,9 +98,9 @@ namespace LifeManager.Application.Test.Users
 
             var result = _userService.AuthenticateUser(userDto.Email, userDto.UserPassword);
 
-            Assert.NotNull(result);
-            Assert.False(string.IsNullOrWhiteSpace(result!.AccessToken));
-            Assert.False(string.IsNullOrWhiteSpace(result.RefreshToken));
+            Assert.True(result.IsSuccess);
+            Assert.False(string.IsNullOrWhiteSpace(result.Value.AccessToken));
+            Assert.False(string.IsNullOrWhiteSpace(result.Value.RefreshToken));
         }
 
         [Fact]

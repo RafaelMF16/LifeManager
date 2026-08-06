@@ -1,4 +1,4 @@
-using LifeManager.Domain.Exceptions;
+using LifeManager.Domain.Users.Errors;
 using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Domain.Test.Users
@@ -6,37 +6,41 @@ namespace LifeManager.Domain.Test.Users
     public class PlainPasswordTests
     {
         [Fact]
-        public void Create_ShouldThrowDomainException_WhenPasswordIsNull()
+        public void Create_ShouldReturnFailure_WhenPasswordIsNull()
         {
-            const string errorMessageExpected = $"{nameof(PlainPassword)} is required";
-            var exception = Assert.Throws<DomainException>(() => PlainPassword.Create(null!));
-            Assert.Equal(errorMessageExpected, exception.Message);
+            var result = PlainPassword.Create(null!);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(UserErrors.PlainPasswordIsNullOrWhiteSpace, result.Error);
         }
 
         [Fact]
-        public void Create_ShouldThrowDomainException_WhenPasswordIsEmpty()
+        public void Create_ShouldReturnFailure_WhenPasswordIsEmpty()
         {
-            const string errorMessageExpected = $"{nameof(PlainPassword)} is required";
-            var exception = Assert.Throws<DomainException>(() => PlainPassword.Create(string.Empty));
-            Assert.Equal(errorMessageExpected, exception.Message);
+            var result = PlainPassword.Create(string.Empty);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(UserErrors.PlainPasswordIsNullOrWhiteSpace, result.Error);
         }
 
         [Fact]
-        public void Create_ShouldThrowDomainException_WhenPasswordIsGreaterThan50()
+        public void Create_ShouldReturnFailure_WhenPasswordIsGreaterThan50()
         {
-            const string errorMessageExpected = $"{nameof(PlainPassword)} cannot be longer than 50 characters";
             const string longPassword = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-            var exception = Assert.Throws<DomainException>(() => PlainPassword.Create(longPassword));
-            Assert.Equal(errorMessageExpected, exception.Message);
+            var result = PlainPassword.Create(longPassword);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(UserErrors.PlainPasswordTooLong, result.Error);
         }
 
         [Fact]
-        public void Create_ShouldThrowDomainException_WhenPasswordIsLessThan8()
+        public void Create_ShouldReturnFailure_WhenPasswordIsLessThan8()
         {
-            const string errorMessageExpected = $"{nameof(PlainPassword)} must be at least 8 characters long";
             const string shortPassword = "aaaa";
-            var exception = Assert.Throws<DomainException>(() => PlainPassword.Create(shortPassword));
-            Assert.Equal(errorMessageExpected, exception.Message);
+            var result = PlainPassword.Create(shortPassword);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(UserErrors.PlainPasswordTooShort, result.Error);
         }
 
         [Fact]
@@ -46,8 +50,8 @@ namespace LifeManager.Domain.Test.Users
             var passwordResult = PlainPassword.Create(validPassword);
             var password = passwordResult.Value;
 
-            Assert.NotNull(passwordResult.Value);
-            Assert.IsType<PlainPassword>(passwordResult.Value);
+            Assert.True(passwordResult.IsSuccess);
+            Assert.IsType<PlainPassword>(password);
             Assert.Equal(validPassword, password.Value);
         }
 
@@ -55,8 +59,8 @@ namespace LifeManager.Domain.Test.Users
         public void Equals_ShouldBeEqual_WhenValuesAreEquals()
         {
             const string password = "password";
-            var valueOne = PlainPassword.Create(password);
-            var valueTwo = PlainPassword.Create(password);
+            var valueOne = PlainPassword.Create(password).Value;
+            var valueTwo = PlainPassword.Create(password).Value;
             var result = valueOne.Equals(valueTwo);
 
             Assert.True(result);
@@ -66,8 +70,8 @@ namespace LifeManager.Domain.Test.Users
         public void GetHashCode_ShouldBeEqual_WhenValuesAreEquals()
         {
             const string password = "password";
-            var valueOne = PlainPassword.Create(password);
-            var valueTwo = PlainPassword.Create(password);
+            var valueOne = PlainPassword.Create(password).Value;
+            var valueTwo = PlainPassword.Create(password).Value;
 
             Assert.Equal(valueOne.GetHashCode(), valueTwo.GetHashCode());
         }
