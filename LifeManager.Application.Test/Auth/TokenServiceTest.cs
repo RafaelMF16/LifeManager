@@ -1,6 +1,7 @@
 using LifeManager.Application.Auth.Services;
 using LifeManager.Application.Test.Configurations;
 using LifeManager.Application.Test.Configurations.SingletonLists;
+using LifeManager.Domain.Auth;
 using Microsoft.Extensions.DependencyInjection;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -25,9 +26,9 @@ namespace LifeManager.Application.Test.Auth
             const int userId = 1;
             var tokens = _tokenService.GenerateTokens(userId);
 
-            Assert.NotNull(tokens);
-            Assert.False(string.IsNullOrWhiteSpace(tokens.AccessToken));
-            Assert.False(string.IsNullOrWhiteSpace(tokens.RefreshToken));
+            Assert.True(tokens.IsSuccess);
+            Assert.False(string.IsNullOrWhiteSpace(tokens.Value.AccessToken));
+            Assert.False(string.IsNullOrWhiteSpace(tokens.Value.RefreshToken));
         }
 
         [Fact]
@@ -36,14 +37,30 @@ namespace LifeManager.Application.Test.Auth
             const int userId = 42;
             var tokens = _tokenService.GenerateTokens(userId);
 
+            Assert.True(tokens.IsSuccess);
             var handler = new JwtSecurityTokenHandler();
-            var jwt = handler.ReadJwtToken(tokens.AccessToken);
+            var jwt = handler.ReadJwtToken(tokens.Value.AccessToken);
             var claimType = handler.OutboundClaimTypeMap.TryGetValue(ClaimTypes.NameIdentifier, out var mappedType)
                 ? mappedType
                 : ClaimTypes.NameIdentifier;
             var claim = jwt.Claims.First(c => c.Type == claimType);
 
             Assert.Equal(userId.ToString(), claim.Value);
+        }
+
+        [Fact]
+        public void GenerateTokens_ShouldSetAccessTokenExpiration_WhenUserIdIsValid()
+        {
+            const int userId = 1;
+            var expectedExpiration = DateTime.UtcNow.AddMinutes(15);
+
+            var tokens = _tokenService.GenerateTokens(userId);
+
+            Assert.True(tokens.IsSuccess);
+            var handler = new JwtSecurityTokenHandler();
+            var jwt = handler.ReadJwtToken(tokens.Value.AccessToken);
+
+            Assert.True(Math.Abs((jwt.ValidTo - expectedExpiration).TotalSeconds) < 5);
         }
 
         [Fact]
@@ -54,7 +71,7 @@ namespace LifeManager.Application.Test.Auth
 
             Assert.Single(RefreshTokenSingleton.Instance);
             Assert.Equal(userId, RefreshTokenSingleton.Instance[0].UserId.Value);
-            Assert.False(RefreshTokenSingleton.Instance[0].IsRevoked.Value);
+            Assert.False(RefreshTokenSingleton.Instance[0].IsRevoked);
         }
 
         [Fact]
@@ -66,8 +83,22 @@ namespace LifeManager.Application.Test.Auth
             _tokenService.GenerateTokens(userId);
 
             Assert.Equal(2, RefreshTokenSingleton.Instance.Count);
-            Assert.True(RefreshTokenSingleton.Instance[0].IsRevoked.Value);
-            Assert.False(RefreshTokenSingleton.Instance[1].IsRevoked.Value);
+            Assert.True(RefreshTokenSingleton.Instance[0].IsRevoked);
+            Assert.False(RefreshTokenSingleton.Instance[1].IsRevoked);
+        }
+
+        [Fact]
+        public void GenerateTokens_ShouldNotRevokeExpiredToken_WhenPreviousTokenIsExpired()
+        {
+            const int userId = 1;
+            var expiredToken = RefreshToken.Create(userId, "expired-hash", DateTimeOffset.UtcNow.AddDays(-1), false).Value;
+            RefreshTokenSingleton.Instance.Add(expiredToken!);
+
+            _tokenService.GenerateTokens(userId);
+
+            Assert.Equal(2, RefreshTokenSingleton.Instance.Count);
+            Assert.False(RefreshTokenSingleton.Instance[0].IsRevoked);
+            Assert.False(RefreshTokenSingleton.Instance[1].IsRevoked);
         }
 
         [Fact]
@@ -80,8 +111,8 @@ namespace LifeManager.Application.Test.Auth
             _tokenService.GenerateTokens(secondUserId);
 
             Assert.Equal(2, RefreshTokenSingleton.Instance.Count);
-            Assert.False(RefreshTokenSingleton.Instance[0].IsRevoked.Value);
-            Assert.False(RefreshTokenSingleton.Instance[1].IsRevoked.Value);
+            Assert.False(RefreshTokenSingleton.Instance[0].IsRevoked);
+            Assert.False(RefreshTokenSingleton.Instance[1].IsRevoked);
         }
     }
 }

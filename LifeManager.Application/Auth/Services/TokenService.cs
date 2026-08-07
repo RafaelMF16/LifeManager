@@ -2,7 +2,6 @@
 using LifeManager.Application.EnvironmentVariables.Services;
 using LifeManager.Domain.Auth;
 using LifeManager.Domain.Auth.Interfaces;
-using LifeManager.Domain.Exceptions;
 using LifeManager.Domain.Shared.Results;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -22,7 +21,7 @@ namespace LifeManager.Application.Auth.Services
         private readonly IRefreshTokenRepository _refreshTokenRepository = refreshTokenRepository;
         private readonly EnvironmentVariableService _environmentVariableService = environmentVariableService;
 
-        public LoginResponseDto GenerateTokens(int userId)
+        public Result<LoginResponseDto> GenerateTokens(int userId)
         {
             RevokeActiveToken(userId);
 
@@ -30,9 +29,8 @@ namespace LifeManager.Application.Auth.Services
             var refreshToken = GenerateRefreshToken();
             var hashedRefreshToken = HashRefreshToken(refreshToken);
 
-            SaveRefreshToken(hashedRefreshToken, userId);
-
-            return new LoginResponseDto(accessToken, refreshToken);
+            return SaveRefreshToken(hashedRefreshToken, userId)
+                .Map(_ => new LoginResponseDto(accessToken, refreshToken));
         }
 
         private string GenerateAccessToken(int userId)
@@ -70,14 +68,11 @@ namespace LifeManager.Application.Auth.Services
             return Convert.ToBase64String(hashBytes);
         }
 
-        private void SaveRefreshToken(string token, int userId)
+        private Result<RefreshToken> SaveRefreshToken(string token, int userId)
         {
             var expiresAt = DateTimeOffset.UtcNow.AddDays(REFRESH_TOKEN_EXPIRATION_DAYS);
-            var result = RefreshToken.Create(userId, token, expiresAt, false);
-            if (!result.IsSuccess)
-                throw new DomainException(result.Error.Message);
-
-            _refreshTokenRepository.Add(result.Value);
+            return RefreshToken.Create(userId, token, expiresAt, false)
+                .Tap(refreshToken => _refreshTokenRepository.Add(refreshToken));
         }
 
         private void RevokeActiveToken(int userId)

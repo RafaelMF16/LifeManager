@@ -21,7 +21,7 @@ namespace LifeManager.Application.Test.Users
         }
 
         [Fact]
-        public void Add_ShouldAddUser_WhenUserIsValid()
+        public void AddUser_ShouldAddUser_WhenUserIsValid()
         {
             var name = "name";
             var email = "email@email.com";
@@ -39,7 +39,7 @@ namespace LifeManager.Application.Test.Users
         }
 
         [Fact]
-        public void Add_ShouldNotAddUser_WhenUserIsInvalid()
+        public void AddUser_ShouldNotAddUser_WhenUserIsInvalid()
         {
             var name = "name";
             var email = "email";
@@ -54,7 +54,44 @@ namespace LifeManager.Application.Test.Users
         }
 
         [Fact]
-        public void Add_ShouldNotAddUser_WhenEmailAlreadyExists()
+        public void AddUser_ShouldNotAddUser_WhenPasswordIsTooShort()
+        {
+            var userDto = new UserDto("email@email.com", "name", "short");
+
+            var result = _userService.AddUser(userDto);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(UserErrors.PlainPasswordTooShort, result.Error);
+            Assert.Empty(UserSingleton.Instance);
+        }
+
+        [Fact]
+        public void AddUser_ShouldNotAddUser_WhenPasswordIsTooLong()
+        {
+            var longPassword = new string('a', 51);
+            var userDto = new UserDto("email@email.com", "name", longPassword);
+
+            var result = _userService.AddUser(userDto);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(UserErrors.PlainPasswordTooLong, result.Error);
+            Assert.Empty(UserSingleton.Instance);
+        }
+
+        [Fact]
+        public void AddUser_ShouldNotAddUser_WhenNameIsInvalid()
+        {
+            var userDto = new UserDto("email@email.com", string.Empty, "password");
+
+            var result = _userService.AddUser(userDto);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(UserErrors.UserNameIsNullOrWhiteSpace, result.Error);
+            Assert.Empty(UserSingleton.Instance);
+        }
+
+        [Fact]
+        public void AddUser_ShouldNotAddUser_WhenEmailAlreadyExists()
         {
             var name = "name";
             var email = "email@email.com";
@@ -113,8 +150,8 @@ namespace LifeManager.Application.Test.Users
             _userService.AuthenticateUser(userDto.Email, userDto.UserPassword);
 
             Assert.Equal(2, RefreshTokenSingleton.Instance.Count);
-            Assert.True(RefreshTokenSingleton.Instance[0].IsRevoked.Value);
-            Assert.False(RefreshTokenSingleton.Instance[1].IsRevoked.Value);
+            Assert.True(RefreshTokenSingleton.Instance[0].IsRevoked);
+            Assert.False(RefreshTokenSingleton.Instance[1].IsRevoked);
         }
     }
 }

@@ -1,10 +1,20 @@
 using LifeManager.Domain.Auth;
+using LifeManager.Domain.Auth.Errors;
 using LifeManager.Domain.Shared.Results;
 
 namespace LifeManager.Domain.Test.Auth
 {
     public class RefreshTokenTests
     {
+        [Fact]
+        public void Create_ShouldReturnFailure_WhenTokenHashIsInvalid()
+        {
+            var result = RefreshToken.Create(1, string.Empty, DateTimeOffset.UtcNow.AddDays(7), false);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(AuthErrors.RefreshTokenHashIsNullOrWhiteSpace, result.Error);
+        }
+
         [Fact]
         public void Create_ShouldReturnRefreshToken_WhenValuesAreValid()
         {
