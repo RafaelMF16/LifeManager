@@ -1,3 +1,4 @@
+using LifeManager.Infrastructure.DI;
 using LifeManager.Application.DI;
 using LifeManager.WebApi;
 
@@ -6,6 +7,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 
 builder.Services.AddOpenApi();
+
+builder.Services.AddInfrastructureServices();
 
 builder.Services.AddApplicationServices();
 

@@ -17,4 +17,8 @@
     <ProjectReference Include="..\LifeManager.Application\LifeManager.Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\LifeManager.Infrastructure\LifeManager.Infrastructure.csproj" />
+  </ItemGroup>
+
 </Project>
