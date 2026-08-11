@@ -21,12 +21,12 @@ namespace LifeManager.Application.Test.Auth.Mocks
 
         public RefreshToken? GetValidTokenByTokenHash(string hashedRefreshToken)
         {
-            return _instance.FirstOrDefault(token => token.TokenHash.Value == hashedRefreshToken && !token.IsRevoked.Value);
+            return _instance.FirstOrDefault(token => token.TokenHash.Value == hashedRefreshToken && !token.IsRevoked && token.ExpiresAt > DateTimeOffset.UtcNow);
         }
 
         public RefreshToken? GetValidTokenByUserId(int userId)
         {
-            return _instance.FirstOrDefault(token => token.UserId.Value == userId && !token.IsRevoked.Value);
+            return _instance.FirstOrDefault(token => token.UserId.Value == userId && !token.IsRevoked && token.ExpiresAt > DateTimeOffset.UtcNow);
         }
 
         public RefreshToken UpdateRevoked(RefreshToken refreshToken)

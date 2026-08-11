@@ -1,35 +1,38 @@
+using LifeManager.Domain.Auth.Errors;
 using LifeManager.Domain.Auth.ValueObjects;
-using LifeManager.Domain.Exceptions;
 
 namespace LifeManager.Domain.Test.Auth
 {
     public class RefreshTokenHashTests
     {
         [Fact]
-        public void Create_ShouldThrowDomainException_WhenValueIsNull()
+        public void Create_ShouldReturnFailure_WhenValueIsNull()
         {
-            const string errorMessageExpected = $"{nameof(RefreshTokenHash)} is required";
-            var exception = Assert.Throws<DomainException>(() => RefreshTokenHash.Create(null!));
-            Assert.Equal(errorMessageExpected, exception.Message);
+            var result = RefreshTokenHash.Create(null!);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(AuthErrors.RefreshTokenHashIsNullOrWhiteSpace, result.Error);
         }
 
         [Fact]
-        public void Create_ShouldThrowDomainException_WhenValueIsEmpty()
+        public void Create_ShouldReturnFailure_WhenValueIsEmpty()
         {
-            const string errorMessageExpected = $"{nameof(RefreshTokenHash)} is required";
-            var exception = Assert.Throws<DomainException>(() => RefreshTokenHash.Create(string.Empty));
-            Assert.Equal(errorMessageExpected, exception.Message);
+            var result = RefreshTokenHash.Create(string.Empty);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(AuthErrors.RefreshTokenHashIsNullOrWhiteSpace, result.Error);
         }
 
         [Fact]
         public void Create_ShouldReturnRefreshTokenHash_WhenValueIsValid()
         {
             const string hash = "hash";
-            var refreshTokenHash = RefreshTokenHash.Create(hash);
+            var result = RefreshTokenHash.Create(hash);
+            var tokenHash = result.Value;
 
-            Assert.NotNull(refreshTokenHash);
-            Assert.IsType<RefreshTokenHash>(refreshTokenHash);
-            Assert.Equal(hash, refreshTokenHash.Value);
+            Assert.NotNull(tokenHash);
+            Assert.IsType<RefreshTokenHash>(tokenHash);
+            Assert.Equal(hash, tokenHash.Value);
         }
 
         [Fact]
