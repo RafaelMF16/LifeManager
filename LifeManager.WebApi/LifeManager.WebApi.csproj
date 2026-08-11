@@ -17,4 +17,8 @@
     <Folder Include="Controllers\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\LifeManager.Infrastructure\LifeManager.Infrastructure.csproj" />
+  </ItemGroup>
+
 </Project>
