@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Controllers\" />
+    <ProjectReference Include="..\LifeManager.Application\LifeManager.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>

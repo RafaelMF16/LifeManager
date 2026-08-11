@@ -19,7 +19,7 @@ namespace LifeManager.Application.Test.Configurations
                 .AddEnvironmentVariables().Build();
 
             var services = new ServiceCollection();
-            InjectionModule.AddServicesInScope(services, configuration);
+            services.AddServicesInScope(configuration);
             ServiceProvider = services.BuildServiceProvider();
         }
 
