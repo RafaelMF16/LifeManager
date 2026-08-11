@@ -37,10 +37,10 @@ namespace LifeManager.Application.Users.Services
                 });
         }
 
-        public Result<LoginResponseDto> AuthenticateUser(string email, string password)
+        public Result<LoginResponseDto> AuthenticateUser(LoginDto loginDto)
         {
-            var user = _userRepository.GetUserByEmail(email);
-            if (user is null || !_authService.VerifyPassword(password, user.PasswordHash.Value))
+            var user = _userRepository.GetUserByEmail(loginDto.Email);
+            if (user is null || !_authService.VerifyPassword(loginDto.Password, user.PasswordHash.Value))
                 return UserErrors.InvalidCredentials;
 
             return _tokenService.GenerateTokens(user.Id!.Value);
