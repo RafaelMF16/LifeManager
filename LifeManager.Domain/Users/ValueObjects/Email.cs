@@ -24,6 +24,8 @@ namespace LifeManager.Domain.Users.ValueObjects
             return new Email(value);
         }
 
+        internal static Email FromPersistence(string value) => new(value);
+
         public override bool Equals(object? obj)
         {
             if (obj is Email other)

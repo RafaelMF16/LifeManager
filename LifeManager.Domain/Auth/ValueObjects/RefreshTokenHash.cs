@@ -20,6 +20,8 @@ namespace LifeManager.Domain.Auth.ValueObjects
             return new RefreshTokenHash(value);
         }
 
+        public static RefreshTokenHash FromPersistence(string value) => new(value);
+
         public override bool Equals(object? obj)
         {
             if (obj is RefreshTokenHash other)
