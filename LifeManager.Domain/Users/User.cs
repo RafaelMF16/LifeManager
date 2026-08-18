@@ -14,11 +14,11 @@ namespace LifeManager.Domain.Users
         private User(
             UserName name,
             Email email,
-            PasswordHash password)
+            PasswordHash passwordHash)
         {
             Name = name;
             Email = email;
-            PasswordHash = password;
+            PasswordHash = passwordHash;
         }
 
         public static Result<User> Create(
