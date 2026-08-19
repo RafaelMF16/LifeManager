@@ -24,7 +24,7 @@ namespace LifeManager.Infrastructure.Users
 
             var user = _dbContext.Users
                 .AsNoTracking()
-                .FirstOrDefault(user => user.Email == emailValueObject);
+                .SingleOrDefault(user => user.Email == emailValueObject);
 
             return user;
         }

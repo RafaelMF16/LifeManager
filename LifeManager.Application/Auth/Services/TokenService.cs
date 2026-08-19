@@ -23,8 +23,6 @@ namespace LifeManager.Application.Auth.Services
 
         public Result<LoginResponseDto> GenerateTokens(int userId)
         {
-            RevokeActiveToken(userId);
-
             var accessToken = GenerateAccessToken(userId);
             var refreshToken = GenerateRefreshToken();
             var hashedRefreshToken = HashRefreshToken(refreshToken);
@@ -72,17 +70,7 @@ namespace LifeManager.Application.Auth.Services
         {
             var expiresAt = DateTimeOffset.UtcNow.AddDays(REFRESH_TOKEN_EXPIRATION_DAYS);
             return RefreshToken.Create(userId, token, expiresAt, false)
-                .Tap(refreshToken => _refreshTokenRepository.Add(refreshToken));
-        }
-
-        private void RevokeActiveToken(int userId)
-        {
-            var activeToken = _refreshTokenRepository.GetValidTokenByUserId(userId);
-            if (activeToken is null)
-                return;
-
-            activeToken.RevokeToken();
-            _refreshTokenRepository.UpdateRevoked(activeToken);
+                .Tap(refreshToken => _refreshTokenRepository.ReplaceActiveToken(refreshToken));
         }
     }
 }
