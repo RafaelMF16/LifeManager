@@ -58,33 +58,6 @@ namespace LifeManager.Domain.Test.Auth
         }
 
         [Fact]
-        public void IsActive_ShouldBeTrue_WhenTokenIsNotRevokedAndNotExpired()
-        {
-            var result = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(7), false);
-            var refreshToken = result.Value;
-
-            Assert.True(refreshToken!.IsActive);
-        }
-
-        [Fact]
-        public void IsActive_ShouldBeFalse_WhenTokenIsRevoked()
-        {
-            var result = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(7), true);
-            var refreshToken = result.Value;
-
-            Assert.False(refreshToken!.IsActive);
-        }
-
-        [Fact]
-        public void IsActive_ShouldBeFalse_WhenTokenIsExpired()
-        {
-            var result = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(-1), false);
-            var refreshToken = result.Value;
-
-            Assert.False(refreshToken!.IsActive);
-        }
-
-        [Fact]
         public void AssignId_ShouldSetId_WhenRefreshTokenHasNoIdYet()
         {
             const short id = 10;

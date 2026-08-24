@@ -21,7 +21,7 @@ namespace LifeManager.Application.Test.Auth.Mocks
 
         public RefreshToken ReplaceActiveToken(RefreshToken newToken)
         {
-            var activeToken = _instance.Find(token => token.UserId == newToken.UserId && token.IsActive);
+            var activeToken = _instance.Find(token => token.UserId == newToken.UserId && !token.IsRevoked && token.ExpiresAt > DateTimeOffset.UtcNow);
             activeToken?.RevokeToken();
 
             _instance.Add(newToken);

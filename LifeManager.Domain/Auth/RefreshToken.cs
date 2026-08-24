@@ -12,7 +12,6 @@ namespace LifeManager.Domain.Auth
         public DateTimeOffset CreatedAt { get; } = DateTimeOffset.UtcNow;
         public DateTimeOffset ExpiresAt { get; private set; }
         public bool IsRevoked { get; private set; }
-        public bool IsActive => !IsRevoked && ExpiresAt > DateTimeOffset.UtcNow;
 
         private RefreshToken(
             UserId userId,

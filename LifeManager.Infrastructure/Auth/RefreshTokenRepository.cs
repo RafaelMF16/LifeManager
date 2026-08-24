@@ -20,7 +20,7 @@ namespace LifeManager.Infrastructure.Auth
         public RefreshToken ReplaceActiveToken(RefreshToken newToken)
         {
             var activeToken = _dbContext.RefreshTokens
-                .SingleOrDefault(refreshToken => refreshToken.UserId == newToken.UserId && refreshToken.IsActive);
+                .SingleOrDefault(refreshToken => refreshToken.UserId == newToken.UserId && !refreshToken.IsRevoked && refreshToken.ExpiresAt > DateTimeOffset.UtcNow);
 
             activeToken?.RevokeToken();
 
