@@ -12,6 +12,7 @@ namespace LifeManager.Domain.Auth
         public DateTimeOffset CreatedAt { get; } = DateTimeOffset.UtcNow;
         public DateTimeOffset ExpiresAt { get; private set; }
         public bool IsRevoked { get; private set; }
+        public bool IsActive => !IsRevoked && ExpiresAt > DateTimeOffset.UtcNow;
 
         private RefreshToken(
             UserId userId,
@@ -48,5 +49,22 @@ namespace LifeManager.Domain.Auth
         {
             Id = new RefreshTokenId(id);
         }
+
+        public override bool Equals(object? obj)
+        {
+            if (obj is not RefreshToken other)
+                return false;
+
+            if (ReferenceEquals(this, other))
+                return true;
+
+            if (Id is null || other.Id is null)
+                return false;
+
+            return Id.Equals(other.Id);
+        }
+
+        public override int GetHashCode()
+            => Id?.GetHashCode() ?? base.GetHashCode();
     }
 }

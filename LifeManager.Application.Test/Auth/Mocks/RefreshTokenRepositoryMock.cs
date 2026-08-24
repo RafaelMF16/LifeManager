@@ -19,14 +19,9 @@ namespace LifeManager.Application.Test.Auth.Mocks
             return refreshToken;
         }
 
-        public RefreshToken? GetValidTokenByTokenHash(string hashedRefreshToken)
-        {
-            return _instance.Find(token => token.TokenHash.Value == hashedRefreshToken && !token.IsRevoked && token.ExpiresAt > DateTimeOffset.UtcNow);
-        }
-
         public RefreshToken ReplaceActiveToken(RefreshToken newToken)
         {
-            var activeToken = _instance.Find(token => token.UserId == newToken.UserId && !token.IsRevoked && token.ExpiresAt > DateTimeOffset.UtcNow);
+            var activeToken = _instance.Find(token => token.UserId == newToken.UserId && token.IsActive);
             activeToken?.RevokeToken();
 
             _instance.Add(newToken);

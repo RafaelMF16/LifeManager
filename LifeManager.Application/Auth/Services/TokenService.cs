@@ -23,30 +23,35 @@ namespace LifeManager.Application.Auth.Services
 
         public Result<LoginResponseDto> GenerateTokens(int userId)
         {
-            var accessToken = GenerateAccessToken(userId);
-            var refreshToken = GenerateRefreshToken();
-            var hashedRefreshToken = HashRefreshToken(refreshToken);
-
-            return SaveRefreshToken(hashedRefreshToken, userId)
-                .Map(_ => new LoginResponseDto(accessToken, refreshToken));
+            return GenerateAccessToken(userId)
+                .Bind(accessToken =>
+                {
+                    var refreshToken = GenerateRefreshToken();
+                    return HashRefreshToken(refreshToken)
+                        .Bind(hashedRefreshToken => SaveRefreshToken(hashedRefreshToken, userId))
+                        .Map(_ => new LoginResponseDto(accessToken, refreshToken));
+                });
         }
 
-        private string GenerateAccessToken(int userId)
+        private Result<string> GenerateAccessToken(int userId)
         {
-            var secretKey = _environmentVariableService.GetEnvironmentVariable(ACCESS_TOKEN_SECRET_KEY_ENVIRONMENT_VARIABLE);
-            var claims = new ClaimsIdentity([new(ClaimTypes.NameIdentifier, userId.ToString())]);
-            var encodedSecretKey = Encoding.ASCII.GetBytes(secretKey);
-            var tokenConfig = new SecurityTokenDescriptor
-            {
-                Subject = claims,
-                Expires = DateTime.UtcNow.AddMinutes(ACCESS_TOKEN_EXPIRATION_MINUTES),
-                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(encodedSecretKey), SecurityAlgorithms.HmacSha256Signature)
-            };
+            return _environmentVariableService.GetEnvironmentVariable(ACCESS_TOKEN_SECRET_KEY_ENVIRONMENT_VARIABLE)
+                .Map(secretKey =>
+                {
+                    var claims = new ClaimsIdentity([new(ClaimTypes.NameIdentifier, userId.ToString())]);
+                    var encodedSecretKey = Encoding.ASCII.GetBytes(secretKey);
+                    var tokenConfig = new SecurityTokenDescriptor
+                    {
+                        Subject = claims,
+                        Expires = DateTime.UtcNow.AddMinutes(ACCESS_TOKEN_EXPIRATION_MINUTES),
+                        SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(encodedSecretKey), SecurityAlgorithms.HmacSha256Signature)
+                    };
 
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var token = tokenHandler.CreateToken(tokenConfig);
+                    var tokenHandler = new JwtSecurityTokenHandler();
+                    var token = tokenHandler.CreateToken(tokenConfig);
 
-            return tokenHandler.WriteToken(token);
+                    return tokenHandler.WriteToken(token);
+                });
         }
 
         private static string GenerateRefreshToken()
@@ -54,16 +59,19 @@ namespace LifeManager.Application.Auth.Services
             return Guid.NewGuid().ToString();
         }
 
-        private string HashRefreshToken(string refreshToken)
+        private Result<string> HashRefreshToken(string refreshToken)
         {
-            var secretKey = _environmentVariableService.GetEnvironmentVariable(REFRESH_TOKEN_SECRET_KEY_ENVIRONMENT_VARIABLE);
-            var keyBytes = Encoding.UTF8.GetBytes(secretKey);
-            var tokenBytes = Encoding.UTF8.GetBytes(refreshToken);
+            return _environmentVariableService.GetEnvironmentVariable(REFRESH_TOKEN_SECRET_KEY_ENVIRONMENT_VARIABLE)
+                .Map(secretKey =>
+                {
+                    var keyBytes = Encoding.UTF8.GetBytes(secretKey);
+                    var tokenBytes = Encoding.UTF8.GetBytes(refreshToken);
 
-            using var hmac = new HMACSHA256(keyBytes);
-            var hashBytes = hmac.ComputeHash(tokenBytes);
+                    using var hmac = new HMACSHA256(keyBytes);
+                    var hashBytes = hmac.ComputeHash(tokenBytes);
 
-            return Convert.ToBase64String(hashBytes);
+                    return Convert.ToBase64String(hashBytes);
+                });
         }
 
         private Result<RefreshToken> SaveRefreshToken(string token, int userId)

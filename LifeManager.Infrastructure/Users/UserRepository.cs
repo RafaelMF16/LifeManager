@@ -18,9 +18,9 @@ namespace LifeManager.Infrastructure.Users
             return user;
         }
 
-        public User? GetUserByEmail(string email)
+        public User? GetUserByEmail(Email email)
         {
-            var emailValueObject = Email.FromPersistence(email);
+            var emailValueObject = Email.FromPersistence(email.Value);
 
             var user = _dbContext.Users
                 .AsNoTracking()

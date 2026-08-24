@@ -17,15 +17,10 @@ namespace LifeManager.Infrastructure.Auth
             return refreshToken;
         }
 
-        public RefreshToken? GetValidTokenByTokenHash(string hashedRefreshToken)
-        {
-            throw new NotImplementedException();
-        }
-
         public RefreshToken ReplaceActiveToken(RefreshToken newToken)
         {
             var activeToken = _dbContext.RefreshTokens
-                .SingleOrDefault(refreshToken => refreshToken.UserId == newToken.UserId && !refreshToken.IsRevoked && refreshToken.ExpiresAt > DateTimeOffset.UtcNow);
+                .SingleOrDefault(refreshToken => refreshToken.UserId == newToken.UserId && refreshToken.IsActive);
 
             activeToken?.RevokeToken();
 

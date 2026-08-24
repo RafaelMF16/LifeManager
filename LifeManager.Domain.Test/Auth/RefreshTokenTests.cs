@@ -58,6 +58,33 @@ namespace LifeManager.Domain.Test.Auth
         }
 
         [Fact]
+        public void IsActive_ShouldBeTrue_WhenTokenIsNotRevokedAndNotExpired()
+        {
+            var result = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(7), false);
+            var refreshToken = result.Value;
+
+            Assert.True(refreshToken!.IsActive);
+        }
+
+        [Fact]
+        public void IsActive_ShouldBeFalse_WhenTokenIsRevoked()
+        {
+            var result = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(7), true);
+            var refreshToken = result.Value;
+
+            Assert.False(refreshToken!.IsActive);
+        }
+
+        [Fact]
+        public void IsActive_ShouldBeFalse_WhenTokenIsExpired()
+        {
+            var result = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(-1), false);
+            var refreshToken = result.Value;
+
+            Assert.False(refreshToken!.IsActive);
+        }
+
+        [Fact]
         public void AssignId_ShouldSetId_WhenRefreshTokenHasNoIdYet()
         {
             const short id = 10;
@@ -69,6 +96,39 @@ namespace LifeManager.Domain.Test.Auth
 
             Assert.NotNull(refreshToken.Id);
             Assert.Equal(id, refreshToken.Id!.Value);
+        }
+
+        [Fact]
+        public void Equals_ShouldReturnTrue_WhenTokensHaveTheSameId()
+        {
+            var token1 = RefreshToken.Create(1, "hash1", DateTimeOffset.UtcNow.AddDays(7), false).Value!;
+            var token2 = RefreshToken.Create(2, "hash2", DateTimeOffset.UtcNow.AddDays(7), true).Value!;
+            token1.AssignId(1);
+            token2.AssignId(1);
+
+            Assert.Equal(token1, token2);
+            Assert.Equal(token1.GetHashCode(), token2.GetHashCode());
+        }
+
+        [Fact]
+        public void Equals_ShouldReturnFalse_WhenTokensHaveDifferentIds()
+        {
+            var token1 = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(7), false).Value!;
+            var token2 = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(7), false).Value!;
+            token1.AssignId(1);
+            token2.AssignId(2);
+
+            Assert.NotEqual(token1, token2);
+        }
+
+        [Fact]
+        public void Equals_ShouldReturnFalse_WhenNeitherTokenHasBeenAssignedAnId()
+        {
+            var token1 = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(7), false).Value!;
+            var token2 = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(7), false).Value!;
+
+            Assert.NotEqual(token1, token2);
+            Assert.Equal(token1, token1);
         }
     }
 }

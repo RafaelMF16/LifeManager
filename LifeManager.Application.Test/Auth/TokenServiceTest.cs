@@ -1,7 +1,9 @@
 using LifeManager.Application.Auth.Services;
+using LifeManager.Application.EnvironmentVariables.Errors;
 using LifeManager.Application.Test.Configurations;
 using LifeManager.Application.Test.Configurations.SingletonLists;
 using LifeManager.Domain.Auth;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -113,6 +115,26 @@ namespace LifeManager.Application.Test.Auth
             Assert.Equal(2, RefreshTokenSingleton.Instance.Count);
             Assert.False(RefreshTokenSingleton.Instance[0].IsRevoked);
             Assert.False(RefreshTokenSingleton.Instance[1].IsRevoked);
+        }
+
+        [Fact]
+        public void GenerateTokens_ShouldReturnFailure_WhenAccessTokenSecretKeyIsMissing()
+        {
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["refreshTokenSecretKey"] = "test-refresh-token-secret-key-0123456789abcdef"
+                })
+                .Build();
+
+            var services = new ServiceCollection();
+            services.AddServicesInScope(configuration);
+            var tokenService = services.BuildServiceProvider().GetRequiredService<TokenService>();
+
+            var result = tokenService.GenerateTokens(1);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(EnvironmentVariableErrors.KeyNotFound("accessTokenSecretKey"), result.Error);
         }
     }
 }
