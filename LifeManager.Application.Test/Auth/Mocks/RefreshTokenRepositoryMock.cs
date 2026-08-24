@@ -19,19 +19,14 @@ namespace LifeManager.Application.Test.Auth.Mocks
             return refreshToken;
         }
 
-        public RefreshToken? GetValidTokenByTokenHash(string hashedRefreshToken)
+        public RefreshToken ReplaceActiveToken(RefreshToken newToken)
         {
-            return _instance.FirstOrDefault(token => token.TokenHash.Value == hashedRefreshToken && !token.IsRevoked && token.ExpiresAt > DateTimeOffset.UtcNow);
-        }
+            var activeToken = _instance.Find(token => token.UserId == newToken.UserId && !token.IsRevoked && token.ExpiresAt > DateTimeOffset.UtcNow);
+            activeToken?.RevokeToken();
 
-        public RefreshToken? GetValidTokenByUserId(int userId)
-        {
-            return _instance.FirstOrDefault(token => token.UserId.Value == userId && !token.IsRevoked && token.ExpiresAt > DateTimeOffset.UtcNow);
-        }
+            _instance.Add(newToken);
 
-        public RefreshToken UpdateRevoked(RefreshToken refreshToken)
-        {
-            return refreshToken;
+            return newToken;
         }
     }
 }

@@ -14,11 +14,11 @@ namespace LifeManager.Domain.Users
         private User(
             UserName name,
             Email email,
-            PasswordHash password)
+            PasswordHash passwordHash)
         {
             Name = name;
             Email = email;
-            PasswordHash = password;
+            PasswordHash = passwordHash;
         }
 
         public static Result<User> Create(
@@ -36,5 +36,22 @@ namespace LifeManager.Domain.Users
         {
             Id = new UserId(id);
         }
+
+        public override bool Equals(object? obj)
+        {
+            if (obj is not User other)
+                return false;
+
+            if (ReferenceEquals(this, other))
+                return true;
+
+            if (Id is null || other.Id is null)
+                return false;
+
+            return Id.Equals(other.Id);
+        }
+
+        public override int GetHashCode()
+            => Id?.GetHashCode() ?? base.GetHashCode();
     }
 }

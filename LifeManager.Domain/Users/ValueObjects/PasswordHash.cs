@@ -20,6 +20,8 @@ namespace LifeManager.Domain.Users.ValueObjects
             return new PasswordHash(value);
         }
 
+        internal static PasswordHash FromPersistence(string value) => new(value);
+
         public override bool Equals(object? obj)
         {
             if (obj is PasswordHash other)

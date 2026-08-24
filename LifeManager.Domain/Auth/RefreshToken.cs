@@ -48,5 +48,22 @@ namespace LifeManager.Domain.Auth
         {
             Id = new RefreshTokenId(id);
         }
+
+        public override bool Equals(object? obj)
+        {
+            if (obj is not RefreshToken other)
+                return false;
+
+            if (ReferenceEquals(this, other))
+                return true;
+
+            if (Id is null || other.Id is null)
+                return false;
+
+            return Id.Equals(other.Id);
+        }
+
+        public override int GetHashCode()
+            => Id?.GetHashCode() ?? base.GetHashCode();
     }
 }

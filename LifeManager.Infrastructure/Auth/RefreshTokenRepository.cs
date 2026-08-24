@@ -1,28 +1,33 @@
 ﻿using LifeManager.Domain.Auth;
 using LifeManager.Domain.Auth.Interfaces;
+using LifeManager.Infrastructure.Postgres;
+using Microsoft.EntityFrameworkCore;
 
 namespace LifeManager.Infrastructure.Auth
 {
-    public class RefreshTokenRepository : IRefreshTokenRepository
+    public class RefreshTokenRepository(LifeManagerDbContext dbContext) : IRefreshTokenRepository
     {
+        private readonly LifeManagerDbContext _dbContext = dbContext;
+
         public RefreshToken Add(RefreshToken refreshToken)
         {
-            throw new NotImplementedException();
+            _dbContext.Add(refreshToken);
+            _dbContext.SaveChanges();
+
+            return refreshToken;
         }
 
-        public RefreshToken? GetValidTokenByTokenHash(string hashedRefreshToken)
+        public RefreshToken ReplaceActiveToken(RefreshToken newToken)
         {
-            throw new NotImplementedException();
-        }
+            var activeToken = _dbContext.RefreshTokens
+                .SingleOrDefault(refreshToken => refreshToken.UserId == newToken.UserId && !refreshToken.IsRevoked && refreshToken.ExpiresAt > DateTimeOffset.UtcNow);
 
-        public RefreshToken? GetValidTokenByUserId(int userId)
-        {
-            throw new NotImplementedException();
-        }
+            activeToken?.RevokeToken();
 
-        public RefreshToken UpdateRevoked(RefreshToken refreshToken)
-        {
-            throw new NotImplementedException();
+            _dbContext.Add(newToken);
+            _dbContext.SaveChanges();
+
+            return newToken;
         }
     }
 }

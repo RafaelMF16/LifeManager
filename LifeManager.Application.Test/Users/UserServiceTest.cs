@@ -109,7 +109,7 @@ namespace LifeManager.Application.Test.Users
         [Fact]
         public void AuthenticateUser_ShouldReturnFailure_WhenEmailDoesNotExist()
         {
-            var result = _userService.AuthenticateUser("missing@email.com", "password");
+            var result = _userService.AuthenticateUser(new LoginDto("missing@email.com", "password"));
 
             Assert.False(result.IsSuccess);
             Assert.Equal(UserErrors.InvalidCredentials, result.Error);
@@ -121,7 +121,7 @@ namespace LifeManager.Application.Test.Users
             var userDto = new UserDto("email@email.com", "name", "password");
             _userService.AddUser(userDto);
 
-            var result = _userService.AuthenticateUser(userDto.Email, "wrongPassword");
+            var result = _userService.AuthenticateUser(new LoginDto(userDto.Email, "wrongPassword"));
 
             Assert.False(result.IsSuccess);
             Assert.Equal(UserErrors.InvalidCredentials, result.Error);
@@ -133,7 +133,7 @@ namespace LifeManager.Application.Test.Users
             var userDto = new UserDto("email@email.com", "name", "password");
             _userService.AddUser(userDto);
 
-            var result = _userService.AuthenticateUser(userDto.Email, userDto.UserPassword);
+            var result = _userService.AuthenticateUser(new LoginDto(userDto.Email, userDto.UserPassword));
 
             Assert.True(result.IsSuccess);
             Assert.False(string.IsNullOrWhiteSpace(result.Value.AccessToken));
@@ -146,8 +146,8 @@ namespace LifeManager.Application.Test.Users
             var userDto = new UserDto("email@email.com", "name", "password");
             _userService.AddUser(userDto);
 
-            _userService.AuthenticateUser(userDto.Email, userDto.UserPassword);
-            _userService.AuthenticateUser(userDto.Email, userDto.UserPassword);
+            _userService.AuthenticateUser(new LoginDto(userDto.Email, userDto.UserPassword));
+            _userService.AuthenticateUser(new LoginDto(userDto.Email, userDto.UserPassword));
 
             Assert.Equal(2, RefreshTokenSingleton.Instance.Count);
             Assert.True(RefreshTokenSingleton.Instance[0].IsRevoked);

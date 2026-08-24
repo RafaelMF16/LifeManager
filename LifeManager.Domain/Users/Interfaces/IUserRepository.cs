@@ -1,8 +1,10 @@
-﻿namespace LifeManager.Domain.Users.Interfaces
+﻿using LifeManager.Domain.Users.ValueObjects;
+
+namespace LifeManager.Domain.Users.Interfaces
 {
     public interface IUserRepository
     {
         User Add(User user);
-        User? GetUserByEmail(string email);
+        User? GetUserByEmail(Email email);
     }
 }

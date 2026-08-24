@@ -24,6 +24,8 @@ namespace LifeManager.Domain.Users.ValueObjects
             return new UserName(value);
         }
 
+        internal static UserName FromPersistence(string value) => new(value);
+
         public override bool Equals(object? obj)
         {
             if (obj is UserName other)

@@ -1,3 +1,4 @@
+using LifeManager.Application.EnvironmentVariables.Errors;
 using LifeManager.Application.EnvironmentVariables.Services;
 using LifeManager.Application.Test.Configurations;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,19 +18,21 @@ namespace LifeManager.Application.Test.EnvironmentVariables
         [Fact]
         public void GetEnvironmentVariable_ShouldReturnValue_WhenKeyExists()
         {
-            var value = _environmentVariableService.GetEnvironmentVariable("lifeManagerTestOnlyKey");
+            var result = _environmentVariableService.GetEnvironmentVariable("lifeManagerTestOnlyKey");
 
-            Assert.Equal("test-only-value-0123456789abcdef", value);
+            Assert.True(result.IsSuccess);
+            Assert.Equal("test-only-value-0123456789abcdef", result.Value);
         }
 
         [Fact]
-        public void GetEnvironmentVariable_ShouldThrow_WhenKeyDoesNotExist()
+        public void GetEnvironmentVariable_ShouldReturnFailure_WhenKeyDoesNotExist()
         {
             const string keyName = "missingKey";
-            const string errorMessage = $"Environment variable [{keyName}] not found";
 
-            var exception = Assert.Throws<Exception>(() => _environmentVariableService.GetEnvironmentVariable(keyName));
-            Assert.Equal(errorMessage, exception.Message);
+            var result = _environmentVariableService.GetEnvironmentVariable(keyName);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(EnvironmentVariableErrors.KeyNotFound(keyName), result.Error);
         }
     }
 }

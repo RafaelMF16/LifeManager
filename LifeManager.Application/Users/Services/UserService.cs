@@ -20,8 +20,10 @@ namespace LifeManager.Application.Users.Services
 
         public Result<UserResponseDto> AddUser(UserDto userDto)
         {
-            var existingUser = _userRepository.GetUserByEmail(userDto.Email);
-            if (existingUser is not null)
+            var existingUser = Email.Create(userDto.Email)
+                .Map(email => _userRepository.GetUserByEmail(email));
+
+            if (existingUser.Value is not null)
                 return UserErrors.EmailRegistered;
 
             return PlainPassword.Create(userDto.UserPassword)
@@ -39,11 +41,13 @@ namespace LifeManager.Application.Users.Services
 
         public Result<LoginResponseDto> AuthenticateUser(LoginDto loginDto)
         {
-            var user = _userRepository.GetUserByEmail(loginDto.Email);
-            if (user is null || !_authService.VerifyPassword(loginDto.Password, user.PasswordHash.Value))
+            var user = Email.Create(loginDto.Email)
+                .Map(email => _userRepository.GetUserByEmail(email));
+
+            if (user.Value is null || !_authService.VerifyPassword(loginDto.Password, user.Value.PasswordHash.Value))
                 return UserErrors.InvalidCredentials;
 
-            return _tokenService.GenerateTokens(user.Id!.Value);
+            return _tokenService.GenerateTokens(user.Value.Id!.Value);
         }
     }
 }

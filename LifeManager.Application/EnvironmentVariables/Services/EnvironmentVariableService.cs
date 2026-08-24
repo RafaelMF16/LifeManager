@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Configuration;
+using LifeManager.Application.EnvironmentVariables.Errors;
+using LifeManager.Domain.Shared.Results;
+using Microsoft.Extensions.Configuration;
 
 namespace LifeManager.Application.EnvironmentVariables.Services
 {
@@ -6,10 +8,14 @@ namespace LifeManager.Application.EnvironmentVariables.Services
     {
         private readonly IConfiguration _configuration = configuration;
 
-        public string GetEnvironmentVariable(string keyName)
+        public Result<string> GetEnvironmentVariable(string keyName)
         {
-            return _configuration[keyName]
-                ?? throw new Exception($"Environment variable [{keyName}] not found");
+            var value = _configuration[keyName];
+
+            if (string.IsNullOrEmpty(value))
+                return EnvironmentVariableErrors.KeyNotFound(keyName);
+
+            return value;
         }
     }
 }

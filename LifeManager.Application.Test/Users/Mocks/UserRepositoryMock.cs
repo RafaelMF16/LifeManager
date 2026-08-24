@@ -1,6 +1,7 @@
 ﻿using LifeManager.Application.Test.Configurations.SingletonLists;
 using LifeManager.Domain.Users;
 using LifeManager.Domain.Users.Interfaces;
+using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Application.Test.Users.Mocks
 {
@@ -23,9 +24,9 @@ namespace LifeManager.Application.Test.Users.Mocks
             return user;
         }
 
-        public User? GetUserByEmail(string email)
+        public User? GetUserByEmail(Email email)
         {
-            return _instance.FirstOrDefault(user => user.Email.Value == email);
+            return _instance.FirstOrDefault(user => user.Email.Value == email.Value);
         }
     }
 }
