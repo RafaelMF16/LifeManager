@@ -17,6 +17,18 @@ namespace LifeManager.WebApi.Auth.Controllers
 
         [HttpPost("Login")]
         public IActionResult Login([FromBody] LoginDto loginDto)
-            => _userService.AuthenticateUser(loginDto).Match(tokens => Ok(tokens));
+            => _userService.AuthenticateUser(loginDto).Match(tokens =>
+            {
+                Response.Cookies.Append("refreshToken", tokens.RefreshToken, new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.Lax,
+                    Expires = DateTimeOffset.UtcNow.AddDays(7),
+                    Path = "/api/Auth"
+                });
+
+                return Ok(new { tokens.AccessToken });
+            });
     }
 }

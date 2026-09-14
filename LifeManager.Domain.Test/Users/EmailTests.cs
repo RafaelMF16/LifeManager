@@ -9,6 +9,9 @@ namespace LifeManager.Domain.Test.Users
         [InlineData("@email")]
         [InlineData("email@")]
         [InlineData("email")]
+        [InlineData("email@domain")]
+        [InlineData("email@domain.")]
+        [InlineData("email@.com")]
         public void Create_ShouldReturnFailure_WhenEmailIsInvalid(string email)
         {
             var result = Email.Create(email);
