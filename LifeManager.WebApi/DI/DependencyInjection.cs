@@ -45,8 +45,11 @@ namespace LifeManager.WebApi.DI
         {
             builder.Services.AddCors(options =>
             {
-                options.AddPolicy("AllowAll", policy
-                    => policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+                options.AddPolicy("AllowFrontend", policy => policy
+                    .WithOrigins("https://localhost:5173")
+                    .AllowAnyMethod()
+                    .AllowAnyHeader()
+                    .AllowCredentials());
             });
         }
     }

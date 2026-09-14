@@ -1,10 +1,14 @@
-﻿using LifeManager.Domain.Shared.Results;
+﻿using System.Text.RegularExpressions;
+using LifeManager.Domain.Shared.Results;
 using LifeManager.Domain.Users.Errors;
 
 namespace LifeManager.Domain.Users.ValueObjects
 {
-    public sealed class Email
+    public sealed partial class Email
     {
+        [GeneratedRegex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$")]
+        private static partial Regex Pattern();
+
         public string Value { get; }
 
         private Email(string value)
@@ -17,8 +21,7 @@ namespace LifeManager.Domain.Users.ValueObjects
             if (string.IsNullOrWhiteSpace(value))
                 return UserErrors.EmailIsNullOrWhiteSpace;
 
-            const string atSign = "@";
-            if (!value.Contains(atSign) || value.StartsWith(atSign) || value.EndsWith(atSign))
+            if (!Pattern().IsMatch(value))
                 return UserErrors.EmailIsInvalid;
 
             return new Email(value);
