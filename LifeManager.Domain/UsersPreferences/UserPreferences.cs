@@ -1,6 +1,7 @@
 ﻿using LifeManager.Domain.Shared.Results;
 using LifeManager.Domain.Users.ValueObjects;
 using LifeManager.Domain.UsersPreferences.Enums;
+using LifeManager.Domain.UsersPreferences.Errors;
 using LifeManager.Domain.UsersPreferences.ValueObjects;
 
 namespace LifeManager.Domain.UsersPreferences
@@ -27,6 +28,10 @@ namespace LifeManager.Domain.UsersPreferences
             Theme theme,
             Language language)
         {
+            var validationError = Validate(theme, language);
+            if (validationError is not null)
+                return validationError;
+
             var userId = new UserId(idUser);
             return new UserPreferences(userId, theme, language);
         }
@@ -36,10 +41,16 @@ namespace LifeManager.Domain.UsersPreferences
             return new UserPreferences(userId, Theme.Light, Language.PTBR);
         }
 
-        public void Update(Theme theme, Language language)
+        public Result<UserPreferences> Update(Theme theme, Language language)
         {
+            var validationError = Validate(theme, language);
+            if (validationError is not null)
+                return validationError;
+
             Theme = theme;
             Language = language;
+
+            return this;
         }
 
         public void AssignId(int id)
@@ -63,5 +74,16 @@ namespace LifeManager.Domain.UsersPreferences
 
         public override int GetHashCode()
             => Id?.GetHashCode() ?? base.GetHashCode();
+
+        private static Error? Validate(Theme theme, Language language)
+        {
+            if (!Enum.IsDefined(theme))
+                return UserPreferencesErrors.InvalidTheme;
+
+            if (!Enum.IsDefined(language))
+                return UserPreferencesErrors.InvalidLanguage;
+
+            return null;
+        }
     }
 }

@@ -10,22 +10,29 @@ namespace LifeManager.Application.UsersPreferences.Services
     {
         private readonly IUserPreferencesRepository _userPreferencesRepository = userPreferencesRepository;
 
-        public UserPreferences GetUserPreferencesByUserId(UserId userId)
+        public UserPreferencesDto GetUserPreferencesByUserId(UserId userId)
         {
-            return _userPreferencesRepository.GetUserPreferencesByUserId(userId)
+            var userPreferences = _userPreferencesRepository.GetUserPreferencesByUserId(userId)
                 ?? UserPreferences.CreateDefault(userId);
+
+            return ToResponseDto(userPreferences);
         }
-        
-        public Result<UserPreferences> AddOrUpdate(UserPreferencesDto userPreferencesDto, UserId userId)
+
+        public Result<UserPreferencesDto> AddOrUpdate(UserPreferencesDto userPreferencesDto, UserId userId)
         {
             var userPreferences = _userPreferencesRepository.GetUserPreferencesByUserId(userId);
 
             if (userPreferences is null)
                 return UserPreferences.Create(userId.Value, userPreferencesDto.Theme, userPreferencesDto.Language)
-                    .Map(newUserPreferences => _userPreferencesRepository.Add(newUserPreferences));
+                    .Map(newUserPreferences => _userPreferencesRepository.Add(newUserPreferences))
+                    .Map(ToResponseDto);
 
-            userPreferences.Update(userPreferencesDto.Theme, userPreferencesDto.Language);
-            return _userPreferencesRepository.Update(userPreferences);
+            return userPreferences.Update(userPreferencesDto.Theme, userPreferencesDto.Language)
+                .Map(updatedUserPreferences => _userPreferencesRepository.Update(updatedUserPreferences))
+                .Map(ToResponseDto);
         }
+
+        private static UserPreferencesDto ToResponseDto(UserPreferences userPreferences)
+            => new(userPreferences.Theme, userPreferences.Language);
     }
 }

@@ -1,5 +1,7 @@
+using LifeManager.Domain.Users.ValueObjects;
 using LifeManager.Domain.UsersPreferences;
 using LifeManager.Domain.UsersPreferences.Enums;
+using LifeManager.Domain.UsersPreferences.Errors;
 
 namespace LifeManager.Domain.Test.UsersPreferences
 {
@@ -33,13 +35,72 @@ namespace LifeManager.Domain.Test.UsersPreferences
         }
 
         [Fact]
-        public void Update_ShouldChangeThemeAndLanguage_WhenCalled()
+        public void Update_ShouldChangeThemeAndLanguage_WhenValuesAreValid()
         {
             var userPreferences = UserPreferences.Create(1, Theme.Light, Language.EN).Value!;
 
-            userPreferences.Update(Theme.Dark, Language.PTBR);
+            var result = userPreferences.Update(Theme.Dark, Language.PTBR);
 
+            Assert.True(result.IsSuccess);
+            Assert.Same(userPreferences, result.Value);
             Assert.Equal(Theme.Dark, userPreferences.Theme);
+            Assert.Equal(Language.PTBR, userPreferences.Language);
+        }
+
+        [Fact]
+        public void Update_ShouldReturnInvalidTheme_WhenThemeIsNotDefined()
+        {
+            var userPreferences = UserPreferences.Create(1, Theme.Light, Language.EN).Value!;
+
+            var result = userPreferences.Update((Theme)99, Language.PTBR);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(UserPreferencesErrors.InvalidTheme, result.Error);
+            Assert.Equal(Theme.Light, userPreferences.Theme);
+            Assert.Equal(Language.EN, userPreferences.Language);
+        }
+
+        [Fact]
+        public void Update_ShouldReturnInvalidLanguage_WhenLanguageIsNotDefined()
+        {
+            var userPreferences = UserPreferences.Create(1, Theme.Light, Language.EN).Value!;
+
+            var result = userPreferences.Update(Theme.Dark, (Language)0);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(UserPreferencesErrors.InvalidLanguage, result.Error);
+            Assert.Equal(Theme.Light, userPreferences.Theme);
+            Assert.Equal(Language.EN, userPreferences.Language);
+        }
+
+        [Fact]
+        public void Create_ShouldReturnInvalidTheme_WhenThemeIsNotDefined()
+        {
+            var result = UserPreferences.Create(1, (Theme)0, Language.EN);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(UserPreferencesErrors.InvalidTheme, result.Error);
+        }
+
+        [Fact]
+        public void Create_ShouldReturnInvalidLanguage_WhenLanguageIsNotDefined()
+        {
+            var result = UserPreferences.Create(1, Theme.Dark, (Language)99);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(UserPreferencesErrors.InvalidLanguage, result.Error);
+        }
+
+        [Fact]
+        public void CreateDefault_ShouldReturnLightThemeAndPtBr_WhenCalled()
+        {
+            var userId = new UserId(1);
+
+            var userPreferences = UserPreferences.CreateDefault(userId);
+
+            Assert.Null(userPreferences.Id);
+            Assert.Equal(userId, userPreferences.UserId);
+            Assert.Equal(Theme.Light, userPreferences.Theme);
             Assert.Equal(Language.PTBR, userPreferences.Language);
         }
 

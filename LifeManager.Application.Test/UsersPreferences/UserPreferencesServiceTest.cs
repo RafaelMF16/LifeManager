@@ -2,8 +2,10 @@ using LifeManager.Application.Test.Configurations;
 using LifeManager.Application.Test.Configurations.SingletonLists;
 using LifeManager.Application.UsersPreferences.DTOs;
 using LifeManager.Application.UsersPreferences.Services;
+using LifeManager.Domain.Shared.Results;
 using LifeManager.Domain.Users.ValueObjects;
 using LifeManager.Domain.UsersPreferences.Enums;
+using LifeManager.Domain.UsersPreferences.Errors;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LifeManager.Application.Test.UsersPreferences
@@ -28,28 +30,31 @@ namespace LifeManager.Application.Test.UsersPreferences
             var result = _userPreferencesService.AddOrUpdate(userPreferencesDto, new UserId(1));
 
             Assert.True(result.IsSuccess);
+            Assert.Equal(userPreferencesDto.Theme, result.Value.Theme);
+            Assert.Equal(userPreferencesDto.Language, result.Value.Language);
             var userPreferences = Assert.Single(UserPreferencesSingleton.Instance);
             Assert.Equal(1, userPreferences.Id!.Value);
             Assert.Equal(1, userPreferences.UserId.Value);
             Assert.Equal(userPreferencesDto.Theme, userPreferences.Theme);
             Assert.Equal(userPreferencesDto.Language, userPreferences.Language);
-            Assert.Same(userPreferences, result.Value);
         }
 
         [Fact]
         public void AddOrUpdate_ShouldUpdateUserPreferences_WhenUserAlreadyHasPreferences()
         {
             var userId = new UserId(1);
-            var addedPreferences = _userPreferencesService.AddOrUpdate(new UserPreferencesDto(Theme.Light, Language.PTBR), userId).Value!;
+            _userPreferencesService.AddOrUpdate(new UserPreferencesDto(Theme.Light, Language.PTBR), userId);
+            var addedPreferencesId = UserPreferencesSingleton.Instance.Single().Id;
 
             var result = _userPreferencesService.AddOrUpdate(new UserPreferencesDto(Theme.Dark, Language.EN), userId);
 
             Assert.True(result.IsSuccess);
+            Assert.Equal(Theme.Dark, result.Value.Theme);
+            Assert.Equal(Language.EN, result.Value.Language);
             var userPreferences = Assert.Single(UserPreferencesSingleton.Instance);
-            Assert.Equal(addedPreferences.Id, userPreferences.Id);
+            Assert.Equal(addedPreferencesId, userPreferences.Id);
             Assert.Equal(Theme.Dark, userPreferences.Theme);
             Assert.Equal(Language.EN, userPreferences.Language);
-            Assert.Equal(addedPreferences.Id, result.Value.Id);
         }
 
         [Fact]
@@ -78,8 +83,34 @@ namespace LifeManager.Application.Test.UsersPreferences
             Assert.True(firstResult.IsSuccess);
             Assert.True(secondResult.IsSuccess);
             Assert.Equal(2, UserPreferencesSingleton.Instance.Count);
-            Assert.Equal(1, firstResult.Value.Id!.Value);
-            Assert.Equal(2, secondResult.Value.Id!.Value);
+            Assert.Equal(1, UserPreferencesSingleton.Instance.Single(preferences => preferences.UserId.Value == 1).Id!.Value);
+            Assert.Equal(2, UserPreferencesSingleton.Instance.Single(preferences => preferences.UserId.Value == 2).Id!.Value);
+        }
+
+        [Fact]
+        public void AddOrUpdate_ShouldReturnValidationError_WhenUserHasNoPreferencesAndThemeIsInvalid()
+        {
+            var result = _userPreferencesService.AddOrUpdate(new UserPreferencesDto((Theme)99, Language.EN), new UserId(1));
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(UserPreferencesErrors.InvalidTheme, result.Error);
+            Assert.Equal(ErrorType.Validation, result.Error.Type);
+            Assert.Empty(UserPreferencesSingleton.Instance);
+        }
+
+        [Fact]
+        public void AddOrUpdate_ShouldKeepOriginalPreferences_WhenUpdatingWithInvalidLanguage()
+        {
+            var userId = new UserId(1);
+            _userPreferencesService.AddOrUpdate(new UserPreferencesDto(Theme.Dark, Language.EN), userId);
+
+            var result = _userPreferencesService.AddOrUpdate(new UserPreferencesDto(Theme.Light, (Language)0), userId);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(UserPreferencesErrors.InvalidLanguage, result.Error);
+            var userPreferences = Assert.Single(UserPreferencesSingleton.Instance);
+            Assert.Equal(Theme.Dark, userPreferences.Theme);
+            Assert.Equal(Language.EN, userPreferences.Language);
         }
 
         [Fact]
@@ -90,7 +121,6 @@ namespace LifeManager.Application.Test.UsersPreferences
 
             var userPreferences = _userPreferencesService.GetUserPreferencesByUserId(userId);
 
-            Assert.Equal(userId, userPreferences.UserId);
             Assert.Equal(Theme.Dark, userPreferences.Theme);
             Assert.Equal(Language.EN, userPreferences.Language);
         }
@@ -100,8 +130,6 @@ namespace LifeManager.Application.Test.UsersPreferences
         {
             var userPreferences = _userPreferencesService.GetUserPreferencesByUserId(new UserId(1));
 
-            Assert.Null(userPreferences.Id);
-            Assert.Equal(1, userPreferences.UserId.Value);
             Assert.Equal(Theme.Light, userPreferences.Theme);
             Assert.Equal(Language.PTBR, userPreferences.Language);
             Assert.Empty(UserPreferencesSingleton.Instance);
@@ -114,8 +142,6 @@ namespace LifeManager.Application.Test.UsersPreferences
 
             var userPreferences = _userPreferencesService.GetUserPreferencesByUserId(new UserId(2));
 
-            Assert.Null(userPreferences.Id);
-            Assert.Equal(2, userPreferences.UserId.Value);
             Assert.Equal(Theme.Light, userPreferences.Theme);
             Assert.Equal(Language.PTBR, userPreferences.Language);
             Assert.Single(UserPreferencesSingleton.Instance);
@@ -129,7 +155,6 @@ namespace LifeManager.Application.Test.UsersPreferences
 
             var userPreferences = _userPreferencesService.GetUserPreferencesByUserId(new UserId(2));
 
-            Assert.Equal(2, userPreferences.UserId.Value);
             Assert.Equal(Theme.Dark, userPreferences.Theme);
             Assert.Equal(Language.PTBR, userPreferences.Language);
         }
