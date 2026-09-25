@@ -1,6 +1,7 @@
 ﻿using LifeManager.Application.Auth.Services;
 using LifeManager.Application.EnvironmentVariables.Services;
 using LifeManager.Application.Users.Services;
+using LifeManager.Application.UsersPreferences.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LifeManager.Application.DI
@@ -13,6 +14,7 @@ namespace LifeManager.Application.DI
             services.AddScoped<TokenService>();
             services.AddScoped<UserService>();
             services.AddScoped<EnvironmentVariableService>();
+            services.AddScoped<UserPreferencesService>();
             return services;
         }
     }

@@ -31,6 +31,11 @@ namespace LifeManager.Domain.UsersPreferences
             return new UserPreferences(userId, theme, language);
         }
 
+        public static UserPreferences CreateDefault(UserId userId)
+        {
+            return new UserPreferences(userId, Theme.Light, Language.PTBR);
+        }
+
         public void Update(Theme theme, Language language)
         {
             Theme = theme;
