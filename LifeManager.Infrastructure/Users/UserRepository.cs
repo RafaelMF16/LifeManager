@@ -20,11 +20,9 @@ namespace LifeManager.Infrastructure.Users
 
         public User? GetUserByEmail(Email email)
         {
-            var emailValueObject = Email.FromPersistence(email.Value);
-
             var user = _dbContext.Users
                 .AsNoTracking()
-                .SingleOrDefault(user => user.Email == emailValueObject);
+                .SingleOrDefault(user => user.Email == email);
 
             return user;
         }
