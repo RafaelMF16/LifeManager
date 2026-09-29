@@ -1,4 +1,4 @@
-﻿using LifeManager.Domain.Shared.Results;
+using LifeManager.Domain.Shared.Results;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 
@@ -11,13 +11,26 @@ namespace LifeManager.WebApi.Extensions
             if (result.IsSuccess)
                 return onSuccess(result.Value);
 
-            return result.Error.Type switch
+            return ToErrorResult(result.Error);
+        }
+
+        public static IActionResult Match(this Result result, Func<IActionResult> onSuccess)
+        {
+            if (result.IsSuccess)
+                return onSuccess();
+
+            return ToErrorResult(result.Error);
+        }
+
+        private static ObjectResult ToErrorResult(Error error)
+        {
+            return error.Type switch
             {
-                ErrorType.Validation => new BadRequestObjectResult(result.Error),
-                ErrorType.Conflict => new ConflictObjectResult(result.Error),
-                ErrorType.Unauthorized => new UnauthorizedObjectResult(result.Error),
-                ErrorType.NotFound => new NotFoundObjectResult(result.Error),
-                _ => new ObjectResult(result.Error) { StatusCode = (int)HttpStatusCode.InternalServerError }
+                ErrorType.Validation => new BadRequestObjectResult(error),
+                ErrorType.Conflict => new ConflictObjectResult(error),
+                ErrorType.Unauthorized => new UnauthorizedObjectResult(error),
+                ErrorType.NotFound => new NotFoundObjectResult(error),
+                _ => new ObjectResult(error) { StatusCode = (int)HttpStatusCode.InternalServerError }
             };
         }
     }

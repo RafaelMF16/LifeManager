@@ -14,6 +14,11 @@ namespace LifeManager.WebApi
             {
                 await next(httpContext);
             }
+            catch (OperationCanceledException) when (httpContext.RequestAborted.IsCancellationRequested)
+            {
+                if (logger.IsEnabled(LogLevel.Information))
+                    logger.LogInformation("Request {Method} {Path} was cancelled by the client", httpContext.Request.Method, httpContext.Request.Path);
+            }
             catch (Exception ex)
             {
                 HandleException(httpContext, ex);

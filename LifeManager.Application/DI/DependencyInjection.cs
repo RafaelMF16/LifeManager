@@ -1,4 +1,5 @@
 ﻿using LifeManager.Application.Auth.Services;
+using LifeManager.Application.Categories.Services;
 using LifeManager.Application.EnvironmentVariables.Services;
 using LifeManager.Application.Users.Services;
 using LifeManager.Application.UsersPreferences.Services;
@@ -15,6 +16,7 @@ namespace LifeManager.Application.DI
             services.AddScoped<UserService>();
             services.AddScoped<EnvironmentVariableService>();
             services.AddScoped<UserPreferencesService>();
+            services.AddScoped<CategoryService>();
             return services;
         }
     }

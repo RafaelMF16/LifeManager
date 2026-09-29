@@ -1,4 +1,6 @@
 ﻿using LifeManager.Domain.Auth.Interfaces;
+using LifeManager.Domain.Categories.Interfaces;
+using LifeManager.Infrastructure.Categories;
 using LifeManager.Domain.Users.Interfaces;
 using LifeManager.Domain.UsersPreferences.Interfaces;
 using LifeManager.Infrastructure.Auth;
@@ -19,6 +21,7 @@ namespace LifeManager.Infrastructure.DI
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
             services.AddScoped<IUserPreferencesRepository, UserPreferencesRepository>();
+            services.AddScoped<ICategoryRepository, CategoryRepository>();
 
             return services;
         }

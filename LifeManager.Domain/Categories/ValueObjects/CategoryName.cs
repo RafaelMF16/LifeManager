@@ -1,9 +1,12 @@
-﻿using LifeManager.Domain.Exceptions;
+using LifeManager.Domain.Categories.Errors;
+using LifeManager.Domain.Shared.Results;
 
 namespace LifeManager.Domain.Categories.ValueObjects
 {
     public class CategoryName
     {
+        public const short MaxLength = 50;
+
         public string Value { get; }
 
         private CategoryName(string value)
@@ -11,13 +14,19 @@ namespace LifeManager.Domain.Categories.ValueObjects
             Value = value;
         }
 
-        public static CategoryName Create(string value)
+        public static Result<CategoryName> Create(string value)
         {
             if (string.IsNullOrWhiteSpace(value))
-                throw new DomainException($"{nameof(CategoryName)} is required");
+                return CategoryErrors.NameIsNullOrWhiteSpace;
 
-            return new CategoryName(value);
+            var trimmedValue = value.Trim();
+            if (trimmedValue.Length > MaxLength)
+                return CategoryErrors.NameTooLong;
+
+            return new CategoryName(trimmedValue);
         }
+
+        internal static CategoryName FromPersistence(string value) => new(value);
 
         public override bool Equals(object? obj)
         {

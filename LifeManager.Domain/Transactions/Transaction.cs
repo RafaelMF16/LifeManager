@@ -1,5 +1,4 @@
 ﻿using LifeManager.Domain.Categories;
-using LifeManager.Domain.Exceptions;
 using LifeManager.Domain.MonthlySummaries.ValueObjects;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Transactions.ValueObjects;
@@ -40,9 +39,6 @@ namespace LifeManager.Domain.Transactions
             DateTimeOffset transactionDate,
             int idMonthlySummary)
         {
-            if (type != category.Type)
-                throw new DomainException("The money flow type must be the same in the transaction and in the category");
-
             var transactionAmount = TransactionAmount.Create(amount);
             var transactionDescription = TransactionDescription.Create(description);
             var monthlySummaryId = new MonthlySummaryId(idMonthlySummary);
