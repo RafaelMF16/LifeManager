@@ -1,5 +1,6 @@
 using LifeManager.Domain.Categories.Errors;
 using LifeManager.Domain.Shared.Results;
+using LifeManager.Domain.Shared.Text;
 
 namespace LifeManager.Domain.Categories.ValueObjects
 {
@@ -9,9 +10,13 @@ namespace LifeManager.Domain.Categories.ValueObjects
 
         public string Value { get; }
 
+        /// <summary>Case- and accent-insensitive form, used for searching and for name uniqueness.</summary>
+        public string NormalizedValue { get; }
+
         private CategoryName(string value)
         {
             Value = value;
+            NormalizedValue = SearchText.Normalize(value);
         }
 
         public static Result<CategoryName> Create(string value)

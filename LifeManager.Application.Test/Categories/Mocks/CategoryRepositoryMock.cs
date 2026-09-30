@@ -2,6 +2,8 @@ using LifeManager.Application.Test.Configurations.SingletonLists;
 using LifeManager.Domain.Categories;
 using LifeManager.Domain.Categories.Interfaces;
 using LifeManager.Domain.Categories.ValueObjects;
+using LifeManager.Domain.Shared.Enums;
+using LifeManager.Domain.Shared.Paging;
 using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Application.Test.Categories.Mocks
@@ -35,14 +37,21 @@ namespace LifeManager.Application.Test.Categories.Mocks
             return Task.FromResult(storedCategory is null ? null : ToDetachedCopy(storedCategory));
         }
 
-        public Task<IReadOnlyList<Category>> GetAllByUserIdAsync(UserId userId, CancellationToken cancellationToken)
+        public Task<PagedList<Category>> GetPagedByUserIdAsync(UserId userId, PageRequest pageRequest, string? normalizedSearch, SortDirection sortDirection, CancellationToken cancellationToken)
         {
-            IReadOnlyList<Category> categories = [.. _instance
-                .Where(category => category.UserId == userId)
-                .OrderBy(category => category.Name.Value, StringComparer.Ordinal)
-                .Select(ToDetachedCopy)];
+            var query = _instance.Where(category => category.UserId == userId);
 
-            return Task.FromResult(categories);
+            if (!string.IsNullOrEmpty(normalizedSearch))
+                query = query.Where(category => category.NormalizedName.Contains(normalizedSearch, StringComparison.Ordinal));
+
+            var ordered = sortDirection == SortDirection.Desc
+                ? query.OrderByDescending(category => category.NormalizedName, StringComparer.Ordinal).ThenByDescending(category => category.Id!.Value)
+                : query.OrderBy(category => category.NormalizedName, StringComparer.Ordinal).ThenBy(category => category.Id!.Value);
+
+            var matching = ordered.ToList();
+            IReadOnlyList<Category> items = [.. matching.Skip(pageRequest.Skip).Take(pageRequest.PageSize).Select(ToDetachedCopy)];
+
+            return Task.FromResult(new PagedList<Category>(items, matching.Count, pageRequest.Page, pageRequest.PageSize));
         }
 
         public Task<bool> ExistsByNameAsync(UserId userId, CategoryName name, CategoryId? ignoredCategoryId, CancellationToken cancellationToken)
@@ -51,7 +60,7 @@ namespace LifeManager.Application.Test.Categories.Mocks
 
             var exists = _instance.Any(category =>
                 category.UserId == userId
-                && category.Name.Equals(name)
+                && category.NormalizedName == name.NormalizedValue
                 && (ignoredCategoryId is null || category.Id != ignoredCategoryId));
 
             return Task.FromResult(exists);

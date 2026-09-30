@@ -70,6 +70,16 @@ namespace LifeManager.Domain.Test.Categories
         }
 
         [Fact]
+        public void Create_ShouldExposeNormalizedValue_WithoutCaseOrAccents()
+        {
+            var result = CategoryName.Create("  Saúde  ");
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal("Saúde", result.Value.Value);
+            Assert.Equal("saude", result.Value.NormalizedValue);
+        }
+
+        [Fact]
         public void Equals_ShouldBeEqual_WhenValuesAreEquals()
         {
             var valueOne = CategoryName.Create("Food").Value!;

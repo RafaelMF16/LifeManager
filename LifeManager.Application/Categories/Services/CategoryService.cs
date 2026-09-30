@@ -1,9 +1,12 @@
 using LifeManager.Application.Categories.DTOs;
+using LifeManager.Application.Shared.DTOs;
 using LifeManager.Domain.Categories;
 using LifeManager.Domain.Categories.Errors;
 using LifeManager.Domain.Categories.Interfaces;
 using LifeManager.Domain.Categories.ValueObjects;
+using LifeManager.Domain.Shared.Paging;
 using LifeManager.Domain.Shared.Results;
+using LifeManager.Domain.Shared.Text;
 using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Application.Categories.Services
@@ -37,11 +40,21 @@ namespace LifeManager.Application.Categories.Services
             return ToResponseDto(category);
         }
 
-        public async Task<IReadOnlyList<CategoryResponseDto>> GetAllAsync(UserId userId, CancellationToken cancellationToken)
+        public async Task<Result<PagedResponseDto<CategoryResponseDto>>> GetPagedAsync(CategoryListQueryDto query, UserId userId, CancellationToken cancellationToken)
         {
-            var categories = await _categoryRepository.GetAllByUserIdAsync(userId, cancellationToken);
+            var pageRequestResult = PageRequest.Create(query.Page, query.PageSize);
+            if (!pageRequestResult.IsSuccess)
+                return pageRequestResult.Error;
 
-            return [.. categories.Select(ToResponseDto)];
+            var pageRequest = pageRequestResult.Value;
+            var normalizedSearch = SearchText.Normalize(query.Search);
+
+            if (normalizedSearch.Length > CategoryName.MaxLength)
+                return new PagedResponseDto<CategoryResponseDto>([], 0, pageRequest.Page, pageRequest.PageSize, 0);
+
+            var categories = await _categoryRepository.GetPagedByUserIdAsync(userId, pageRequest, normalizedSearch, query.SortDirection, cancellationToken);
+
+            return PagedResponseDto<CategoryResponseDto>.From(categories, ToResponseDto);
         }
 
         public async Task<Result<CategoryResponseDto>> UpdateAsync(int id, CategoryDto categoryDto, UserId userId, CancellationToken cancellationToken)

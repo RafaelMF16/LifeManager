@@ -21,8 +21,17 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
                 .HasMaxLength(CategoryName.MaxLength)
                 .HasConversion(name => name.Value, name => CategoryName.FromPersistence(name));
 
-            builder.HasIndex(category => new { category.UserId, category.Name })
+            builder.Property(category => category.NormalizedName)
+                .IsRequired()
+                .HasMaxLength(CategoryName.MaxLength);
+
+            builder.HasIndex(category => new { category.UserId, category.NormalizedName })
                 .IsUnique();
+
+            // Lets LIKE '%term%' on NormalizedName use an index instead of scanning the table.
+            builder.HasIndex(category => category.NormalizedName)
+                .HasMethod("gin")
+                .HasOperators("gin_trgm_ops");
 
             builder.HasOne<User>()
                 .WithMany()

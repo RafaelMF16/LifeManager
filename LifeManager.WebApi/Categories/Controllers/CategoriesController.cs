@@ -14,8 +14,8 @@ namespace LifeManager.WebApi.Categories.Controllers
         private readonly CategoryService _categoryService = categoryService;
 
         [HttpGet]
-        public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
-            => Ok(await _categoryService.GetAllAsync(User.GetUserId(), cancellationToken));
+        public async Task<IActionResult> GetAll([FromQuery] CategoryListQueryDto query, CancellationToken cancellationToken)
+            => (await _categoryService.GetPagedAsync(query, User.GetUserId(), cancellationToken)).Match(Ok);
 
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken)

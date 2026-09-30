@@ -15,6 +15,8 @@ namespace LifeManager.Infrastructure.Postgres
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.HasPostgresExtension("pg_trgm");
+
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(LifeManagerDbContext).Assembly);
         }
     }

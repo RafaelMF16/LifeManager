@@ -10,10 +10,17 @@ namespace LifeManager.Domain.Categories
         public UserId UserId { get; }
         public CategoryName Name { get; private set; }
 
+        /// <summary>
+        /// Persisted copy of <see cref="CategoryName.NormalizedValue"/>, kept as its own column so it can be
+        /// indexed (trigram search, per-user uniqueness). Always derived from <see cref="Name"/>.
+        /// </summary>
+        public string NormalizedName { get; private set; }
+
         private Category(UserId userId, CategoryName name)
         {
             UserId = userId;
             Name = name;
+            NormalizedName = name.NormalizedValue;
         }
 
         public static Result<Category> Create(int idUser, string name)
@@ -30,6 +37,7 @@ namespace LifeManager.Domain.Categories
                 .Map(categoryName =>
                 {
                     Name = categoryName;
+                    NormalizedName = categoryName.NormalizedValue;
                     return this;
                 });
         }

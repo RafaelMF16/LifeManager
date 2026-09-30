@@ -52,6 +52,34 @@ namespace LifeManager.Domain.Test.Categories
             Assert.Equal("Groceries", category.Name.Value);
         }
 
+        [Fact]
+        public void Create_ShouldSetNormalizedName_FromName()
+        {
+            var category = Category.Create(1, "Saúde").Value!;
+
+            Assert.Equal("saude", category.NormalizedName);
+        }
+
+        [Fact]
+        public void Rename_ShouldUpdateNormalizedName_WhenNameIsValid()
+        {
+            var category = Category.Create(1, "Food").Value!;
+
+            category.Rename("Educação");
+
+            Assert.Equal("educacao", category.NormalizedName);
+        }
+
+        [Fact]
+        public void Rename_ShouldKeepNormalizedName_WhenNameIsInvalid()
+        {
+            var category = Category.Create(1, "Food").Value!;
+
+            category.Rename("   ");
+
+            Assert.Equal("food", category.NormalizedName);
+        }
+
         [Theory]
         [InlineData(null)]
         [InlineData("")]
