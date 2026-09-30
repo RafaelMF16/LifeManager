@@ -1,4 +1,5 @@
 ﻿using LifeManager.Domain.Auth;
+using LifeManager.Domain.Categories;
 using LifeManager.Domain.Users;
 using LifeManager.Domain.UsersPreferences;
 using Microsoft.EntityFrameworkCore;
@@ -10,9 +11,12 @@ namespace LifeManager.Infrastructure.Postgres
         public DbSet<User> Users { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<UserPreferences> UserPreferences { get; set; }
+        public DbSet<Category> Categories { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.HasPostgresExtension("pg_trgm");
+
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(LifeManagerDbContext).Assembly);
         }
     }

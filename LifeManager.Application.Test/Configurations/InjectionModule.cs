@@ -1,8 +1,10 @@
 ﻿using LifeManager.Application.DI;
 using LifeManager.Application.Test.Auth.Mocks;
+using LifeManager.Application.Test.Categories.Mocks;
 using LifeManager.Application.Test.Users.Mocks;
 using LifeManager.Application.Test.UsersPreferences.Mocks;
 using LifeManager.Domain.Auth.Interfaces;
+using LifeManager.Domain.Categories.Interfaces;
 using LifeManager.Domain.Users.Interfaces;
 using LifeManager.Domain.UsersPreferences.Interfaces;
 using Microsoft.Extensions.Configuration;
@@ -21,6 +23,7 @@ namespace LifeManager.Application.Test.Configurations
             services.AddScoped<IUserRepository, UserRepositoryMock>();
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepositoryMock>();
             services.AddScoped<IUserPreferencesRepository, UserPreferencesRepositoryMock>();
+            services.AddScoped<ICategoryRepository, CategoryRepositoryMock>();
 
             return services;
         }
