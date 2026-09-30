@@ -1,6 +1,7 @@
 using LifeManager.Application.Test.Configurations.SingletonLists;
 using LifeManager.Domain.Auth;
 using LifeManager.Domain.Auth.Interfaces;
+using LifeManager.Domain.Auth.ValueObjects;
 
 namespace LifeManager.Application.Test.Auth.Mocks
 {
@@ -27,6 +28,14 @@ namespace LifeManager.Application.Test.Auth.Mocks
             _instance.Add(newToken);
 
             return newToken;
+        }
+
+        public Task<bool> RevokeByHashAsync(RefreshTokenHash tokenHash, CancellationToken cancellationToken)
+        {
+            var activeToken = _instance.Find(token => token.TokenHash.Equals(tokenHash) && !token.IsRevoked);
+            activeToken?.RevokeToken();
+
+            return Task.FromResult(activeToken is not null);
         }
     }
 }

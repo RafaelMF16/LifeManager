@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 LifeManager is a personal finance / life management API (.NET 10, C#, PostgreSQL via EF Core + Npgsql). It is consumed by the sibling React SPA `LifeManagerFront` (`../LifeManagerFront`, served at `https://localhost:5173`).
 
 Current state:
-- **Exposed over HTTP:** Auth (register/login), UserPreferences (get/save theme + language), and Categories (full CRUD with a paged, searchable listing).
+- **Exposed over HTTP:** Auth (register/login/logout), UserPreferences (get/save theme + language), and Categories (full CRUD with a paged, searchable listing).
 - **Domain only (no persistence, service or controller yet):** `Transactions` and `MonthlySummaries`.
 
 ## Commands
@@ -94,6 +94,12 @@ Test projects mirror the layer they test 1:1 (`LifeManager.Domain.Test` → Doma
 - `POST /api/Auth/Login`:
   - Returns `{ accessToken }`.
   - Sets the refresh token as an `HttpOnly`, `Secure` cookie `refreshToken` (path `/api/Auth`, 7 days).
+- `POST /api/Auth/Logout` → 204:
+  - **Anonymous on purpose** (no `[Authorize]`): the refresh token cookie is the credential, so logout still works after the access token expired. `SameSite=Lax` keeps cross-site POSTs from sending the cookie.
+  - **Idempotent:** always deletes the cookie and returns 204, even with no cookie or an unknown/already revoked token (it never reveals whether a token exists). Only a missing `refreshTokenSecretKey` turns into 500.
+  - Revokes by hash (`TokenService.RevokeRefreshTokenAsync` → `IRefreshTokenRepository.RevokeByHashAsync`, a single `ExecuteUpdateAsync` backed by the unique index on `TokenHash`). This is the first async piece of Auth.
+  - The access token is a stateless JWT, so it stays valid until it expires (≤ 15 min). There is no JWT denylist.
+- The cookie's name/path/flags live only in `WebApi/Auth/RefreshTokenCookie.cs` (`Append`/`Delete`/`Read`). `Delete` must use the same `Path`/`Secure`/`SameSite` as `Append`, or the browser keeps the cookie.
 - `TokenService`:
   - Reads the secrets via `EnvironmentVariableService` (backed by `IConfiguration`).
   - Access tokens expire in **15 minutes**, and JWT validation uses `ClockSkew = TimeSpan.Zero`. Refresh tokens last 7 days.
@@ -133,7 +139,7 @@ The codebase is mid-migration to a `Result`/`Result<T>` pattern (`LifeManager.Do
   - Filtering by `UserId` in the database.
   - `AnyAsync` for existence checks.
   - `ExecuteUpdateAsync`/`ExecuteDeleteAsync` for single-round-trip writes. `ExecuteUpdateAsync` bypasses the entity, so it must set **every** derived column too, e.g. both `Name` and `NormalizedName`.
-- **Older flows:** User, Auth and UsersPreferences are still synchronous.
+- **Older flows:** User, Auth and UsersPreferences are still synchronous (except Auth's logout, which is async).
 
 ### Paged listings (standard for every list endpoint)
 

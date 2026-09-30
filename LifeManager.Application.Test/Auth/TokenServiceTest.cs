@@ -136,5 +136,85 @@ namespace LifeManager.Application.Test.Auth
             Assert.False(result.IsSuccess);
             Assert.Equal(EnvironmentVariableErrors.KeyNotFound("accessTokenSecretKey"), result.Error);
         }
+
+        [Fact]
+        public async Task RevokeRefreshTokenAsync_ShouldRevokeToken_WhenTokenIsActive()
+        {
+            var tokens = _tokenService.GenerateTokens(1);
+
+            var result = await _tokenService.RevokeRefreshTokenAsync(tokens.Value!.RefreshToken, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.True(RefreshTokenSingleton.Instance[0].IsRevoked);
+        }
+
+        [Fact]
+        public async Task RevokeRefreshTokenAsync_ShouldSucceed_WhenTokenDoesNotExist()
+        {
+            _tokenService.GenerateTokens(1);
+
+            var result = await _tokenService.RevokeRefreshTokenAsync(Guid.NewGuid().ToString(), CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.False(RefreshTokenSingleton.Instance[0].IsRevoked);
+        }
+
+        [Fact]
+        public async Task RevokeRefreshTokenAsync_ShouldSucceed_WhenTokenIsAlreadyRevoked()
+        {
+            var tokens = _tokenService.GenerateTokens(1);
+            await _tokenService.RevokeRefreshTokenAsync(tokens.Value!.RefreshToken, CancellationToken.None);
+
+            var result = await _tokenService.RevokeRefreshTokenAsync(tokens.Value.RefreshToken, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.True(RefreshTokenSingleton.Instance[0].IsRevoked);
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("   ")]
+        public async Task RevokeRefreshTokenAsync_ShouldSucceed_WhenTokenIsNullOrWhiteSpace(string? refreshToken)
+        {
+            _tokenService.GenerateTokens(1);
+
+            var result = await _tokenService.RevokeRefreshTokenAsync(refreshToken, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.False(RefreshTokenSingleton.Instance[0].IsRevoked);
+        }
+
+        [Fact]
+        public async Task RevokeRefreshTokenAsync_ShouldNotAffectOtherUsersTokens_WhenRevoking()
+        {
+            var firstUserTokens = _tokenService.GenerateTokens(1);
+            _tokenService.GenerateTokens(2);
+
+            await _tokenService.RevokeRefreshTokenAsync(firstUserTokens.Value!.RefreshToken, CancellationToken.None);
+
+            Assert.True(RefreshTokenSingleton.Instance[0].IsRevoked);
+            Assert.False(RefreshTokenSingleton.Instance[1].IsRevoked);
+        }
+
+        [Fact]
+        public async Task RevokeRefreshTokenAsync_ShouldReturnFailure_WhenRefreshTokenSecretKeyIsMissing()
+        {
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["accessTokenSecretKey"] = "test-access-token-secret-key-0123456789abcdef"
+                })
+                .Build();
+
+            var services = new ServiceCollection();
+            services.AddServicesInScope(configuration);
+            var tokenService = services.BuildServiceProvider().GetRequiredService<TokenService>();
+
+            var result = await tokenService.RevokeRefreshTokenAsync(Guid.NewGuid().ToString(), CancellationToken.None);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(EnvironmentVariableErrors.KeyNotFound("refreshTokenSecretKey"), result.Error);
+        }
     }
 }
