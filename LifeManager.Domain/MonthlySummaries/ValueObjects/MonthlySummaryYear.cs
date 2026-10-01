@@ -1,4 +1,5 @@
-﻿using LifeManager.Domain.Exceptions;
+using LifeManager.Domain.MonthlySummaries.Errors;
+using LifeManager.Domain.Shared.Results;
 
 namespace LifeManager.Domain.MonthlySummaries.ValueObjects
 {
@@ -11,14 +12,17 @@ namespace LifeManager.Domain.MonthlySummaries.ValueObjects
             Value = value;
         }
 
-        public static MonthlySummaryYear Create(int value)
+        /// <summary>New monthly summaries can only be opened for the current (UTC) year.</summary>
+        public static Result<MonthlySummaryYear> Create(int value)
         {
-            var currentYear = DateTimeOffset.UtcNow.Year;
-            if (value != currentYear)
-                throw new DomainException($"{nameof(MonthlySummaryYear)} can only be created for the current year");
+            if (value != DateTimeOffset.UtcNow.Year)
+                return MonthlySummaryErrors.YearNotCurrent;
 
             return new MonthlySummaryYear(value);
         }
+
+        /// <summary>Rehydrates without the current-year rule: stored summaries can belong to past years.</summary>
+        internal static MonthlySummaryYear FromPersistence(int value) => new(value);
 
         public override bool Equals(object? obj)
         {

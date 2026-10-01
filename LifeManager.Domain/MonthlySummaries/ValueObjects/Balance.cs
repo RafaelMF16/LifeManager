@@ -1,5 +1,3 @@
-﻿using LifeManager.Domain.Exceptions;
-
 namespace LifeManager.Domain.MonthlySummaries.ValueObjects
 {
     public class Balance

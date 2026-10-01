@@ -1,9 +1,12 @@
-﻿using LifeManager.Domain.Exceptions;
+using LifeManager.Domain.MonthlySummaries.Errors;
+using LifeManager.Domain.Shared.Results;
 
 namespace LifeManager.Domain.MonthlySummaries.ValueObjects
 {
     public class TotalIncome
     {
+        public static readonly TotalIncome Zero = new(0m);
+
         public decimal Value { get; }
 
         private TotalIncome(decimal value)
@@ -11,13 +14,15 @@ namespace LifeManager.Domain.MonthlySummaries.ValueObjects
             Value = value;
         }
 
-        public static TotalIncome Create(decimal value)
+        public static Result<TotalIncome> Create(decimal value)
         {
             if (decimal.IsNegative(value))
-                throw new DomainException($"{nameof(TotalIncome)} cannot be negative");
+                return MonthlySummaryErrors.TotalIncomeNegative;
 
             return new TotalIncome(value);
         }
+
+        internal static TotalIncome FromPersistence(decimal value) => new(value);
 
         public override bool Equals(object? obj)
         {
