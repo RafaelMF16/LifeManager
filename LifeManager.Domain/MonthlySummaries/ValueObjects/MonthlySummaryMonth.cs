@@ -1,9 +1,13 @@
-﻿using LifeManager.Domain.Exceptions;
+using LifeManager.Domain.MonthlySummaries.Errors;
+using LifeManager.Domain.Shared.Results;
 
 namespace LifeManager.Domain.MonthlySummaries.ValueObjects
 {
     public class MonthlySummaryMonth
     {
+        public const int FirstMonth = 1;
+        public const int LastMonth = 12;
+
         public int Value { get; }
 
         private MonthlySummaryMonth(int value)
@@ -11,15 +15,15 @@ namespace LifeManager.Domain.MonthlySummaries.ValueObjects
             Value = value;
         }
 
-        public static MonthlySummaryMonth Create(int value)
+        public static Result<MonthlySummaryMonth> Create(int value)
         {
-            const short firstMonth = 1;
-            const short lastMonth = 12;
-            if (value is < firstMonth or > lastMonth)
-                throw new DomainException($"{nameof(MonthlySummaryMonth)} {value} is invalid month");
+            if (value is < FirstMonth or > LastMonth)
+                return MonthlySummaryErrors.InvalidMonth;
 
             return new MonthlySummaryMonth(value);
         }
+
+        internal static MonthlySummaryMonth FromPersistence(int value) => new(value);
 
         public override bool Equals(object? obj)
         {

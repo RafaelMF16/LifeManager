@@ -7,8 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 LifeManager is a personal finance / life management API (.NET 10, C#, PostgreSQL via EF Core + Npgsql). It is consumed by the sibling React SPA `LifeManagerFront` (`../LifeManagerFront`, served at `https://localhost:5173`).
 
 Current state:
-- **Exposed over HTTP:** Auth (register/login/refresh/logout), UserPreferences (get/save theme + language), and Categories (full CRUD with a paged, searchable listing).
-- **Domain only (no persistence, service or controller yet):** `Transactions` and `MonthlySummaries`.
+- **Exposed over HTTP:** Auth (register/login/refresh/logout), UserPreferences (get/save theme + language), Categories (full CRUD with a paged, searchable listing) and MonthlySummaries (create a month + paged listing filtered by year/balance and sortable by period, income, expenses or balance).
+- **Domain only (no persistence, service or controller yet):** `Transactions`. Monthly totals stay at zero until transactions exist.
 
 ## Commands
 
@@ -59,20 +59,20 @@ Layered/Clean Architecture split across four projects, referencing inward only. 
   - Holds entities, value objects, domain errors and repository interfaces, with no external dependencies.
   - Each feature folder has `ValueObjects/`, `Errors/` and (where relevant) `Interfaces/`.
   - `Shared/` holds `Results/` (Result pattern), `Paging/` (`PageRequest`, `PagedList<T>`, `PagingErrors`), `Text/` (`SearchText`) and `Enums/` (`MoneyFlowType`, `SortDirection`).
-  - `InternalsVisibleTo` exposes internals to Infrastructure, so value objects' `internal static FromPersistence(...)` rehydrate from the database without re-validating.
+  - `InternalsVisibleTo` exposes internals to Infrastructure, so value objects' `internal static FromPersistence(...)` rehydrate from the database without re-validating. `LifeManager.Application.Test` also sees them, to seed stored state that the validating factories can't create.
 - **LifeManager.Application**
-  - Application services orchestrate domain logic: `AuthService`, `TokenService`, `UserService`, `UserPreferencesService`, `CategoryService`, `EnvironmentVariableService`.
+  - Application services orchestrate domain logic: `AuthService`, `TokenService`, `UserService`, `UserPreferencesService`, `CategoryService`, `MonthlySummaryService`, `EnvironmentVariableService`.
   - Each feature has its DTOs; `Shared/DTOs/` holds `PagedResponseDto<T>`.
   - Depends on `LifeManager.Domain` only.
   - Services are registered as scoped in `DI/DependencyInjection.cs` (`AddApplicationServices`).
 - **LifeManager.Infrastructure**
-  - Persistence with EF Core + Npgsql. `Postgres/LifeManagerDbContext.cs` has the DbSets `Users`, `RefreshTokens`, `UserPreferences`, `Categories` and declares the `pg_trgm` extension.
+  - Persistence with EF Core + Npgsql. `Postgres/LifeManagerDbContext.cs` has the DbSets `Users`, `RefreshTokens`, `UserPreferences`, `Categories`, `MonthlySummaries` and declares the `pg_trgm` extension.
   - One `IEntityTypeConfiguration<T>` per entity lives in `Postgres/Configurations/` and is applied via `ApplyConfigurationsFromAssembly`. Value objects are mapped with `HasConversion(vo => vo.Value, v => X.FromPersistence(v))`.
   - Naming is EF's default PascalCase (tables `"Categories"`, columns `"UserId"`), so any raw SQL must quote identifiers.
-  - Repositories live in feature folders (`Users/`, `Auth/`, `UsersPreferences/`, `Categories/`). Shared query helpers live in `Postgres/Extensions/`.
+  - Repositories live in feature folders (`Users/`, `Auth/`, `UsersPreferences/`, `Categories/`, `MonthlySummaries/`). Shared query helpers live in `Postgres/Extensions/`.
   - Registered in `DI/DependencyInjection.cs` (`AddInfrastructureServices(connectionString)`).
 - **LifeManager.WebApi**
-  - ASP.NET Core host. Controllers live in feature folders (`Auth/Controllers`, `UsersPreferences/Controllers`, `Categories/Controllers`) under `[Route("api/[controller]")]`.
+  - ASP.NET Core host. Controllers live in feature folders (`Auth/Controllers`, `UsersPreferences/Controllers`, `Categories/Controllers`, `MonthlySummaries/Controllers`) under `[Route("api/[controller]")]`.
   - `Program.cs` wires controllers (enums serialized as strings via `JsonStringEnumConverter`), OpenAPI (Development only), Infrastructure, Application, and `DI/DependencyInjection.cs` (`AddApiServices`: JWT bearer auth + the `AllowFrontend` CORS policy for `https://localhost:5173` with credentials).
   - Middleware order: `ExceptionHandlingMiddleware` → CORS → HTTPS redirection → authentication → authorization.
 
@@ -133,8 +133,8 @@ The codebase is mid-migration to a `Result`/`Result<T>` pattern (`LifeManager.Do
 - `Error` is a record with a `Code`, `Message`, and `ErrorType` (`Validation`, `NotFound`, `Unauthorized`, `Failure`, `Conflict`), created via static factories (`Error.Validation(...)`, `Error.Conflict(...)`, etc.).
 - `Result` / `Result<T>` have implicit conversions from `Error` and from `T`, so factory methods can `return SomeErrors.Whatever;` or `return new Thing(...)` directly instead of throwing.
 - `ResultExtensions` provides `Map`, `Bind`, and `Tap` for chaining `Result<T>` operations functionally (see `User.Create` and `TokenService.GenerateTokens`/`SaveRefreshToken` for the chaining style).
-- `Users`, `Auth`, `UsersPreferences` and `Categories` have been migrated to this pattern.
-- `Transactions` and `MonthlySummaries` have **not** been migrated yet. Their `Create` methods return the entity/value object directly and use `DomainException` for invariant violations (see `Transaction.Create` throwing `DomainException` when the money-flow type mismatches). When touching these areas, check with the user whether to migrate them to `Result` first, since this is an active, incremental refactor.
+- `Users`, `Auth`, `UsersPreferences`, `Categories` and `MonthlySummaries` have been migrated to this pattern.
+- `Transactions` has **not** been migrated yet. Its `Create` methods return the entity/value object directly and use `DomainException` for invariant violations (see `Transaction.Create` throwing `DomainException` when the money-flow type mismatches). When touching these areas, check with the user whether to migrate them to `Result` first, since this is an active, incremental refactor.
 
 ### Categories (reference flow for new features)
 
@@ -148,6 +148,13 @@ The codebase is mid-migration to a `Result`/`Result<T>` pattern (`LifeManager.Do
   - `AnyAsync` for existence checks.
   - `ExecuteUpdateAsync`/`ExecuteDeleteAsync` for single-round-trip writes. `ExecuteUpdateAsync` bypasses the entity, so it must set **every** derived column too, e.g. both `Name` and `NormalizedName`.
 - **Older flows:** User, Auth and UsersPreferences are still synchronous (except Auth's logout and refresh, which are async).
+
+### MonthlySummaries
+
+- **Creating a month:** `POST /api/MonthlySummaries` takes only `{ month }`; the service uses the current UTC year, since `MonthlySummaryYear.Create` only accepts the current year (`MonthlySummary.YearNotCurrent`). `FromPersistence` skips that rule, so past years rehydrate. A new month starts with zero totals. One month per user: unique index `(UserId, Year, Month)` + `MonthlySummary.AlreadyExists` (409).
+- **Balance column:** `Balance` (VO) is derived and ignored by EF; `BalanceAmount` is its persisted copy (same idea as `Category.NormalizedName`) so the listing filters (`Positive` = ≥ 0, `Negative` = < 0) and sorts by it in SQL. Anything that changes the totals must also update `BalanceAmount` (including in `ExecuteUpdateAsync`).
+- **Listing:** `GET /api/MonthlySummaries?page=&pageSize=&year=&balance=All|Positive|Negative&sortBy=Period|TotalIncome|TotalExpense|Balance&sortDirection=` (default `Period`/`Desc`, newest first). Every sort ends with Year, Month, Id in the same direction. `GET /api/MonthlySummaries/Years` returns the user's distinct years (newest first) for the year filter.
+- **Tests:** `MonthlySummary.FromPersistence(...)` (internal) rehydrates a stored summary without the creation rules, so tests can seed past years and non-zero totals that `Create` can't produce; the repository mock also uses it for its detached copies.
 
 ### Paged listings (standard for every list endpoint)
 

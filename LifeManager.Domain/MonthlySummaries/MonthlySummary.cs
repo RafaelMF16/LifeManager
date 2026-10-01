@@ -1,4 +1,5 @@
-﻿using LifeManager.Domain.MonthlySummaries.ValueObjects;
+using LifeManager.Domain.MonthlySummaries.ValueObjects;
+using LifeManager.Domain.Shared.Results;
 using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Domain.MonthlySummaries
@@ -6,46 +7,81 @@ namespace LifeManager.Domain.MonthlySummaries
     public class MonthlySummary
     {
         public MonthlySummaryId? Id { get; private set; }
+        public UserId UserId { get; }
         public MonthlySummaryMonth Month { get; }
         public MonthlySummaryYear Year { get; }
         public TotalIncome TotalIncome { get; private set; }
         public TotalExpense TotalExpense { get; private set; }
-        public UserId UserId { get; }
         public Balance Balance => Balance.Create(TotalIncome, TotalExpense);
 
+        /// <summary>
+        /// Persisted copy of <see cref="Balance"/>, kept as its own column so listings can filter and sort
+        /// by it in the database. Always derived from <see cref="TotalIncome"/> and <see cref="TotalExpense"/>.
+        /// </summary>
+        public decimal BalanceAmount { get; private set; }
+
         private MonthlySummary(
-            TotalIncome totalIncome,
-            TotalExpense totalExpense,
             UserId userId,
-            MonthlySummaryMonth monthlySummaryMonth,
-            MonthlySummaryYear monthlySummaryYear)
+            MonthlySummaryMonth month,
+            MonthlySummaryYear year,
+            TotalIncome totalIncome,
+            TotalExpense totalExpense)
         {
+            UserId = userId;
+            Month = month;
+            Year = year;
             TotalIncome = totalIncome;
             TotalExpense = totalExpense;
-            UserId = userId;
-            Month = monthlySummaryMonth;
-            Year = monthlySummaryYear;
+            BalanceAmount = Balance.Value;
         }
 
-        public static MonthlySummary Create(
-            decimal incomeValue,
-            decimal expenseValue,
-            int userId,
-            int month,
-            int year)
+        /// <summary>Opens a new month for the user, with no income or expenses yet.</summary>
+        public static Result<MonthlySummary> Create(int idUser, int month, int year)
         {
-            var totalIncome = TotalIncome.Create(incomeValue);
-            var totalExpense = TotalExpense.Create(expenseValue);
-            var idUser = new UserId(userId);
-            var monthlySummaryMonth = MonthlySummaryMonth.Create(month);
-            var monthlySummaryYear = MonthlySummaryYear.Create(year);
+            var userId = new UserId(idUser);
 
-            return new MonthlySummary(totalIncome, totalExpense, idUser, monthlySummaryMonth, monthlySummaryYear);
+            return MonthlySummaryMonth.Create(month)
+                .Bind(summaryMonth => MonthlySummaryYear.Create(year)
+                    .Map(summaryYear => new MonthlySummary(userId, summaryMonth, summaryYear, TotalIncome.Zero, TotalExpense.Zero)));
+        }
+
+        /// <summary>
+        /// Rehydrates a stored summary without the creation rules (current year only, zero totals):
+        /// stored summaries can belong to past years and already have totals.
+        /// </summary>
+        internal static MonthlySummary FromPersistence(int id, int idUser, int month, int year, decimal totalIncome, decimal totalExpense)
+        {
+            var monthlySummary = new MonthlySummary(
+                new UserId(idUser),
+                MonthlySummaryMonth.FromPersistence(month),
+                MonthlySummaryYear.FromPersistence(year),
+                TotalIncome.FromPersistence(totalIncome),
+                TotalExpense.FromPersistence(totalExpense));
+            monthlySummary.AssignId(id);
+
+            return monthlySummary;
         }
 
         public void AssignId(int id)
         {
             Id = new MonthlySummaryId(id);
         }
+
+        public override bool Equals(object? obj)
+        {
+            if (obj is not MonthlySummary other)
+                return false;
+
+            if (ReferenceEquals(this, other))
+                return true;
+
+            if (Id is null || other.Id is null)
+                return false;
+
+            return Id.Equals(other.Id);
+        }
+
+        public override int GetHashCode()
+            => Id?.GetHashCode() ?? base.GetHashCode();
     }
 }

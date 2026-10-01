@@ -1,4 +1,4 @@
-﻿using LifeManager.Domain.Exceptions;
+using LifeManager.Domain.MonthlySummaries.Errors;
 using LifeManager.Domain.MonthlySummaries.ValueObjects;
 
 namespace LifeManager.Domain.Test.MonthlySummaries
@@ -11,45 +11,44 @@ namespace LifeManager.Domain.Test.MonthlySummaries
         [InlineData(-1)]
         [InlineData(13)]
         [InlineData(100)]
-        public void Create_ShouldThrowDomainException_WhenValueIsInvalid(int month)
+        public void Create_ShouldReturnFailure_WhenValueIsInvalid(int month)
         {
-            var errorMessageExpected = $"{nameof(MonthlySummaryMonth)} {month} is invalid month";
-            var exception = Assert.Throws<DomainException>(() => MonthlySummaryMonth.Create(month));
-            Assert.Equal(errorMessageExpected, exception.Message);
+            var result = MonthlySummaryMonth.Create(month);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(MonthlySummaryErrors.InvalidMonth, result.Error);
         }
 
         [Theory]
         [InlineData(1)]
         [InlineData(5)]
+        [InlineData(9)]
         [InlineData(11)]
         [InlineData(12)]
-        [InlineData(9)]
         public void Create_ShouldReturnMonthlySummaryMonth_WhenValueIsValid(int month)
         {
-            var monthlySummaryMonth = MonthlySummaryMonth.Create(month);
-            Assert.NotNull(monthlySummaryMonth);
-            Assert.IsType<MonthlySummaryMonth>(monthlySummaryMonth);
-            Assert.Equal(month, monthlySummaryMonth.Value);
-        }
+            var result = MonthlySummaryMonth.Create(month);
 
+            Assert.True(result.IsSuccess);
+            Assert.Equal(month, result.Value.Value);
+        }
 
         [Fact]
         public void Equals_ShouldBeEqual_WhenValuesAreEquals()
         {
             const int value = 11;
-            var valueOne = MonthlySummaryMonth.Create(value);
-            var valueTwo = MonthlySummaryMonth.Create(value);
-            var result = valueOne.Equals(valueTwo);
+            var valueOne = MonthlySummaryMonth.Create(value).Value!;
+            var valueTwo = MonthlySummaryMonth.Create(value).Value!;
 
-            Assert.True(result);
+            Assert.True(valueOne.Equals(valueTwo));
         }
 
         [Fact]
         public void GetHashCode_ShouldBeEqual_WhenValuesAreEquals()
         {
             const int value = 11;
-            var valueOne = MonthlySummaryMonth.Create(value);
-            var valueTwo = MonthlySummaryMonth.Create(value);
+            var valueOne = MonthlySummaryMonth.Create(value).Value!;
+            var valueTwo = MonthlySummaryMonth.Create(value).Value!;
 
             Assert.Equal(valueOne.GetHashCode(), valueTwo.GetHashCode());
         }
