@@ -3,6 +3,7 @@ using LifeManager.Application.MonthlySummaries.Services;
 using LifeManager.Application.Test.Configurations;
 using LifeManager.Application.Test.Configurations.SingletonLists;
 using LifeManager.Application.Test.MonthlySummaries.Mocks;
+using LifeManager.Domain.MonthlySummaries;
 using LifeManager.Domain.MonthlySummaries.Enums;
 using LifeManager.Domain.MonthlySummaries.Errors;
 using LifeManager.Domain.MonthlySummaries.Interfaces;
@@ -81,7 +82,7 @@ namespace LifeManager.Application.Test.MonthlySummaries
         [Fact]
         public async Task GetByIdAsync_ShouldReturnNotFound_WhenMonthBelongsToAnotherUser()
         {
-            Seed(StoredMonthlySummary.Create(1, SecondUserId.Value, 1, CurrentYear));
+            Seed(Stored(1, SecondUserId.Value, 1, CurrentYear));
 
             var result = await _monthlySummaryService.GetByIdAsync(1, FirstUserId, CancellationToken.None);
 
@@ -93,10 +94,10 @@ namespace LifeManager.Application.Test.MonthlySummaries
         public async Task GetPagedAsync_ShouldReturnOnlyUserMonthsNewestFirst_ByDefault()
         {
             Seed(
-                StoredMonthlySummary.Create(1, FirstUserId.Value, 12, CurrentYear - 1),
-                StoredMonthlySummary.Create(2, FirstUserId.Value, 2, CurrentYear),
-                StoredMonthlySummary.Create(3, FirstUserId.Value, 1, CurrentYear),
-                StoredMonthlySummary.Create(4, SecondUserId.Value, 5, CurrentYear));
+                Stored(1, FirstUserId.Value, 12, CurrentYear - 1),
+                Stored(2, FirstUserId.Value, 2, CurrentYear),
+                Stored(3, FirstUserId.Value, 1, CurrentYear),
+                Stored(4, SecondUserId.Value, 5, CurrentYear));
 
             var result = await _monthlySummaryService.GetPagedAsync(new MonthlySummaryListQueryDto(), FirstUserId, CancellationToken.None);
 
@@ -109,9 +110,9 @@ namespace LifeManager.Application.Test.MonthlySummaries
         public async Task GetPagedAsync_ShouldSortOldestFirst_WhenPeriodIsAsc()
         {
             Seed(
-                StoredMonthlySummary.Create(1, FirstUserId.Value, 2, CurrentYear),
-                StoredMonthlySummary.Create(2, FirstUserId.Value, 12, CurrentYear - 1),
-                StoredMonthlySummary.Create(3, FirstUserId.Value, 1, CurrentYear));
+                Stored(1, FirstUserId.Value, 2, CurrentYear),
+                Stored(2, FirstUserId.Value, 12, CurrentYear - 1),
+                Stored(3, FirstUserId.Value, 1, CurrentYear));
 
             var query = new MonthlySummaryListQueryDto { SortBy = MonthlySummarySortBy.Period, SortDirection = SortDirection.Asc };
             var result = await _monthlySummaryService.GetPagedAsync(query, FirstUserId, CancellationToken.None);
@@ -129,9 +130,9 @@ namespace LifeManager.Application.Test.MonthlySummaries
         public async Task GetPagedAsync_ShouldSortByAmountColumn(MonthlySummarySortBy sortBy, SortDirection sortDirection, int[] expectedIds)
         {
             Seed(
-                StoredMonthlySummary.Create(1, FirstUserId.Value, 1, CurrentYear, totalIncome: 100, totalExpense: 900),
-                StoredMonthlySummary.Create(2, FirstUserId.Value, 2, CurrentYear, totalIncome: 800, totalExpense: 500),
-                StoredMonthlySummary.Create(3, FirstUserId.Value, 3, CurrentYear, totalIncome: 400, totalExpense: 0));
+                Stored(1, FirstUserId.Value, 1, CurrentYear, totalIncome: 100, totalExpense: 900),
+                Stored(2, FirstUserId.Value, 2, CurrentYear, totalIncome: 800, totalExpense: 500),
+                Stored(3, FirstUserId.Value, 3, CurrentYear, totalIncome: 400, totalExpense: 0));
 
             var query = new MonthlySummaryListQueryDto { SortBy = sortBy, SortDirection = sortDirection };
             var result = await _monthlySummaryService.GetPagedAsync(query, FirstUserId, CancellationToken.None);
@@ -143,9 +144,9 @@ namespace LifeManager.Application.Test.MonthlySummaries
         public async Task GetPagedAsync_ShouldBreakTiesChronologically_WhenAmountsAreEqual()
         {
             Seed(
-                StoredMonthlySummary.Create(1, FirstUserId.Value, 1, CurrentYear),
-                StoredMonthlySummary.Create(2, FirstUserId.Value, 3, CurrentYear),
-                StoredMonthlySummary.Create(3, FirstUserId.Value, 2, CurrentYear));
+                Stored(1, FirstUserId.Value, 1, CurrentYear),
+                Stored(2, FirstUserId.Value, 3, CurrentYear),
+                Stored(3, FirstUserId.Value, 2, CurrentYear));
 
             var query = new MonthlySummaryListQueryDto { SortBy = MonthlySummarySortBy.Balance, SortDirection = SortDirection.Desc };
             var result = await _monthlySummaryService.GetPagedAsync(query, FirstUserId, CancellationToken.None);
@@ -157,8 +158,8 @@ namespace LifeManager.Application.Test.MonthlySummaries
         public async Task GetPagedAsync_ShouldFilterByYear()
         {
             Seed(
-                StoredMonthlySummary.Create(1, FirstUserId.Value, 12, CurrentYear - 1),
-                StoredMonthlySummary.Create(2, FirstUserId.Value, 1, CurrentYear));
+                Stored(1, FirstUserId.Value, 12, CurrentYear - 1),
+                Stored(2, FirstUserId.Value, 1, CurrentYear));
 
             var query = new MonthlySummaryListQueryDto { Year = CurrentYear - 1 };
             var result = await _monthlySummaryService.GetPagedAsync(query, FirstUserId, CancellationToken.None);
@@ -174,9 +175,9 @@ namespace LifeManager.Application.Test.MonthlySummaries
         public async Task GetPagedAsync_ShouldFilterByBalance(BalanceFilter balanceFilter, int[] expectedIds)
         {
             Seed(
-                StoredMonthlySummary.Create(1, FirstUserId.Value, 1, CurrentYear, totalIncome: 100, totalExpense: 200),
-                StoredMonthlySummary.Create(2, FirstUserId.Value, 2, CurrentYear),
-                StoredMonthlySummary.Create(3, FirstUserId.Value, 3, CurrentYear, totalIncome: 300, totalExpense: 100));
+                Stored(1, FirstUserId.Value, 1, CurrentYear, totalIncome: 100, totalExpense: 200),
+                Stored(2, FirstUserId.Value, 2, CurrentYear),
+                Stored(3, FirstUserId.Value, 3, CurrentYear, totalIncome: 300, totalExpense: 100));
 
             var query = new MonthlySummaryListQueryDto { Balance = balanceFilter };
             var result = await _monthlySummaryService.GetPagedAsync(query, FirstUserId, CancellationToken.None);
@@ -188,7 +189,7 @@ namespace LifeManager.Application.Test.MonthlySummaries
         public async Task GetPagedAsync_ShouldReturnRequestedPage()
         {
             for (var month = 1; month <= 5; month++)
-                Seed(StoredMonthlySummary.Create(month, FirstUserId.Value, month, CurrentYear));
+                Seed(Stored(month, FirstUserId.Value, month, CurrentYear));
 
             var query = new MonthlySummaryListQueryDto { Page = 2, PageSize = 2 };
             var result = await _monthlySummaryService.GetPagedAsync(query, FirstUserId, CancellationToken.None);
@@ -201,7 +202,7 @@ namespace LifeManager.Application.Test.MonthlySummaries
         [Fact]
         public async Task GetPagedAsync_ShouldReturnEmptyItems_WhenPageIsBeyondTheLast()
         {
-            Seed(StoredMonthlySummary.Create(1, FirstUserId.Value, 1, CurrentYear));
+            Seed(Stored(1, FirstUserId.Value, 1, CurrentYear));
 
             var query = new MonthlySummaryListQueryDto { Page = 5, PageSize = 10 };
             var result = await _monthlySummaryService.GetPagedAsync(query, FirstUserId, CancellationToken.None);
@@ -228,10 +229,10 @@ namespace LifeManager.Application.Test.MonthlySummaries
         public async Task GetYearsAsync_ShouldReturnDistinctUserYearsNewestFirst()
         {
             Seed(
-                StoredMonthlySummary.Create(1, FirstUserId.Value, 1, CurrentYear - 2),
-                StoredMonthlySummary.Create(2, FirstUserId.Value, 1, CurrentYear),
-                StoredMonthlySummary.Create(3, FirstUserId.Value, 2, CurrentYear),
-                StoredMonthlySummary.Create(4, SecondUserId.Value, 1, CurrentYear - 1));
+                Stored(1, FirstUserId.Value, 1, CurrentYear - 2),
+                Stored(2, FirstUserId.Value, 1, CurrentYear),
+                Stored(3, FirstUserId.Value, 2, CurrentYear),
+                Stored(4, SecondUserId.Value, 1, CurrentYear - 1));
 
             var result = await _monthlySummaryService.GetYearsAsync(FirstUserId, CancellationToken.None);
 
@@ -239,7 +240,11 @@ namespace LifeManager.Application.Test.MonthlySummaries
             Assert.Equal([CurrentYear, CurrentYear - 2], result.Value);
         }
 
-        private static void Seed(params Domain.MonthlySummaries.MonthlySummary[] monthlySummaries)
+        /// <summary>A summary as stored in the database: any year and any totals, unlike <see cref="MonthlySummary.Create"/>.</summary>
+        private static MonthlySummary Stored(int id, int userId, int month, int year, decimal totalIncome = 0, decimal totalExpense = 0)
+            => MonthlySummary.FromPersistence(id, userId, month, year, totalIncome, totalExpense);
+
+        private static void Seed(params MonthlySummary[] monthlySummaries)
             => MonthlySummarySingleton.Instance.AddRange(monthlySummaries);
     }
 }

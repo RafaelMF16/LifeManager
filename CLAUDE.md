@@ -59,7 +59,7 @@ Layered/Clean Architecture split across four projects, referencing inward only. 
   - Holds entities, value objects, domain errors and repository interfaces, with no external dependencies.
   - Each feature folder has `ValueObjects/`, `Errors/` and (where relevant) `Interfaces/`.
   - `Shared/` holds `Results/` (Result pattern), `Paging/` (`PageRequest`, `PagedList<T>`, `PagingErrors`), `Text/` (`SearchText`) and `Enums/` (`MoneyFlowType`, `SortDirection`).
-  - `InternalsVisibleTo` exposes internals to Infrastructure, so value objects' `internal static FromPersistence(...)` rehydrate from the database without re-validating.
+  - `InternalsVisibleTo` exposes internals to Infrastructure, so value objects' `internal static FromPersistence(...)` rehydrate from the database without re-validating. `LifeManager.Application.Test` also sees them, to seed stored state that the validating factories can't create.
 - **LifeManager.Application**
   - Application services orchestrate domain logic: `AuthService`, `TokenService`, `UserService`, `UserPreferencesService`, `CategoryService`, `MonthlySummaryService`, `EnvironmentVariableService`.
   - Each feature has its DTOs; `Shared/DTOs/` holds `PagedResponseDto<T>`.
@@ -154,7 +154,7 @@ The codebase is mid-migration to a `Result`/`Result<T>` pattern (`LifeManager.Do
 - **Creating a month:** `POST /api/MonthlySummaries` takes only `{ month }`; the service uses the current UTC year, since `MonthlySummaryYear.Create` only accepts the current year (`MonthlySummary.YearNotCurrent`). `FromPersistence` skips that rule, so past years rehydrate. A new month starts with zero totals. One month per user: unique index `(UserId, Year, Month)` + `MonthlySummary.AlreadyExists` (409).
 - **Balance column:** `Balance` (VO) is derived and ignored by EF; `BalanceAmount` is its persisted copy (same idea as `Category.NormalizedName`) so the listing filters (`Positive` = ≥ 0, `Negative` = < 0) and sorts by it in SQL. Anything that changes the totals must also update `BalanceAmount` (including in `ExecuteUpdateAsync`).
 - **Listing:** `GET /api/MonthlySummaries?page=&pageSize=&year=&balance=All|Positive|Negative&sortBy=Period|TotalIncome|TotalExpense|Balance&sortDirection=` (default `Period`/`Desc`, newest first). Every sort ends with Year, Month, Id in the same direction. `GET /api/MonthlySummaries/Years` returns the user's distinct years (newest first) for the year filter.
-- **Tests:** `StoredMonthlySummary` (Application.Test mocks) rehydrates summaries by reflection, like EF does, so tests can seed past years and non-zero totals that the domain factory can't create.
+- **Tests:** `MonthlySummary.FromPersistence(...)` (internal) rehydrates a stored summary without the creation rules, so tests can seed past years and non-zero totals that `Create` can't produce; the repository mock also uses it for its detached copies.
 
 ### Paged listings (standard for every list endpoint)
 

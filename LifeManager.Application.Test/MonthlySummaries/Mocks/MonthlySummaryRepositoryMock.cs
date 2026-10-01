@@ -37,7 +37,7 @@ namespace LifeManager.Application.Test.MonthlySummaries.Mocks
         {
             var stored = _instance.SingleOrDefault(monthlySummary => monthlySummary.Id == monthlySummaryId && monthlySummary.UserId == userId);
 
-            return Task.FromResult(stored is null ? null : StoredMonthlySummary.Copy(stored));
+            return Task.FromResult(stored is null ? null : ToDetachedCopy(stored));
         }
 
         public Task<PagedList<MonthlySummary>> GetPagedByUserIdAsync(
@@ -62,7 +62,7 @@ namespace LifeManager.Application.Test.MonthlySummaries.Mocks
             };
 
             var matching = Order(query, sortBy, sortDirection).ToList();
-            IReadOnlyList<MonthlySummary> items = [.. matching.Skip(pageRequest.Skip).Take(pageRequest.PageSize).Select(StoredMonthlySummary.Copy)];
+            IReadOnlyList<MonthlySummary> items = [.. matching.Skip(pageRequest.Skip).Take(pageRequest.PageSize).Select(ToDetachedCopy)];
 
             return Task.FromResult(new PagedList<MonthlySummary>(items, matching.Count, pageRequest.Page, pageRequest.PageSize));
         }
@@ -111,5 +111,14 @@ namespace LifeManager.Application.Test.MonthlySummaries.Mocks
                     .ThenBy(monthlySummary => monthlySummary.Month.Value)
                     .ThenBy(monthlySummary => monthlySummary.Id!.Value);
         }
+
+        private static MonthlySummary ToDetachedCopy(MonthlySummary monthlySummary)
+            => MonthlySummary.FromPersistence(
+                monthlySummary.Id!.Value,
+                monthlySummary.UserId.Value,
+                monthlySummary.Month.Value,
+                monthlySummary.Year.Value,
+                monthlySummary.TotalIncome.Value,
+                monthlySummary.TotalExpense.Value);
     }
 }

@@ -45,6 +45,23 @@ namespace LifeManager.Domain.MonthlySummaries
                     .Map(summaryYear => new MonthlySummary(userId, summaryMonth, summaryYear, TotalIncome.Zero, TotalExpense.Zero)));
         }
 
+        /// <summary>
+        /// Rehydrates a stored summary without the creation rules (current year only, zero totals):
+        /// stored summaries can belong to past years and already have totals.
+        /// </summary>
+        internal static MonthlySummary FromPersistence(int id, int idUser, int month, int year, decimal totalIncome, decimal totalExpense)
+        {
+            var monthlySummary = new MonthlySummary(
+                new UserId(idUser),
+                MonthlySummaryMonth.FromPersistence(month),
+                MonthlySummaryYear.FromPersistence(year),
+                TotalIncome.FromPersistence(totalIncome),
+                TotalExpense.FromPersistence(totalExpense));
+            monthlySummary.AssignId(id);
+
+            return monthlySummary;
+        }
+
         public void AssignId(int id)
         {
             Id = new MonthlySummaryId(id);

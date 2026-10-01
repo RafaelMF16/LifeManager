@@ -8,6 +8,7 @@
 
     <ItemGroup>
 	    <InternalsVisibleTo Include="LifeManager.Infrastructure" />
+	    <InternalsVisibleTo Include="LifeManager.Application.Test" />
     </ItemGroup>
 
 </Project>
