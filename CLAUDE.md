@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 LifeManager is a personal finance / life management API (.NET 10, C#, PostgreSQL via EF Core + Npgsql). It is consumed by the sibling React SPA `LifeManagerFront` (`../LifeManagerFront`, served at `https://localhost:5173`).
 
 Current state:
-- **Exposed over HTTP:** Auth (register/login/logout), UserPreferences (get/save theme + language), and Categories (full CRUD with a paged, searchable listing).
+- **Exposed over HTTP:** Auth (register/login/refresh/logout), UserPreferences (get/save theme + language), and Categories (full CRUD with a paged, searchable listing).
 - **Domain only (no persistence, service or controller yet):** `Transactions` and `MonthlySummaries`.
 
 ## Commands
@@ -93,7 +93,16 @@ Test projects mirror the layer they test 1:1 (`LifeManager.Domain.Test` → Doma
 - `POST /api/Auth/Register` → 201.
 - `POST /api/Auth/Login`:
   - Returns `{ accessToken }`.
-  - Sets the refresh token as an `HttpOnly`, `Secure` cookie `refreshToken` (path `/api/Auth`, 7 days).
+  - Sets the refresh token as an `HttpOnly`, `Secure` cookie `refreshToken` (path `/api/Auth`). The cookie expires together with the token (`LoginResponseDto.RefreshTokenExpiresAt`).
+- `POST /api/Auth/Refresh`:
+  - Returns 200 `{ accessToken }` and sets a new `refreshToken` cookie.
+  - On failure it returns 401 `Auth.InvalidRefreshToken` and deletes the cookie.
+  - **Anonymous on purpose**, like Logout: the cookie is the credential.
+  - **Rotation:** every refresh consumes the presented token and issues a new pair (`TokenService.RefreshTokensAsync`). `IRefreshTokenRepository.TryConsumeAsync` is a conditional `ExecuteUpdateAsync` (`!IsRevoked && ExpiresAt > now`), so two concurrent refreshes with the same token can't both succeed.
+  - **Reuse detection:** presenting an already revoked token is treated as theft and revokes **every** active token of that user (`RevokeAllActiveByUserIdAsync`). The frontend serializes refreshes across tabs (Web Locks) so normal use never triggers it.
+  - **Sliding 7 days + absolute 30-day cap:** `SessionExpiresAt` is set at login (+30 d) and inherited by every rotation. Each new token gets `ExpiresAt = min(now + 7d, SessionExpiresAt)` (`RefreshToken.Rotate`).
+  - **Same error for every failure:** missing, unknown, expired, revoked and reused tokens all return `Auth.InvalidRefreshToken`, so the API never reveals whether a token exists.
+  - **No transaction:** consuming the old token and inserting the new one are separate writes (there is no Unit of Work). If the insert fails, the user simply logs in again.
 - `POST /api/Auth/Logout` → 204:
   - **Anonymous on purpose** (no `[Authorize]`): the refresh token cookie is the credential, so logout still works after the access token expired. `SameSite=Lax` keeps cross-site POSTs from sending the cookie.
   - **Idempotent:** always deletes the cookie and returns 204, even with no cookie or an unknown/already revoked token (it never reveals whether a token exists). Only a missing `refreshTokenSecretKey` turns into 500.
@@ -102,9 +111,8 @@ Test projects mirror the layer they test 1:1 (`LifeManager.Domain.Test` → Doma
 - The cookie's name/path/flags live only in `WebApi/Auth/RefreshTokenCookie.cs` (`Append`/`Delete`/`Read`). `Delete` must use the same `Path`/`Secure`/`SameSite` as `Append`, or the browser keeps the cookie.
 - `TokenService`:
   - Reads the secrets via `EnvironmentVariableService` (backed by `IConfiguration`).
-  - Access tokens expire in **15 minutes**, and JWT validation uses `ClockSkew = TimeSpan.Zero`. Refresh tokens last 7 days.
+  - Access tokens expire in **15 minutes**, and JWT validation uses `ClockSkew = TimeSpan.Zero`. Refresh tokens last 7 days (sliding), capped at 30 days per session.
   - Refresh tokens are stored hashed (HMAC-SHA256), and any previously active token for a user is revoked when a new one is issued.
-- **There is no refresh endpoint yet.** The cookie is set but nothing consumes it, so clients get 401 once the access token expires and must log in again.
 
 ### Domain-Driven Design
 
@@ -139,7 +147,7 @@ The codebase is mid-migration to a `Result`/`Result<T>` pattern (`LifeManager.Do
   - Filtering by `UserId` in the database.
   - `AnyAsync` for existence checks.
   - `ExecuteUpdateAsync`/`ExecuteDeleteAsync` for single-round-trip writes. `ExecuteUpdateAsync` bypasses the entity, so it must set **every** derived column too, e.g. both `Name` and `NormalizedName`.
-- **Older flows:** User, Auth and UsersPreferences are still synchronous (except Auth's logout, which is async).
+- **Older flows:** User, Auth and UsersPreferences are still synchronous (except Auth's logout and refresh, which are async).
 
 ### Paged listings (standard for every list endpoint)
 

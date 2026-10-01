@@ -31,6 +31,10 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
                 .IsRequired()
                 .ValueGeneratedNever();
 
+            builder.Property(refreshToken => refreshToken.SessionExpiresAt)
+                .IsRequired()
+                .ValueGeneratedNever();
+
             builder.Property(refreshToken => refreshToken.IsRevoked)
                 .IsRequired();
 
