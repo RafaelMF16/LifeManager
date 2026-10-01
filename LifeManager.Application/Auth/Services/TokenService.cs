@@ -34,7 +34,6 @@ namespace LifeManager.Application.Auth.Services
                 });
         }
 
-        // Idempotent: a missing, unknown or already revoked token still succeeds, so logout never fails for the client.
         public async Task<Result> RevokeRefreshTokenAsync(string? refreshToken, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(refreshToken))
