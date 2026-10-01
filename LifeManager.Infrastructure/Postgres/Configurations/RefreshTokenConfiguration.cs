@@ -20,6 +20,9 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
                 .IsRequired()
                 .HasConversion(tokenHash => tokenHash!.Value, tokenHash => RefreshTokenHash.FromPersistence(tokenHash));
 
+            builder.HasIndex(refreshToken => refreshToken.TokenHash)
+                .IsUnique();
+
             builder.Property(refreshToken => refreshToken.CreatedAt)
                 .IsRequired()
                 .ValueGeneratedNever();

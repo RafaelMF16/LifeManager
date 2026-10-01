@@ -2,6 +2,7 @@
 using LifeManager.Application.EnvironmentVariables.Services;
 using LifeManager.Domain.Auth;
 using LifeManager.Domain.Auth.Interfaces;
+using LifeManager.Domain.Auth.ValueObjects;
 using LifeManager.Domain.Shared.Results;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -31,6 +32,20 @@ namespace LifeManager.Application.Auth.Services
                         .Bind(hashedRefreshToken => SaveRefreshToken(hashedRefreshToken, userId))
                         .Map(_ => new LoginResponseDto(accessToken, refreshToken));
                 });
+        }
+
+        public async Task<Result> RevokeRefreshTokenAsync(string? refreshToken, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(refreshToken))
+                return Result.Success();
+
+            var tokenHashResult = HashRefreshToken(refreshToken).Bind(RefreshTokenHash.Create);
+            if (!tokenHashResult.IsSuccess)
+                return tokenHashResult.Error;
+
+            await _refreshTokenRepository.RevokeByHashAsync(tokenHashResult.Value, cancellationToken);
+
+            return Result.Success();
         }
 
         private Result<string> GenerateAccessToken(int userId)
