@@ -1,4 +1,4 @@
-﻿namespace LifeManager.Application.Auth.DTOs
+namespace LifeManager.Application.Auth.DTOs
 {
-    public record LoginResponseDto(string AccessToken, string RefreshToken);
+    public record LoginResponseDto(string AccessToken, string RefreshToken, DateTimeOffset RefreshTokenExpiresAt);
 }

@@ -4,12 +4,12 @@ namespace LifeManager.WebApi.Auth
     {
         public const string Name = "refreshToken";
         private const string PATH = "/api/Auth";
-        private const short EXPIRATION_DAYS = 7;
 
-        public static void Append(HttpResponse response, string refreshToken)
+        /// <param name="expiresAt">The refresh token's own expiration, so the cookie never outlives the token (or the session cap).</param>
+        public static void Append(HttpResponse response, string refreshToken, DateTimeOffset expiresAt)
         {
             var options = CreateOptions();
-            options.Expires = DateTimeOffset.UtcNow.AddDays(EXPIRATION_DAYS);
+            options.Expires = expiresAt;
 
             response.Cookies.Append(Name, refreshToken, options);
         }

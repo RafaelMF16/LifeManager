@@ -21,10 +21,26 @@ namespace LifeManager.WebApi.Auth.Controllers
         public IActionResult Login([FromBody] LoginDto loginDto)
             => _userService.AuthenticateUser(loginDto).Match(tokens =>
             {
-                RefreshTokenCookie.Append(Response, tokens.RefreshToken);
+                RefreshTokenCookie.Append(Response, tokens.RefreshToken, tokens.RefreshTokenExpiresAt);
 
                 return Ok(new { tokens.AccessToken });
             });
+
+        [HttpPost("Refresh")]
+        public async Task<IActionResult> Refresh(CancellationToken cancellationToken)
+        {
+            var result = await _tokenService.RefreshTokensAsync(RefreshTokenCookie.Read(Request), cancellationToken);
+
+            if (!result.IsSuccess)
+                RefreshTokenCookie.Delete(Response);
+
+            return result.Match(tokens =>
+            {
+                RefreshTokenCookie.Append(Response, tokens.RefreshToken, tokens.RefreshTokenExpiresAt);
+
+                return Ok(new { tokens.AccessToken });
+            });
+        }
 
         [HttpPost("Logout")]
         public async Task<IActionResult> Logout(CancellationToken cancellationToken)
