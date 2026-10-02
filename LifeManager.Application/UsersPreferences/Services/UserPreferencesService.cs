@@ -1,4 +1,4 @@
-﻿using LifeManager.Application.UsersPreferences.DTOs;
+using LifeManager.Application.UsersPreferences.DTOs;
 using LifeManager.Domain.Shared.Results;
 using LifeManager.Domain.Users.ValueObjects;
 using LifeManager.Domain.UsersPreferences;
@@ -10,26 +10,36 @@ namespace LifeManager.Application.UsersPreferences.Services
     {
         private readonly IUserPreferencesRepository _userPreferencesRepository = userPreferencesRepository;
 
-        public UserPreferencesDto GetUserPreferencesByUserId(UserId userId)
+        public async Task<UserPreferencesDto> GetByUserIdAsync(UserId userId, CancellationToken cancellationToken)
         {
-            var userPreferences = _userPreferencesRepository.GetUserPreferencesByUserId(userId)
+            var userPreferences = await _userPreferencesRepository.GetByUserIdAsync(userId, cancellationToken)
                 ?? UserPreferences.CreateDefault(userId);
 
             return ToResponseDto(userPreferences);
         }
 
-        public Result<UserPreferencesDto> AddOrUpdate(UserPreferencesDto userPreferencesDto, UserId userId)
+        public async Task<Result<UserPreferencesDto>> AddOrUpdateAsync(UserPreferencesDto userPreferencesDto, UserId userId, CancellationToken cancellationToken)
         {
-            var userPreferences = _userPreferencesRepository.GetUserPreferencesByUserId(userId);
+            var userPreferences = await _userPreferencesRepository.GetByUserIdAsync(userId, cancellationToken);
 
             if (userPreferences is null)
-                return UserPreferences.Create(userId.Value, userPreferencesDto.Theme, userPreferencesDto.Language)
-                    .Map(newUserPreferences => _userPreferencesRepository.Add(newUserPreferences))
-                    .Map(ToResponseDto);
+            {
+                var createResult = UserPreferences.Create(userId.Value, userPreferencesDto.Theme, userPreferencesDto.Language);
+                if (!createResult.IsSuccess)
+                    return createResult.Error;
 
-            return userPreferences.Update(userPreferencesDto.Theme, userPreferencesDto.Language)
-                .Map(updatedUserPreferences => _userPreferencesRepository.Update(updatedUserPreferences))
-                .Map(ToResponseDto);
+                var addedPreferences = await _userPreferencesRepository.AddAsync(createResult.Value, cancellationToken);
+
+                return ToResponseDto(addedPreferences);
+            }
+
+            var updateResult = userPreferences.Update(userPreferencesDto.Theme, userPreferencesDto.Language);
+            if (!updateResult.IsSuccess)
+                return updateResult.Error;
+
+            await _userPreferencesRepository.UpdateAsync(userPreferences, cancellationToken);
+
+            return ToResponseDto(userPreferences);
         }
 
         private static UserPreferencesDto ToResponseDto(UserPreferences userPreferences)

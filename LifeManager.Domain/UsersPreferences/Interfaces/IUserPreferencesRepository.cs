@@ -1,12 +1,11 @@
-﻿using LifeManager.Domain.Shared.Results;
 using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Domain.UsersPreferences.Interfaces
 {
     public interface IUserPreferencesRepository
     {
-        UserPreferences Add(UserPreferences userPreferences);
-        UserPreferences? GetUserPreferencesByUserId(UserId userId);
-        UserPreferences Update(UserPreferences userPreferences);
+        Task<UserPreferences> AddAsync(UserPreferences userPreferences, CancellationToken cancellationToken);
+        Task<UserPreferences?> GetByUserIdAsync(UserId userId, CancellationToken cancellationToken);
+        Task UpdateAsync(UserPreferences userPreferences, CancellationToken cancellationToken);
     }
 }

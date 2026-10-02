@@ -106,7 +106,7 @@ Test projects mirror the layer they test 1:1 (`LifeManager.Domain.Test` → Doma
 - `POST /api/Auth/Logout` → 204:
   - **Anonymous on purpose** (no `[Authorize]`): the refresh token cookie is the credential, so logout still works after the access token expired. `SameSite=Lax` keeps cross-site POSTs from sending the cookie.
   - **Idempotent:** always deletes the cookie and returns 204, even with no cookie or an unknown/already revoked token (it never reveals whether a token exists). Only a missing `refreshTokenSecretKey` turns into 500.
-  - Revokes by hash (`TokenService.RevokeRefreshTokenAsync` → `IRefreshTokenRepository.RevokeByHashAsync`, a single `ExecuteUpdateAsync` backed by the unique index on `TokenHash`). This is the first async piece of Auth.
+  - Revokes by hash (`TokenService.RevokeRefreshTokenAsync` → `IRefreshTokenRepository.RevokeByHashAsync`, a single `ExecuteUpdateAsync` backed by the unique index on `TokenHash`).
   - The access token is a stateless JWT, so it stays valid until it expires (≤ 15 min). There is no JWT denylist.
 - The cookie's name/path/flags live only in `WebApi/Auth/RefreshTokenCookie.cs` (`Append`/`Delete`/`Read`). `Delete` must use the same `Path`/`Secure`/`SameSite` as `Append`, or the browser keeps the cookie.
 - `TokenService`:
@@ -132,7 +132,7 @@ The codebase is mid-migration to a `Result`/`Result<T>` pattern (`LifeManager.Do
 
 - `Error` is a record with a `Code`, `Message`, and `ErrorType` (`Validation`, `NotFound`, `Unauthorized`, `Failure`, `Conflict`), created via static factories (`Error.Validation(...)`, `Error.Conflict(...)`, etc.).
 - `Result` / `Result<T>` have implicit conversions from `Error` and from `T`, so factory methods can `return SomeErrors.Whatever;` or `return new Thing(...)` directly instead of throwing.
-- `ResultExtensions` provides `Map`, `Bind`, and `Tap` for chaining `Result<T>` operations functionally (see `User.Create` and `TokenService.GenerateTokens`/`SaveRefreshToken` for the chaining style).
+- `ResultExtensions` provides `Map`, `Bind`, and `Tap` for chaining `Result<T>` operations functionally (see `User.Create` and `TokenService.GenerateTokensAsync` for the chaining style). The extensions are synchronous, so async steps (repository calls) go after the chain, in the early-return style of `CategoryService`.
 - `Users`, `Auth`, `UsersPreferences`, `Categories` and `MonthlySummaries` have been migrated to this pattern.
 - `Transactions` has **not** been migrated yet. Its `Create` methods return the entity/value object directly and use `DomainException` for invariant violations (see `Transaction.Create` throwing `DomainException` when the money-flow type mismatches). When touching these areas, check with the user whether to migrate them to `Result` first, since this is an active, incremental refactor.
 
@@ -147,7 +147,7 @@ The codebase is mid-migration to a `Result`/`Result<T>` pattern (`LifeManager.Do
   - Filtering by `UserId` in the database.
   - `AnyAsync` for existence checks.
   - `ExecuteUpdateAsync`/`ExecuteDeleteAsync` for single-round-trip writes. `ExecuteUpdateAsync` bypasses the entity, so it must set **every** derived column too, e.g. both `Name` and `NormalizedName`.
-- **Older flows:** User, Auth and UsersPreferences are still synchronous (except Auth's logout and refresh, which are async).
+- **Every flow is async:** Users, Auth and UsersPreferences follow the same repository → service → controller async chain with `CancellationToken`. Keep CPU-bound work (BCrypt) synchronous, and never run queries in parallel on the same `DbContext`.
 
 ### MonthlySummaries
 

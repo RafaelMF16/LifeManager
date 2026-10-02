@@ -14,11 +14,11 @@ namespace LifeManager.WebApi.UsersPreferences.Controllers
         private readonly UserPreferencesService _userPreferencesService = userPreferencesService;
 
         [HttpGet]
-        public IActionResult Get()
-            => Ok(_userPreferencesService.GetUserPreferencesByUserId(User.GetUserId()));
+        public async Task<IActionResult> Get(CancellationToken cancellationToken)
+            => Ok(await _userPreferencesService.GetByUserIdAsync(User.GetUserId(), cancellationToken));
 
         [HttpPut]
-        public IActionResult AddOrUpdate([FromBody] UserPreferencesDto userPreferencesDto)
-            => _userPreferencesService.AddOrUpdate(userPreferencesDto, User.GetUserId()).Match(Ok);
+        public async Task<IActionResult> AddOrUpdate([FromBody] UserPreferencesDto userPreferencesDto, CancellationToken cancellationToken)
+            => (await _userPreferencesService.AddOrUpdateAsync(userPreferencesDto, User.GetUserId(), cancellationToken)).Match(Ok);
     }
 }

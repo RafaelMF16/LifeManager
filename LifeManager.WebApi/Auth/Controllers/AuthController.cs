@@ -14,12 +14,12 @@ namespace LifeManager.WebApi.Auth.Controllers
         private readonly TokenService _tokenService = tokenService;
 
         [HttpPost("Register")]
-        public IActionResult Register([FromBody] UserDto userDto)
-            => _userService.AddUser(userDto).Match(_ => Created());
+        public async Task<IActionResult> Register([FromBody] UserDto userDto, CancellationToken cancellationToken)
+            => (await _userService.AddUserAsync(userDto, cancellationToken)).Match(_ => Created());
 
         [HttpPost("Login")]
-        public IActionResult Login([FromBody] LoginDto loginDto)
-            => _userService.AuthenticateUser(loginDto).Match(tokens =>
+        public async Task<IActionResult> Login([FromBody] LoginDto loginDto, CancellationToken cancellationToken)
+            => (await _userService.AuthenticateUserAsync(loginDto, cancellationToken)).Match(tokens =>
             {
                 RefreshTokenCookie.Append(Response, tokens.RefreshToken, tokens.RefreshTokenExpiresAt);
 

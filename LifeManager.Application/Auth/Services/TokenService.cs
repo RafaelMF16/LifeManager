@@ -24,16 +24,22 @@ namespace LifeManager.Application.Auth.Services
         private readonly IRefreshTokenRepository _refreshTokenRepository = refreshTokenRepository;
         private readonly EnvironmentVariableService _environmentVariableService = environmentVariableService;
 
-        public Result<LoginResponseDto> GenerateTokens(int userId)
+        public async Task<Result<LoginResponseDto>> GenerateTokensAsync(int userId, CancellationToken cancellationToken)
         {
-            return GenerateAccessToken(userId)
-                .Bind(accessToken =>
-                {
-                    var refreshToken = GenerateRefreshToken();
-                    return HashRefreshToken(refreshToken)
-                        .Bind(hashedRefreshToken => SaveRefreshToken(hashedRefreshToken, userId))
-                        .Map(savedToken => new LoginResponseDto(accessToken, refreshToken, savedToken.ExpiresAt));
-                });
+            var refreshToken = GenerateRefreshToken();
+
+            var tokensResult = GenerateAccessToken(userId)
+                .Bind(accessToken => HashRefreshToken(refreshToken)
+                    .Bind(hashedRefreshToken => CreateRefreshToken(hashedRefreshToken, userId))
+                    .Map(newToken => (AccessToken: accessToken, NewToken: newToken)));
+
+            if (!tokensResult.IsSuccess)
+                return tokensResult.Error;
+
+            var (accessToken, newToken) = tokensResult.Value;
+            await _refreshTokenRepository.ReplaceActiveTokenAsync(newToken, cancellationToken);
+
+            return new LoginResponseDto(accessToken, refreshToken, newToken.ExpiresAt);
         }
 
         /// <summary>
@@ -138,13 +144,12 @@ namespace LifeManager.Application.Auth.Services
                 });
         }
 
-        private Result<RefreshToken> SaveRefreshToken(string token, int userId)
+        private static Result<RefreshToken> CreateRefreshToken(string token, int userId)
         {
             var now = DateTimeOffset.UtcNow;
             var expiresAt = now.AddDays(REFRESH_TOKEN_EXPIRATION_DAYS);
             var sessionExpiresAt = now.AddDays(SESSION_MAX_LIFETIME_DAYS);
-            return RefreshToken.Create(userId, token, expiresAt, sessionExpiresAt, false)
-                .Tap(refreshToken => _refreshTokenRepository.ReplaceActiveToken(refreshToken));
+            return RefreshToken.Create(userId, token, expiresAt, sessionExpiresAt, false);
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using LifeManager.Application.Auth.DTOs;
+using LifeManager.Application.Auth.DTOs;
 using LifeManager.Application.Auth.Services;
 using LifeManager.Application.Users.DTOs;
 using LifeManager.Domain.Shared.Results;
@@ -18,36 +18,40 @@ namespace LifeManager.Application.Users.Services
         private readonly AuthService _authService = authService;
         private readonly TokenService _tokenService = tokenService;
 
-        public Result<UserResponseDto> AddUser(UserDto userDto)
+        public async Task<Result<UserResponseDto>> AddUserAsync(UserDto userDto, CancellationToken cancellationToken)
         {
-            var existingUser = Email.Create(userDto.Email)
-                .Map(email => _userRepository.GetUserByEmail(email));
+            var emailResult = Email.Create(userDto.Email);
+            if (!emailResult.IsSuccess)
+                return emailResult.Error;
 
-            if (existingUser.Value is not null)
+            if (await _userRepository.ExistsByEmailAsync(emailResult.Value, cancellationToken))
                 return UserErrors.EmailRegistered;
 
-            return PlainPassword.Create(userDto.UserPassword)
-                .Bind(plainPassword =>
-                {
-                    var hashedPassword = _authService.EncryptPassword(plainPassword.Value);
-                    return User.Create(userDto.Name, userDto.Email, hashedPassword);
-                })
-                .Map(user =>
-                {
-                    _userRepository.Add(user);
-                    return new UserResponseDto(user.Id!.Value, user.Name.Value, user.Email.Value);
-                });
+            var plainPasswordResult = PlainPassword.Create(userDto.UserPassword);
+            if (!plainPasswordResult.IsSuccess)
+                return plainPasswordResult.Error;
+
+            var hashedPassword = _authService.EncryptPassword(plainPasswordResult.Value.Value);
+            var userResult = User.Create(userDto.Name, userDto.Email, hashedPassword);
+            if (!userResult.IsSuccess)
+                return userResult.Error;
+
+            var user = await _userRepository.AddAsync(userResult.Value, cancellationToken);
+
+            return new UserResponseDto(user.Id!.Value, user.Name.Value, user.Email.Value);
         }
 
-        public Result<LoginResponseDto> AuthenticateUser(LoginDto loginDto)
+        public async Task<Result<LoginResponseDto>> AuthenticateUserAsync(LoginDto loginDto, CancellationToken cancellationToken)
         {
-            var user = Email.Create(loginDto.Email)
-                .Map(email => _userRepository.GetUserByEmail(email));
-
-            if (user.Value is null || !_authService.VerifyPassword(loginDto.Password, user.Value.PasswordHash.Value))
+            var emailResult = Email.Create(loginDto.Email);
+            if (!emailResult.IsSuccess)
                 return UserErrors.InvalidCredentials;
 
-            return _tokenService.GenerateTokens(user.Value.Id!.Value);
+            var user = await _userRepository.GetByEmailAsync(emailResult.Value, cancellationToken);
+            if (user is null || !_authService.VerifyPassword(loginDto.Password, user.PasswordHash.Value))
+                return UserErrors.InvalidCredentials;
+
+            return await _tokenService.GenerateTokensAsync(user.Id!.Value, cancellationToken);
         }
     }
 }

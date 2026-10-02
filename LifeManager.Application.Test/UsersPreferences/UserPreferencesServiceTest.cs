@@ -23,11 +23,11 @@ namespace LifeManager.Application.Test.UsersPreferences
         }
 
         [Fact]
-        public void AddOrUpdate_ShouldAddUserPreferences_WhenUserHasNoPreferences()
+        public async Task AddOrUpdateAsync_ShouldAddUserPreferences_WhenUserHasNoPreferences()
         {
             var userPreferencesDto = new UserPreferencesDto(Theme.Dark, Language.EN);
 
-            var result = _userPreferencesService.AddOrUpdate(userPreferencesDto, new UserId(1));
+            var result = await _userPreferencesService.AddOrUpdateAsync(userPreferencesDto, new UserId(1), CancellationToken.None);
 
             Assert.True(result.IsSuccess);
             Assert.Equal(userPreferencesDto.Theme, result.Value.Theme);
@@ -40,13 +40,13 @@ namespace LifeManager.Application.Test.UsersPreferences
         }
 
         [Fact]
-        public void AddOrUpdate_ShouldUpdateUserPreferences_WhenUserAlreadyHasPreferences()
+        public async Task AddOrUpdateAsync_ShouldUpdateUserPreferences_WhenUserAlreadyHasPreferences()
         {
             var userId = new UserId(1);
-            _userPreferencesService.AddOrUpdate(new UserPreferencesDto(Theme.Light, Language.PTBR), userId);
+            await _userPreferencesService.AddOrUpdateAsync(new UserPreferencesDto(Theme.Light, Language.PTBR), userId, CancellationToken.None);
             var addedPreferencesId = UserPreferencesSingleton.Instance.Single().Id;
 
-            var result = _userPreferencesService.AddOrUpdate(new UserPreferencesDto(Theme.Dark, Language.EN), userId);
+            var result = await _userPreferencesService.AddOrUpdateAsync(new UserPreferencesDto(Theme.Dark, Language.EN), userId, CancellationToken.None);
 
             Assert.True(result.IsSuccess);
             Assert.Equal(Theme.Dark, result.Value.Theme);
@@ -58,12 +58,12 @@ namespace LifeManager.Application.Test.UsersPreferences
         }
 
         [Fact]
-        public void AddOrUpdate_ShouldOnlyUpdateGivenUserPreferences_WhenOtherUsersHavePreferences()
+        public async Task AddOrUpdateAsync_ShouldOnlyUpdateGivenUserPreferences_WhenOtherUsersHavePreferences()
         {
-            _userPreferencesService.AddOrUpdate(new UserPreferencesDto(Theme.Light, Language.PTBR), new UserId(1));
-            _userPreferencesService.AddOrUpdate(new UserPreferencesDto(Theme.Light, Language.PTBR), new UserId(2));
+            await _userPreferencesService.AddOrUpdateAsync(new UserPreferencesDto(Theme.Light, Language.PTBR), new UserId(1), CancellationToken.None);
+            await _userPreferencesService.AddOrUpdateAsync(new UserPreferencesDto(Theme.Light, Language.PTBR), new UserId(2), CancellationToken.None);
 
-            _userPreferencesService.AddOrUpdate(new UserPreferencesDto(Theme.Dark, Language.EN), new UserId(2));
+            await _userPreferencesService.AddOrUpdateAsync(new UserPreferencesDto(Theme.Dark, Language.EN), new UserId(2), CancellationToken.None);
 
             Assert.Equal(2, UserPreferencesSingleton.Instance.Count);
             var firstUserPreferences = UserPreferencesSingleton.Instance.Single(preferences => preferences.UserId.Value == 1);
@@ -75,10 +75,10 @@ namespace LifeManager.Application.Test.UsersPreferences
         }
 
         [Fact]
-        public void AddOrUpdate_ShouldAddPreferencesForEachUser_WhenUsersAreDifferent()
+        public async Task AddOrUpdateAsync_ShouldAddPreferencesForEachUser_WhenUsersAreDifferent()
         {
-            var firstResult = _userPreferencesService.AddOrUpdate(new UserPreferencesDto(Theme.Light, Language.EN), new UserId(1));
-            var secondResult = _userPreferencesService.AddOrUpdate(new UserPreferencesDto(Theme.Dark, Language.PTBR), new UserId(2));
+            var firstResult = await _userPreferencesService.AddOrUpdateAsync(new UserPreferencesDto(Theme.Light, Language.EN), new UserId(1), CancellationToken.None);
+            var secondResult = await _userPreferencesService.AddOrUpdateAsync(new UserPreferencesDto(Theme.Dark, Language.PTBR), new UserId(2), CancellationToken.None);
 
             Assert.True(firstResult.IsSuccess);
             Assert.True(secondResult.IsSuccess);
@@ -88,9 +88,9 @@ namespace LifeManager.Application.Test.UsersPreferences
         }
 
         [Fact]
-        public void AddOrUpdate_ShouldReturnValidationError_WhenUserHasNoPreferencesAndThemeIsInvalid()
+        public async Task AddOrUpdateAsync_ShouldReturnValidationError_WhenUserHasNoPreferencesAndThemeIsInvalid()
         {
-            var result = _userPreferencesService.AddOrUpdate(new UserPreferencesDto((Theme)99, Language.EN), new UserId(1));
+            var result = await _userPreferencesService.AddOrUpdateAsync(new UserPreferencesDto((Theme)99, Language.EN), new UserId(1), CancellationToken.None);
 
             Assert.False(result.IsSuccess);
             Assert.Equal(UserPreferencesErrors.InvalidTheme, result.Error);
@@ -99,12 +99,12 @@ namespace LifeManager.Application.Test.UsersPreferences
         }
 
         [Fact]
-        public void AddOrUpdate_ShouldKeepOriginalPreferences_WhenUpdatingWithInvalidLanguage()
+        public async Task AddOrUpdateAsync_ShouldKeepOriginalPreferences_WhenUpdatingWithInvalidLanguage()
         {
             var userId = new UserId(1);
-            _userPreferencesService.AddOrUpdate(new UserPreferencesDto(Theme.Dark, Language.EN), userId);
+            await _userPreferencesService.AddOrUpdateAsync(new UserPreferencesDto(Theme.Dark, Language.EN), userId, CancellationToken.None);
 
-            var result = _userPreferencesService.AddOrUpdate(new UserPreferencesDto(Theme.Light, (Language)0), userId);
+            var result = await _userPreferencesService.AddOrUpdateAsync(new UserPreferencesDto(Theme.Light, (Language)0), userId, CancellationToken.None);
 
             Assert.False(result.IsSuccess);
             Assert.Equal(UserPreferencesErrors.InvalidLanguage, result.Error);
@@ -114,21 +114,21 @@ namespace LifeManager.Application.Test.UsersPreferences
         }
 
         [Fact]
-        public void GetUserPreferencesByUserId_ShouldReturnPreferences_WhenUserHasPreferences()
+        public async Task GetByUserIdAsync_ShouldReturnPreferences_WhenUserHasPreferences()
         {
             var userId = new UserId(1);
-            _userPreferencesService.AddOrUpdate(new UserPreferencesDto(Theme.Dark, Language.EN), userId);
+            await _userPreferencesService.AddOrUpdateAsync(new UserPreferencesDto(Theme.Dark, Language.EN), userId, CancellationToken.None);
 
-            var userPreferences = _userPreferencesService.GetUserPreferencesByUserId(userId);
+            var userPreferences = await _userPreferencesService.GetByUserIdAsync(userId, CancellationToken.None);
 
             Assert.Equal(Theme.Dark, userPreferences.Theme);
             Assert.Equal(Language.EN, userPreferences.Language);
         }
 
         [Fact]
-        public void GetUserPreferencesByUserId_ShouldReturnDefaultPreferences_WhenNoPreferencesExist()
+        public async Task GetByUserIdAsync_ShouldReturnDefaultPreferences_WhenNoPreferencesExist()
         {
-            var userPreferences = _userPreferencesService.GetUserPreferencesByUserId(new UserId(1));
+            var userPreferences = await _userPreferencesService.GetByUserIdAsync(new UserId(1), CancellationToken.None);
 
             Assert.Equal(Theme.Light, userPreferences.Theme);
             Assert.Equal(Language.PTBR, userPreferences.Language);
@@ -136,11 +136,11 @@ namespace LifeManager.Application.Test.UsersPreferences
         }
 
         [Fact]
-        public void GetUserPreferencesByUserId_ShouldReturnDefaultPreferences_WhenOnlyOtherUsersHavePreferences()
+        public async Task GetByUserIdAsync_ShouldReturnDefaultPreferences_WhenOnlyOtherUsersHavePreferences()
         {
-            _userPreferencesService.AddOrUpdate(new UserPreferencesDto(Theme.Dark, Language.EN), new UserId(1));
+            await _userPreferencesService.AddOrUpdateAsync(new UserPreferencesDto(Theme.Dark, Language.EN), new UserId(1), CancellationToken.None);
 
-            var userPreferences = _userPreferencesService.GetUserPreferencesByUserId(new UserId(2));
+            var userPreferences = await _userPreferencesService.GetByUserIdAsync(new UserId(2), CancellationToken.None);
 
             Assert.Equal(Theme.Light, userPreferences.Theme);
             Assert.Equal(Language.PTBR, userPreferences.Language);
@@ -148,12 +148,12 @@ namespace LifeManager.Application.Test.UsersPreferences
         }
 
         [Fact]
-        public void GetUserPreferencesByUserId_ShouldReturnCorrectPreferences_WhenMultipleUsersHavePreferences()
+        public async Task GetByUserIdAsync_ShouldReturnCorrectPreferences_WhenMultipleUsersHavePreferences()
         {
-            _userPreferencesService.AddOrUpdate(new UserPreferencesDto(Theme.Light, Language.EN), new UserId(1));
-            _userPreferencesService.AddOrUpdate(new UserPreferencesDto(Theme.Dark, Language.PTBR), new UserId(2));
+            await _userPreferencesService.AddOrUpdateAsync(new UserPreferencesDto(Theme.Light, Language.EN), new UserId(1), CancellationToken.None);
+            await _userPreferencesService.AddOrUpdateAsync(new UserPreferencesDto(Theme.Dark, Language.PTBR), new UserId(2), CancellationToken.None);
 
-            var userPreferences = _userPreferencesService.GetUserPreferencesByUserId(new UserId(2));
+            var userPreferences = await _userPreferencesService.GetByUserIdAsync(new UserId(2), CancellationToken.None);
 
             Assert.Equal(Theme.Dark, userPreferences.Theme);
             Assert.Equal(Language.PTBR, userPreferences.Language);

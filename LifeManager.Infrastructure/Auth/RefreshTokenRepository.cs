@@ -11,25 +11,18 @@ namespace LifeManager.Infrastructure.Auth
     {
         private readonly LifeManagerDbContext _dbContext = dbContext;
 
-        public RefreshToken Add(RefreshToken refreshToken)
+        public async Task ReplaceActiveTokenAsync(RefreshToken newToken, CancellationToken cancellationToken)
         {
-            _dbContext.Add(refreshToken);
-            _dbContext.SaveChanges();
+            var now = DateTimeOffset.UtcNow;
+            var activeTokens = await _dbContext.RefreshTokens
+                .Where(refreshToken => refreshToken.UserId == newToken.UserId && !refreshToken.IsRevoked && refreshToken.ExpiresAt > now)
+                .ToListAsync(cancellationToken);
 
-            return refreshToken;
-        }
-
-        public RefreshToken ReplaceActiveToken(RefreshToken newToken)
-        {
-            var activeToken = _dbContext.RefreshTokens
-                .SingleOrDefault(refreshToken => refreshToken.UserId == newToken.UserId && !refreshToken.IsRevoked && refreshToken.ExpiresAt > DateTimeOffset.UtcNow);
-
-            activeToken?.RevokeToken();
+            foreach (var activeToken in activeTokens)
+                activeToken.RevokeToken();
 
             _dbContext.Add(newToken);
-            _dbContext.SaveChanges();
-
-            return newToken;
+            await _dbContext.SaveChangesAsync(cancellationToken);
         }
 
         public async Task<bool> RevokeByHashAsync(RefreshTokenHash tokenHash, CancellationToken cancellationToken)

@@ -14,35 +14,39 @@ namespace LifeManager.Application.Test.UsersPreferences.Mocks
             _instance = UserPreferencesSingleton.Instance;
         }
 
-        public UserPreferences Add(UserPreferences userPreferences)
+        public Task<UserPreferences> AddAsync(UserPreferences userPreferences, CancellationToken cancellationToken)
         {
             _instance.Add(userPreferences);
 
             var newId = _instance.Count;
             userPreferences.AssignId(newId);
 
-            return userPreferences;
+            return Task.FromResult(userPreferences);
         }
 
-        public UserPreferences Update(UserPreferences userPreferences)
+        public Task UpdateAsync(UserPreferences userPreferences, CancellationToken cancellationToken)
         {
-            var index = _instance.FindIndex(storedPreferences => storedPreferences.Id == userPreferences.Id);
-            _instance[index] = userPreferences;
+            var index = _instance.FindIndex(storedPreferences => storedPreferences.Id == userPreferences.Id && storedPreferences.UserId == userPreferences.UserId);
+            if (index >= 0)
+                _instance[index] = ToDetachedCopy(userPreferences);
 
-            return userPreferences;
+            return Task.CompletedTask;
         }
 
-        public UserPreferences? GetUserPreferencesByUserId(UserId userId)
+        public Task<UserPreferences?> GetByUserIdAsync(UserId userId, CancellationToken cancellationToken)
         {
-            var storedPreferences = _instance.FirstOrDefault(userPreferences => userPreferences.UserId == userId);
-            if (storedPreferences is null)
-                return null;
+            var storedPreferences = _instance.SingleOrDefault(userPreferences => userPreferences.UserId == userId);
 
-            // Returns a detached copy, like AsNoTracking in the real repository, so changes only persist through Update
-            var userPreferences = UserPreferences.Create(storedPreferences.UserId.Value, storedPreferences.Theme, storedPreferences.Language).Value!;
-            userPreferences.AssignId(storedPreferences.Id!.Value);
+            // Returns a detached copy, like AsNoTracking in the real repository, so changes only persist through UpdateAsync
+            return Task.FromResult(storedPreferences is null ? null : ToDetachedCopy(storedPreferences));
+        }
 
-            return userPreferences;
+        private static UserPreferences ToDetachedCopy(UserPreferences userPreferences)
+        {
+            var copy = UserPreferences.Create(userPreferences.UserId.Value, userPreferences.Theme, userPreferences.Language).Value!;
+            copy.AssignId(userPreferences.Id!.Value);
+
+            return copy;
         }
     }
 }

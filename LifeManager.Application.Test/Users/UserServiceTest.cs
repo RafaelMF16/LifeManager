@@ -21,13 +21,13 @@ namespace LifeManager.Application.Test.Users
         }
 
         [Fact]
-        public void AddUser_ShouldAddUser_WhenUserIsValid()
+        public async Task AddUserAsync_ShouldAddUser_WhenUserIsValid()
         {
             var name = "name";
             var email = "email@email.com";
             var password = "password";
             var userDto = new UserDto(email, name, password);
-            var userResponseResult = _userService.AddUser(userDto);
+            var userResponseResult = await _userService.AddUserAsync(userDto, CancellationToken.None);
 
             Assert.NotEmpty(UserSingleton.Instance);
             Assert.All(UserSingleton.Instance, user =>
@@ -39,14 +39,14 @@ namespace LifeManager.Application.Test.Users
         }
 
         [Fact]
-        public void AddUser_ShouldNotAddUser_WhenUserIsInvalid()
+        public async Task AddUserAsync_ShouldNotAddUser_WhenUserIsInvalid()
         {
             var name = "name";
             var email = "email";
             var password = "password";
             var userDto = new UserDto(email, name, password);
 
-            var result = _userService.AddUser(userDto);
+            var result = await _userService.AddUserAsync(userDto, CancellationToken.None);
 
             Assert.False(result.IsSuccess);
             Assert.Equal(UserErrors.EmailIsInvalid, result.Error);
@@ -54,11 +54,11 @@ namespace LifeManager.Application.Test.Users
         }
 
         [Fact]
-        public void AddUser_ShouldNotAddUser_WhenPasswordIsTooShort()
+        public async Task AddUserAsync_ShouldNotAddUser_WhenPasswordIsTooShort()
         {
             var userDto = new UserDto("email@email.com", "name", "short");
 
-            var result = _userService.AddUser(userDto);
+            var result = await _userService.AddUserAsync(userDto, CancellationToken.None);
 
             Assert.False(result.IsSuccess);
             Assert.Equal(UserErrors.PlainPasswordTooShort, result.Error);
@@ -66,12 +66,12 @@ namespace LifeManager.Application.Test.Users
         }
 
         [Fact]
-        public void AddUser_ShouldNotAddUser_WhenPasswordIsTooLong()
+        public async Task AddUserAsync_ShouldNotAddUser_WhenPasswordIsTooLong()
         {
             var longPassword = new string('a', 51);
             var userDto = new UserDto("email@email.com", "name", longPassword);
 
-            var result = _userService.AddUser(userDto);
+            var result = await _userService.AddUserAsync(userDto, CancellationToken.None);
 
             Assert.False(result.IsSuccess);
             Assert.Equal(UserErrors.PlainPasswordTooLong, result.Error);
@@ -79,11 +79,11 @@ namespace LifeManager.Application.Test.Users
         }
 
         [Fact]
-        public void AddUser_ShouldNotAddUser_WhenNameIsInvalid()
+        public async Task AddUserAsync_ShouldNotAddUser_WhenNameIsInvalid()
         {
             var userDto = new UserDto("email@email.com", string.Empty, "password");
 
-            var result = _userService.AddUser(userDto);
+            var result = await _userService.AddUserAsync(userDto, CancellationToken.None);
 
             Assert.False(result.IsSuccess);
             Assert.Equal(UserErrors.UserNameIsNullOrWhiteSpace, result.Error);
@@ -91,15 +91,15 @@ namespace LifeManager.Application.Test.Users
         }
 
         [Fact]
-        public void AddUser_ShouldNotAddUser_WhenEmailAlreadyExists()
+        public async Task AddUserAsync_ShouldNotAddUser_WhenEmailAlreadyExists()
         {
             var name = "name";
             var email = "email@email.com";
             var password = "password";
             var userDto = new UserDto(email, name, password);
-            _userService.AddUser(userDto);
+            await _userService.AddUserAsync(userDto, CancellationToken.None);
 
-            var result = _userService.AddUser(userDto);
+            var result = await _userService.AddUserAsync(userDto, CancellationToken.None);
 
             Assert.False(result.IsSuccess);
             Assert.Equal(UserErrors.EmailRegistered, result.Error);
@@ -107,33 +107,33 @@ namespace LifeManager.Application.Test.Users
         }
 
         [Fact]
-        public void AuthenticateUser_ShouldReturnFailure_WhenEmailDoesNotExist()
+        public async Task AuthenticateUserAsync_ShouldReturnFailure_WhenEmailDoesNotExist()
         {
-            var result = _userService.AuthenticateUser(new LoginDto("missing@email.com", "password"));
+            var result = await _userService.AuthenticateUserAsync(new LoginDto("missing@email.com", "password"), CancellationToken.None);
 
             Assert.False(result.IsSuccess);
             Assert.Equal(UserErrors.InvalidCredentials, result.Error);
         }
 
         [Fact]
-        public void AuthenticateUser_ShouldReturnFailure_WhenPasswordIsIncorrect()
+        public async Task AuthenticateUserAsync_ShouldReturnFailure_WhenPasswordIsIncorrect()
         {
             var userDto = new UserDto("email@email.com", "name", "password");
-            _userService.AddUser(userDto);
+            await _userService.AddUserAsync(userDto, CancellationToken.None);
 
-            var result = _userService.AuthenticateUser(new LoginDto(userDto.Email, "wrongPassword"));
+            var result = await _userService.AuthenticateUserAsync(new LoginDto(userDto.Email, "wrongPassword"), CancellationToken.None);
 
             Assert.False(result.IsSuccess);
             Assert.Equal(UserErrors.InvalidCredentials, result.Error);
         }
 
         [Fact]
-        public void AuthenticateUser_ShouldReturnTokens_WhenCredentialsAreValid()
+        public async Task AuthenticateUserAsync_ShouldReturnTokens_WhenCredentialsAreValid()
         {
             var userDto = new UserDto("email@email.com", "name", "password");
-            _userService.AddUser(userDto);
+            await _userService.AddUserAsync(userDto, CancellationToken.None);
 
-            var result = _userService.AuthenticateUser(new LoginDto(userDto.Email, userDto.UserPassword));
+            var result = await _userService.AuthenticateUserAsync(new LoginDto(userDto.Email, userDto.UserPassword), CancellationToken.None);
 
             Assert.True(result.IsSuccess);
             Assert.False(string.IsNullOrWhiteSpace(result.Value.AccessToken));
@@ -141,13 +141,13 @@ namespace LifeManager.Application.Test.Users
         }
 
         [Fact]
-        public void AuthenticateUser_ShouldRevokePreviousToken_WhenUserLogsInAgain()
+        public async Task AuthenticateUserAsync_ShouldRevokePreviousToken_WhenUserLogsInAgain()
         {
             var userDto = new UserDto("email@email.com", "name", "password");
-            _userService.AddUser(userDto);
+            await _userService.AddUserAsync(userDto, CancellationToken.None);
 
-            _userService.AuthenticateUser(new LoginDto(userDto.Email, userDto.UserPassword));
-            _userService.AuthenticateUser(new LoginDto(userDto.Email, userDto.UserPassword));
+            await _userService.AuthenticateUserAsync(new LoginDto(userDto.Email, userDto.UserPassword), CancellationToken.None);
+            await _userService.AuthenticateUserAsync(new LoginDto(userDto.Email, userDto.UserPassword), CancellationToken.None);
 
             Assert.Equal(2, RefreshTokenSingleton.Instance.Count);
             Assert.True(RefreshTokenSingleton.Instance[0].IsRevoked);

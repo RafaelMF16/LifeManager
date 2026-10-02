@@ -1,4 +1,3 @@
-﻿using LifeManager.Domain.Shared.Results;
 using LifeManager.Domain.Users.ValueObjects;
 using LifeManager.Domain.UsersPreferences;
 using LifeManager.Domain.UsersPreferences.Interfaces;
@@ -11,27 +10,28 @@ namespace LifeManager.Infrastructure.UsersPreferences
     {
         private readonly LifeManagerDbContext _dbContext = dbContext;
 
-        public UserPreferences Add(UserPreferences userPreferences)
+        public async Task<UserPreferences> AddAsync(UserPreferences userPreferences, CancellationToken cancellationToken)
         {
             _dbContext.Add(userPreferences);
-            _dbContext.SaveChanges();
+            await _dbContext.SaveChangesAsync(cancellationToken);
 
             return userPreferences;
         }
 
-        public UserPreferences Update(UserPreferences userPreferences)
+        public async Task<UserPreferences?> GetByUserIdAsync(UserId userId, CancellationToken cancellationToken)
         {
-            _dbContext.Update(userPreferences);
-            _dbContext.SaveChanges();
-
-            return userPreferences;
-        }
-
-        public UserPreferences? GetUserPreferencesByUserId(UserId userId)
-        {
-            return _dbContext.UserPreferences
+            return await _dbContext.UserPreferences
                 .AsNoTracking()
-                .SingleOrDefault(userPreferences => userPreferences.UserId == userId);
+                .SingleOrDefaultAsync(userPreferences => userPreferences.UserId == userId, cancellationToken);
+        }
+
+        public async Task UpdateAsync(UserPreferences userPreferences, CancellationToken cancellationToken)
+        {
+            await _dbContext.UserPreferences
+                .Where(storedPreferences => storedPreferences.Id == userPreferences.Id && storedPreferences.UserId == userPreferences.UserId)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(storedPreferences => storedPreferences.Theme, userPreferences.Theme)
+                    .SetProperty(storedPreferences => storedPreferences.Language, userPreferences.Language), cancellationToken);
         }
     }
 }

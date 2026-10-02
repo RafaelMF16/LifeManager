@@ -5,8 +5,8 @@ namespace LifeManager.Domain.Auth.Interfaces
 {
     public interface IRefreshTokenRepository
     {
-        RefreshToken Add(RefreshToken refreshToken);
-        RefreshToken ReplaceActiveToken(RefreshToken newToken);
+        /// <summary>Revokes every active token of the user and adds the new one in a single save.</summary>
+        Task ReplaceActiveTokenAsync(RefreshToken newToken, CancellationToken cancellationToken);
 
         /// <returns>True if a non-revoked token with this hash existed and was revoked.</returns>
         Task<bool> RevokeByHashAsync(RefreshTokenHash tokenHash, CancellationToken cancellationToken);
