@@ -24,6 +24,9 @@ namespace LifeManager.Application.Test.Users.Mocks
             return Task.FromResult(user);
         }
 
+        public Task<User?> GetByIdAsync(UserId id, CancellationToken cancellationToken)
+            => Task.FromResult(_instance.SingleOrDefault(user => user.Id == id));
+
         public Task<User?> GetByEmailAsync(Email email, CancellationToken cancellationToken)
             => Task.FromResult(_instance.SingleOrDefault(user => user.Email.Value == email.Value));
 

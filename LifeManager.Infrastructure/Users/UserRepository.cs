@@ -18,6 +18,13 @@ namespace LifeManager.Infrastructure.Users
             return user;
         }
 
+        public async Task<User?> GetByIdAsync(UserId id, CancellationToken cancellationToken)
+        {
+            return await _dbContext.Users
+                .AsNoTracking()
+                .SingleOrDefaultAsync(user => user.Id == id, cancellationToken);
+        }
+
         public async Task<User?> GetByEmailAsync(Email email, CancellationToken cancellationToken)
         {
             return await _dbContext.Users

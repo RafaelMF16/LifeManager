@@ -3,6 +3,7 @@ using LifeManager.Application.Test.Configurations.SingletonLists;
 using LifeManager.Application.Users.DTOs;
 using LifeManager.Application.Users.Services;
 using LifeManager.Domain.Users.Errors;
+using LifeManager.Domain.Users.ValueObjects;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LifeManager.Application.Test.Users
@@ -104,6 +105,26 @@ namespace LifeManager.Application.Test.Users
             Assert.False(result.IsSuccess);
             Assert.Equal(UserErrors.EmailRegistered, result.Error);
             Assert.Single(UserSingleton.Instance);
+        }
+
+        [Fact]
+        public async Task GetCurrentUserAsync_ShouldReturnName_WhenUserExists()
+        {
+            var userResponse = (await _userService.AddUserAsync(new UserDto("email@email.com", "name", "password"), CancellationToken.None)).Value;
+
+            var result = await _userService.GetCurrentUserAsync(new UserId(userResponse.Id), CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal("name", result.Value.Name);
+        }
+
+        [Fact]
+        public async Task GetCurrentUserAsync_ShouldReturnNotFound_WhenUserDoesNotExist()
+        {
+            var result = await _userService.GetCurrentUserAsync(new UserId(999), CancellationToken.None);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(UserErrors.NotFound, result.Error);
         }
 
         [Fact]

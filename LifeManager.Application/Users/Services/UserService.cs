@@ -41,6 +41,15 @@ namespace LifeManager.Application.Users.Services
             return new UserResponseDto(user.Id!.Value, user.Name.Value, user.Email.Value);
         }
 
+        public async Task<Result<CurrentUserResponseDto>> GetCurrentUserAsync(UserId userId, CancellationToken cancellationToken)
+        {
+            var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
+            if (user is null)
+                return UserErrors.NotFound;
+
+            return new CurrentUserResponseDto(user.Name.Value);
+        }
+
         public async Task<Result<LoginResponseDto>> AuthenticateUserAsync(LoginDto loginDto, CancellationToken cancellationToken)
         {
             var emailResult = Email.Create(loginDto.Email);
