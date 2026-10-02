@@ -9,6 +9,7 @@ using LifeManager.Domain.MonthlySummaries.Errors;
 using LifeManager.Domain.MonthlySummaries.Interfaces;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.Paging;
+using LifeManager.Domain.Transactions;
 using LifeManager.Domain.Users.ValueObjects;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -30,6 +31,7 @@ namespace LifeManager.Application.Test.MonthlySummaries
             _monthlySummaryRepository = (MonthlySummaryRepositoryMock)ServiceProvider.GetRequiredService<IMonthlySummaryRepository>();
 
             MonthlySummarySingleton.Instance.Clear();
+            TransactionSingleton.Instance.Clear();
         }
 
         [Fact]
@@ -88,6 +90,40 @@ namespace LifeManager.Application.Test.MonthlySummaries
 
             Assert.False(result.IsSuccess);
             Assert.Equal(MonthlySummaryErrors.NotFound, result.Error);
+        }
+
+        [Fact]
+        public async Task GetByIdAsync_ShouldReturnTotalsCountsAndNeighbors_WhenMonthBelongsToUser()
+        {
+            var month = Stored(2, FirstUserId.Value, 3, CurrentYear, totalIncome: 100, totalExpense: 30);
+            Seed(
+                Stored(1, FirstUserId.Value, 11, CurrentYear - 1),
+                month,
+                Stored(3, FirstUserId.Value, 7, CurrentYear),
+                Stored(4, SecondUserId.Value, 5, CurrentYear));
+            TransactionSingleton.Instance.AddRange(
+                StoredTransaction(1, month, MoneyFlowType.Income, 100),
+                StoredTransaction(2, month, MoneyFlowType.Expense, 10),
+                StoredTransaction(3, month, MoneyFlowType.Expense, 20));
+
+            var result = await _monthlySummaryService.GetByIdAsync(2, FirstUserId, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(new MonthlySummaryDetailsResponseDto(2, 3, CurrentYear, 100, 30, 70, 1, 2, 1, 3), result.Value);
+        }
+
+        [Fact]
+        public async Task GetByIdAsync_ShouldReturnNullNeighbors_WhenItIsTheUserOnlyMonth()
+        {
+            Seed(Stored(1, FirstUserId.Value, 3, CurrentYear), Stored(2, SecondUserId.Value, 2, CurrentYear));
+
+            var result = await _monthlySummaryService.GetByIdAsync(1, FirstUserId, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.Null(result.Value.PreviousId);
+            Assert.Null(result.Value.NextId);
+            Assert.Equal(0, result.Value.IncomeCount);
+            Assert.Equal(0, result.Value.ExpenseCount);
         }
 
         [Fact]
@@ -243,6 +279,9 @@ namespace LifeManager.Application.Test.MonthlySummaries
         /// <summary>A summary as stored in the database: any year and any totals, unlike <see cref="MonthlySummary.Create"/>.</summary>
         private static MonthlySummary Stored(int id, int userId, int month, int year, decimal totalIncome = 0, decimal totalExpense = 0)
             => MonthlySummary.FromPersistence(id, userId, month, year, totalIncome, totalExpense);
+
+        private static Transaction StoredTransaction(int id, MonthlySummary month, MoneyFlowType type, decimal amount)
+            => Transaction.FromPersistence(id, month.Id!.Value, type, 1, amount, "description", new DateOnly(month.Year.Value, month.Month.Value, 1));
 
         private static void Seed(params MonthlySummary[] monthlySummaries)
             => MonthlySummarySingleton.Instance.AddRange(monthlySummaries);

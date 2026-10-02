@@ -24,6 +24,9 @@ namespace LifeManager.Domain.MonthlySummaries.Interfaces
         /// <summary>The distinct years the user has monthly summaries in, newest first.</summary>
         Task<IReadOnlyList<int>> GetYearsByUserIdAsync(UserId userId, CancellationToken cancellationToken);
 
+        /// <summary>The user's months right before and after the given period, chronologically.</summary>
+        Task<MonthlySummaryNeighbors> GetNeighborsAsync(UserId userId, MonthlySummaryYear year, MonthlySummaryMonth month, CancellationToken cancellationToken);
+
         Task<bool> ExistsAsync(UserId userId, MonthlySummaryMonth month, MonthlySummaryYear year, CancellationToken cancellationToken);
     }
 }

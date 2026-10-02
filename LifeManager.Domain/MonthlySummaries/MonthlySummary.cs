@@ -62,6 +62,23 @@ namespace LifeManager.Domain.MonthlySummaries
             return monthlySummary;
         }
 
+        /// <summary>
+        /// Replaces the totals with the ones recalculated from the month's transactions, keeping
+        /// <see cref="BalanceAmount"/> in sync.
+        /// </summary>
+        public Result<MonthlySummary> ApplyTotals(decimal totalIncome, decimal totalExpense)
+        {
+            return TotalIncome.Create(totalIncome)
+                .Bind(income => TotalExpense.Create(totalExpense)
+                    .Map(expense =>
+                    {
+                        TotalIncome = income;
+                        TotalExpense = expense;
+                        BalanceAmount = Balance.Value;
+                        return this;
+                    }));
+        }
+
         public void AssignId(int id)
         {
             Id = new MonthlySummaryId(id);

@@ -1,6 +1,7 @@
 ﻿using LifeManager.Application.Auth.Services;
 using LifeManager.Application.Categories.Services;
 using LifeManager.Application.MonthlySummaries.Services;
+using LifeManager.Application.Transactions.Services;
 using LifeManager.Application.EnvironmentVariables.Services;
 using LifeManager.Application.Users.Services;
 using LifeManager.Application.UsersPreferences.Services;
@@ -19,6 +20,7 @@ namespace LifeManager.Application.DI
             services.AddScoped<UserPreferencesService>();
             services.AddScoped<CategoryService>();
             services.AddScoped<MonthlySummaryService>();
+            services.AddScoped<TransactionService>();
             return services;
         }
     }

@@ -1,23 +1,37 @@
-﻿using LifeManager.Domain.Exceptions;
+using LifeManager.Domain.Shared.Results;
+using LifeManager.Domain.Shared.Text;
+using LifeManager.Domain.Transactions.Errors;
 
 namespace LifeManager.Domain.Transactions.ValueObjects
 {
     public class TransactionDescription
     {
+        public const short MaxLength = 80;
+
         public string Value { get; }
+
+        /// <summary>Case- and accent-insensitive form, used for searching.</summary>
+        public string NormalizedValue { get; }
 
         private TransactionDescription(string value)
         {
             Value = value;
+            NormalizedValue = SearchText.Normalize(value);
         }
 
-        public static TransactionDescription Create(string value)
+        public static Result<TransactionDescription> Create(string value)
         {
             if (string.IsNullOrWhiteSpace(value))
-                throw new DomainException($"{nameof(TransactionDescription)} is required");
+                return TransactionErrors.DescriptionIsNullOrWhiteSpace;
 
-            return new TransactionDescription(value);
+            var trimmedValue = value.Trim();
+            if (trimmedValue.Length > MaxLength)
+                return TransactionErrors.DescriptionTooLong;
+
+            return new TransactionDescription(trimmedValue);
         }
+
+        internal static TransactionDescription FromPersistence(string value) => new(value);
 
         public override bool Equals(object? obj)
         {

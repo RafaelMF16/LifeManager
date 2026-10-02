@@ -3,6 +3,8 @@ using LifeManager.Domain.Categories.Interfaces;
 using LifeManager.Infrastructure.Categories;
 using LifeManager.Domain.MonthlySummaries.Interfaces;
 using LifeManager.Infrastructure.MonthlySummaries;
+using LifeManager.Domain.Transactions.Interfaces;
+using LifeManager.Infrastructure.Transactions;
 using LifeManager.Domain.Users.Interfaces;
 using LifeManager.Domain.UsersPreferences.Interfaces;
 using LifeManager.Infrastructure.Auth;
@@ -25,6 +27,7 @@ namespace LifeManager.Infrastructure.DI
             services.AddScoped<IUserPreferencesRepository, UserPreferencesRepository>();
             services.AddScoped<ICategoryRepository, CategoryRepository>();
             services.AddScoped<IMonthlySummaryRepository, MonthlySummaryRepository>();
+            services.AddScoped<ITransactionRepository, TransactionRepository>();
 
             return services;
         }

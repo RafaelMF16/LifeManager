@@ -5,6 +5,8 @@ using LifeManager.Application.Test.Configurations;
 using LifeManager.Application.Test.Configurations.SingletonLists;
 using LifeManager.Domain.Categories.Errors;
 using LifeManager.Domain.Categories.Interfaces;
+using LifeManager.Domain.MonthlySummaries;
+using LifeManager.Domain.Transactions;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.Paging;
 using LifeManager.Domain.Shared.Results;
@@ -28,6 +30,8 @@ namespace LifeManager.Application.Test.Categories
             _categoryRepository = (CategoryRepositoryMock)ServiceProvider.GetRequiredService<ICategoryRepository>();
 
             CategorySingleton.Instance.Clear();
+            MonthlySummarySingleton.Instance.Clear();
+            TransactionSingleton.Instance.Clear();
         }
 
         [Fact]
@@ -464,6 +468,25 @@ namespace LifeManager.Application.Test.Categories
 
             Assert.False(result.IsSuccess);
             Assert.Equal(CategoryErrors.NotFound, result.Error);
+            Assert.Single(CategorySingleton.Instance);
+        }
+
+        [Fact]
+        public async Task DeleteAsync_ShouldReturnInUseAndKeepCategory_WhenTransactionsUseIt()
+        {
+            var createdCategory = await CreateCategory("Food", FirstUserId);
+            var monthlySummary = MonthlySummary.FromPersistence(1, FirstUserId.Value, 3, DateTimeOffset.UtcNow.Year, 0, 0);
+            MonthlySummarySingleton.Instance.Add(monthlySummary);
+            var transaction = Transaction.Create(
+                MoneyFlowType.Expense, createdCategory.Id, 10m, "Market", new DateOnly(DateTimeOffset.UtcNow.Year, 3, 1), monthlySummary).Value!;
+            transaction.AssignId(1);
+            TransactionSingleton.Instance.Add(transaction);
+
+            var result = await _categoryService.DeleteAsync(createdCategory.Id, FirstUserId, CancellationToken.None);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(CategoryErrors.InUse, result.Error);
+            Assert.Equal(ErrorType.Conflict, result.Error.Type);
             Assert.Single(CategorySingleton.Instance);
         }
 

@@ -7,8 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 LifeManager is a personal finance / life management API (.NET 10, C#, PostgreSQL via EF Core + Npgsql). It is consumed by the sibling React SPA `LifeManagerFront` (`../LifeManagerFront`, served at `https://localhost:5173`).
 
 Current state:
-- **Exposed over HTTP:** Auth (register/login/refresh/logout), UserPreferences (get/save theme + language), Categories (full CRUD with a paged, searchable listing) and MonthlySummaries (create a month + paged listing filtered by year/balance and sortable by period, income, expenses or balance).
-- **Domain only (no persistence, service or controller yet):** `Transactions`. Monthly totals stay at zero until transactions exist.
+- **Exposed over HTTP:** Auth (register/login/refresh/logout), UserPreferences (get/save theme + language), Categories (full CRUD with a paged, searchable listing), MonthlySummaries (create a month, month details, and a paged listing filtered by year/balance and sortable by period, income, expenses or balance) and Transactions (full CRUD inside a month, which keeps the month's totals up to date).
 
 ## Commands
 
@@ -61,18 +60,18 @@ Layered/Clean Architecture split across four projects, referencing inward only. 
   - `Shared/` holds `Results/` (Result pattern), `Paging/` (`PageRequest`, `PagedList<T>`, `PagingErrors`), `Text/` (`SearchText`) and `Enums/` (`MoneyFlowType`, `SortDirection`).
   - `InternalsVisibleTo` exposes internals to Infrastructure, so value objects' `internal static FromPersistence(...)` rehydrate from the database without re-validating. `LifeManager.Application.Test` also sees them, to seed stored state that the validating factories can't create.
 - **LifeManager.Application**
-  - Application services orchestrate domain logic: `AuthService`, `TokenService`, `UserService`, `UserPreferencesService`, `CategoryService`, `MonthlySummaryService`, `EnvironmentVariableService`.
+  - Application services orchestrate domain logic: `AuthService`, `TokenService`, `UserService`, `UserPreferencesService`, `CategoryService`, `MonthlySummaryService`, `TransactionService`, `EnvironmentVariableService`.
   - Each feature has its DTOs; `Shared/DTOs/` holds `PagedResponseDto<T>`.
   - Depends on `LifeManager.Domain` only.
   - Services are registered as scoped in `DI/DependencyInjection.cs` (`AddApplicationServices`).
 - **LifeManager.Infrastructure**
-  - Persistence with EF Core + Npgsql. `Postgres/LifeManagerDbContext.cs` has the DbSets `Users`, `RefreshTokens`, `UserPreferences`, `Categories`, `MonthlySummaries` and declares the `pg_trgm` extension.
+  - Persistence with EF Core + Npgsql. `Postgres/LifeManagerDbContext.cs` has the DbSets `Users`, `RefreshTokens`, `UserPreferences`, `Categories`, `MonthlySummaries`, `Transactions` and declares the `pg_trgm` extension.
   - One `IEntityTypeConfiguration<T>` per entity lives in `Postgres/Configurations/` and is applied via `ApplyConfigurationsFromAssembly`. Value objects are mapped with `HasConversion(vo => vo.Value, v => X.FromPersistence(v))`.
   - Naming is EF's default PascalCase (tables `"Categories"`, columns `"UserId"`), so any raw SQL must quote identifiers.
-  - Repositories live in feature folders (`Users/`, `Auth/`, `UsersPreferences/`, `Categories/`, `MonthlySummaries/`). Shared query helpers live in `Postgres/Extensions/`.
+  - Repositories live in feature folders (`Users/`, `Auth/`, `UsersPreferences/`, `Categories/`, `MonthlySummaries/`, `Transactions/`). Shared query helpers live in `Postgres/Extensions/`.
   - Registered in `DI/DependencyInjection.cs` (`AddInfrastructureServices(connectionString)`).
 - **LifeManager.WebApi**
-  - ASP.NET Core host. Controllers live in feature folders (`Auth/Controllers`, `UsersPreferences/Controllers`, `Categories/Controllers`, `MonthlySummaries/Controllers`) under `[Route("api/[controller]")]`.
+  - ASP.NET Core host. Controllers live in feature folders (`Auth/Controllers`, `UsersPreferences/Controllers`, `Categories/Controllers`, `MonthlySummaries/Controllers`, `Transactions/Controllers`) under `[Route("api/[controller]")]`; `TransactionsController` is nested under its month (`api/MonthlySummaries/{monthlySummaryId}/[controller]`).
   - `Program.cs` wires controllers (enums serialized as strings via `JsonStringEnumConverter`), OpenAPI (Development only), Infrastructure, Application, and `DI/DependencyInjection.cs` (`AddApiServices`: JWT bearer auth + the `AllowFrontend` CORS policy for `https://localhost:5173` with credentials).
   - Middleware order: `ExceptionHandlingMiddleware` → CORS → HTTPS redirection → authentication → authorization.
 
@@ -118,7 +117,7 @@ Test projects mirror the layer they test 1:1 (`LifeManager.Domain.Test` → Doma
 
 `LifeManager.Domain` is modeled with DDD tactical patterns, and the folder layout is the ubiquitous language:
 
-- **Feature folders as bounded contexts:** `Users`, `Auth`, `UsersPreferences`, `Categories`, `Transactions` and `MonthlySummaries` each own their entity, value objects, errors and repository interface. Cross-context references mostly go through IDs (e.g. `Category.UserId`, `Transaction.MonthlySummaryId`). The exception is `Transaction.Category`, which is currently an object reference.
+- **Feature folders as bounded contexts:** `Users`, `Auth`, `UsersPreferences`, `Categories`, `Transactions` and `MonthlySummaries` each own their entity, value objects, errors and repository interface. Cross-context references go through IDs (e.g. `Category.UserId`, `Transaction.MonthlySummaryId`, `Transaction.CategoryId`); when a read needs data from another context (a transaction's category name), the repository joins and returns a read model (`TransactionListItem`).
 - **Entities** (`User`, `RefreshToken`, `UserPreferences`, `Category`, `Transaction`, `MonthlySummary`) have identity (`Id`) and encapsulate their own invariants.
   - Private constructors force construction through a validating `static Create(...)` factory.
   - Mutation happens only through intention-revealing methods (`AssignId`, `RevokeToken`, `Rename`) rather than public setters.
@@ -133,8 +132,7 @@ The codebase is mid-migration to a `Result`/`Result<T>` pattern (`LifeManager.Do
 - `Error` is a record with a `Code`, `Message`, and `ErrorType` (`Validation`, `NotFound`, `Unauthorized`, `Failure`, `Conflict`), created via static factories (`Error.Validation(...)`, `Error.Conflict(...)`, etc.).
 - `Result` / `Result<T>` have implicit conversions from `Error` and from `T`, so factory methods can `return SomeErrors.Whatever;` or `return new Thing(...)` directly instead of throwing.
 - `ResultExtensions` provides `Map`, `Bind`, and `Tap` for chaining `Result<T>` operations functionally (see `User.Create` and `TokenService.GenerateTokensAsync` for the chaining style). The extensions are synchronous, so async steps (repository calls) go after the chain, in the early-return style of `CategoryService`.
-- `Users`, `Auth`, `UsersPreferences`, `Categories` and `MonthlySummaries` have been migrated to this pattern.
-- `Transactions` has **not** been migrated yet. Its `Create` methods return the entity/value object directly and use `DomainException` for invariant violations (see `Transaction.Create` throwing `DomainException` when the money-flow type mismatches). When touching these areas, check with the user whether to migrate them to `Result` first, since this is an active, incremental refactor.
+- Every context (`Users`, `Auth`, `UsersPreferences`, `Categories`, `MonthlySummaries`, `Transactions`) uses this pattern; there is no `DomainException` anymore. New code must not throw for expected failures.
 
 ### Categories (reference flow for new features)
 
@@ -153,8 +151,24 @@ The codebase is mid-migration to a `Result`/`Result<T>` pattern (`LifeManager.Do
 
 - **Creating a month:** `POST /api/MonthlySummaries` takes only `{ month }`; the service uses the current UTC year, since `MonthlySummaryYear.Create` only accepts the current year (`MonthlySummary.YearNotCurrent`). `FromPersistence` skips that rule, so past years rehydrate. A new month starts with zero totals. One month per user: unique index `(UserId, Year, Month)` + `MonthlySummary.AlreadyExists` (409).
 - **Balance column:** `Balance` (VO) is derived and ignored by EF; `BalanceAmount` is its persisted copy (same idea as `Category.NormalizedName`) so the listing filters (`Positive` = ≥ 0, `Negative` = < 0) and sorts by it in SQL. Anything that changes the totals must also update `BalanceAmount` (including in `ExecuteUpdateAsync`).
+- **Details:** `GET /api/MonthlySummaries/{id}` returns `MonthlySummaryDetailsResponseDto`: the totals plus `IncomeCount`/`ExpenseCount` (`ITransactionRepository.CountByTypeAsync`) and `PreviousId`/`NextId`, the user's closest months before and after (`IMonthlySummaryRepository.GetNeighborsAsync`, which reads only the user's month keys because Year/Month are value objects and can't be compared in SQL). Create and the listing still return `MonthlySummaryResponseDto`.
+- **Totals** only change through transactions: `MonthlySummary.ApplyTotals(income, expense)` replaces both totals and keeps `BalanceAmount` in sync (see Transactions).
 - **Listing:** `GET /api/MonthlySummaries?page=&pageSize=&year=&balance=All|Positive|Negative&sortBy=Period|TotalIncome|TotalExpense|Balance&sortDirection=` (default `Period`/`Desc`, newest first). Every sort ends with Year, Month, Id in the same direction. `GET /api/MonthlySummaries/Years` returns the user's distinct years (newest first) for the year filter.
 - **Tests:** `MonthlySummary.FromPersistence(...)` (internal) rehydrates a stored summary without the creation rules, so tests can seed past years and non-zero totals that `Create` can't produce; the repository mock also uses it for its detached copies.
+
+### Transactions
+
+- **Nested under the month:** `api/MonthlySummaries/{monthlySummaryId}/Transactions` (`GET` paged listing, `GET {id}`, `POST` → 201, `PUT {id}`, `DELETE {id}` → 204). `TransactionService` always loads the month with `(monthlySummaryId, UserId)` first (`MonthlySummary.NotFound` otherwise) and then works only inside that month, so another user's transaction is never reachable. Transactions have no `UserId` of their own; ownership comes from the month.
+- **Rules** (`Transaction.Create`/`Update`, codes in `TransactionErrors`):
+  - the type must be a defined `MoneyFlowType` (`Transaction.InvalidType`);
+  - the description is trimmed, required, at most 80 characters;
+  - the amount is always positive (the type gives the direction), with at most 2 decimals and at most `TransactionAmount.MaxValue` (fits `numeric(14,2)`);
+  - the date is a `DateOnly` (`date` column) that must fall inside the month's year/month (`Transaction.DateOutsideMonth`). A transaction never moves to another month.
+  - the category is required and must belong to the user: the service loads it with `ICategoryRepository.GetByIdAsync(id, userId)` and returns `Category.NotFound` otherwise.
+- **Derived columns:** `NormalizedDescription` (trigram GIN index, search like Categories) and `SignedAmount` (income positive, expense negative). `SignedAmount` exists because EF can't do arithmetic on a converted value object: the listing sorts by it (`Amount` sort = signed value) and the totals are summed from it. `ExecuteUpdateAsync` must set both together with `Amount`/`Type`/`Description`.
+- **Totals are recalculated on every write** (`TransactionRepository.WriteAndRecalculateTotalsAsync`), inside one database transaction: lock the month row with `SELECT ... FOR UPDATE`, write, `GROUP BY Type SUM(SignedAmount)`, `ApplyTotals`, then `ExecuteUpdateAsync` the month's `TotalIncome`/`TotalExpense`/`BalanceAmount`. The lock serializes concurrent writes to the same month; summing (instead of adding/subtracting deltas) means the totals can't drift. The mock does the same recalculation on `MonthlySummarySingleton`.
+- **Listing:** `?page=&pageSize=&type=All|Expense|Income&categoryId=&search=&sortBy=Date|Description|Category|Amount&sortDirection=` (default `Date`/`Desc`). Every sort ends with `TransactionDate`, `Id` in the same direction. `Category` sorts by the joined category's `NormalizedName`.
+- **Category FK is `NO ACTION`**, not `RESTRICT`: deleting a user cascades to both its categories and (through its months) its transactions in the same statement, and `NO ACTION` only checks the FK at the end of it. Deleting a category that transactions still use is blocked earlier by `CategoryService.DeleteAsync` (`ITransactionRepository.ExistsByCategoryAsync` → `Category.InUse`, 409).
 
 ### Paged listings (standard for every list endpoint)
 

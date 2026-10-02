@@ -16,7 +16,8 @@ namespace LifeManager.Domain.MonthlySummaries.ValueObjects
 
         public static Result<TotalExpense> Create(decimal value)
         {
-            if (decimal.IsNegative(value))
+            // `< 0`, not decimal.IsNegative: negating an empty sum gives a negative zero (-0m), which IsNegative rejects.
+            if (value < 0)
                 return MonthlySummaryErrors.TotalExpenseNegative;
 
             return new TotalExpense(value);

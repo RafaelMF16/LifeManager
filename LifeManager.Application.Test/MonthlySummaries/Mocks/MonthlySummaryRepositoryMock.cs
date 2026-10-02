@@ -78,6 +78,21 @@ namespace LifeManager.Application.Test.MonthlySummaries.Mocks
             return Task.FromResult(years);
         }
 
+        public Task<MonthlySummaryNeighbors> GetNeighborsAsync(UserId userId, MonthlySummaryYear year, MonthlySummaryMonth month, CancellationToken cancellationToken)
+        {
+            var current = year.Value * 100 + month.Value;
+            var periods = _instance
+                .Where(monthlySummary => monthlySummary.UserId == userId)
+                .Select(monthlySummary => (Id: monthlySummary.Id!.Value, Period: monthlySummary.Year.Value * 100 + monthlySummary.Month.Value))
+                .OrderBy(period => period.Period)
+                .ToList();
+
+            var previous = periods.Where(period => period.Period < current).Select(period => (int?)period.Id).LastOrDefault();
+            var next = periods.Where(period => period.Period > current).Select(period => (int?)period.Id).FirstOrDefault();
+
+            return Task.FromResult(new MonthlySummaryNeighbors(previous, next));
+        }
+
         public Task<bool> ExistsAsync(UserId userId, MonthlySummaryMonth month, MonthlySummaryYear year, CancellationToken cancellationToken)
         {
             ExistsCallCount++;

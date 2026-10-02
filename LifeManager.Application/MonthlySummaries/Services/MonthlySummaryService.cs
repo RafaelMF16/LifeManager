@@ -1,4 +1,4 @@
-using LifeManager.Application.MonthlySummaries.DTOs;
+﻿using LifeManager.Application.MonthlySummaries.DTOs;
 using LifeManager.Application.Shared.DTOs;
 using LifeManager.Domain.MonthlySummaries;
 using LifeManager.Domain.MonthlySummaries.Errors;
@@ -6,13 +6,15 @@ using LifeManager.Domain.MonthlySummaries.Interfaces;
 using LifeManager.Domain.MonthlySummaries.ValueObjects;
 using LifeManager.Domain.Shared.Paging;
 using LifeManager.Domain.Shared.Results;
+using LifeManager.Domain.Transactions.Interfaces;
 using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Application.MonthlySummaries.Services
 {
-    public class MonthlySummaryService(IMonthlySummaryRepository monthlySummaryRepository)
+    public class MonthlySummaryService(IMonthlySummaryRepository monthlySummaryRepository, ITransactionRepository transactionRepository)
     {
         private readonly IMonthlySummaryRepository _monthlySummaryRepository = monthlySummaryRepository;
+        private readonly ITransactionRepository _transactionRepository = transactionRepository;
 
         public async Task<Result<MonthlySummaryResponseDto>> CreateAsync(MonthlySummaryDto monthlySummaryDto, UserId userId, CancellationToken cancellationToken)
         {
@@ -30,13 +32,26 @@ namespace LifeManager.Application.MonthlySummaries.Services
             return ToResponseDto(monthlySummary);
         }
 
-        public async Task<Result<MonthlySummaryResponseDto>> GetByIdAsync(int id, UserId userId, CancellationToken cancellationToken)
+        public async Task<Result<MonthlySummaryDetailsResponseDto>> GetByIdAsync(int id, UserId userId, CancellationToken cancellationToken)
         {
             var monthlySummary = await _monthlySummaryRepository.GetByIdAsync(new MonthlySummaryId(id), userId, cancellationToken);
             if (monthlySummary is null)
                 return MonthlySummaryErrors.NotFound;
 
-            return ToResponseDto(monthlySummary);
+            var counts = await _transactionRepository.CountByTypeAsync(monthlySummary.Id!, cancellationToken);
+            var neighbors = await _monthlySummaryRepository.GetNeighborsAsync(userId, monthlySummary.Year, monthlySummary.Month, cancellationToken);
+
+            return new MonthlySummaryDetailsResponseDto(
+                monthlySummary.Id!.Value,
+                monthlySummary.Month.Value,
+                monthlySummary.Year.Value,
+                monthlySummary.TotalIncome.Value,
+                monthlySummary.TotalExpense.Value,
+                monthlySummary.Balance.Value,
+                counts.IncomeCount,
+                counts.ExpenseCount,
+                neighbors.PreviousId,
+                neighbors.NextId);
         }
 
         public async Task<Result<PagedResponseDto<MonthlySummaryResponseDto>>> GetPagedAsync(MonthlySummaryListQueryDto query, UserId userId, CancellationToken cancellationToken)

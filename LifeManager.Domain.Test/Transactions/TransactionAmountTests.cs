@@ -1,4 +1,4 @@
-﻿using LifeManager.Domain.Exceptions;
+using LifeManager.Domain.Transactions.Errors;
 using LifeManager.Domain.Transactions.ValueObjects;
 
 namespace LifeManager.Domain.Test.Transactions
@@ -6,46 +6,64 @@ namespace LifeManager.Domain.Test.Transactions
     public class TransactionAmountTests
     {
         [Theory]
+        [InlineData(0)]
         [InlineData(-1)]
-        [InlineData(-10)]
-        [InlineData(-100)]
-        public void Create_ShouldThrowDomainException_WhenValueIsNegative(int value)
+        [InlineData(-0.01)]
+        public void Create_ShouldReturnAmountNotPositive_WhenValueIsZeroOrNegative(decimal value)
         {
-            const string errorMessageExpected = $"{nameof(TransactionAmount)} cannot be negative";
-            var exception = Assert.Throws<DomainException>(() => TransactionAmount.Create(value));
-            Assert.Equal(errorMessageExpected, exception.Message);
+            var result = TransactionAmount.Create(value);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(TransactionErrors.AmountNotPositive, result.Error);
         }
 
         [Theory]
-        [InlineData(0)]
-        [InlineData(1)]
-        [InlineData(10)]
-        [InlineData(55)]
-        public void Create_ShouldReturnTransactionAmount_WhenValueIsValid(int value)
+        [InlineData(0.001)]
+        [InlineData(10.555)]
+        public void Create_ShouldReturnAmountTooManyDecimals_WhenValueHasMoreThanTwoDecimalPlaces(decimal value)
         {
-            var amount = TransactionAmount.Create(value);
-            Assert.NotNull(amount);
-            Assert.IsType<TransactionAmount>(amount);
-            Assert.Equal(value, amount.Value);
+            var result = TransactionAmount.Create(value);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(TransactionErrors.AmountTooManyDecimals, result.Error);
+        }
+
+        [Fact]
+        public void Create_ShouldReturnAmountTooLarge_WhenValueDoesNotFitTheColumn()
+        {
+            var result = TransactionAmount.Create(TransactionAmount.MaxValue + 0.01m);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(TransactionErrors.AmountTooLarge, result.Error);
+        }
+
+        [Theory]
+        [InlineData(0.01)]
+        [InlineData(10.5)]
+        [InlineData(55.55)]
+        [InlineData(999_999_999_999.99)]
+        public void Create_ShouldReturnTransactionAmount_WhenValueIsValid(decimal value)
+        {
+            var result = TransactionAmount.Create(value);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(value, result.Value.Value);
         }
 
         [Fact]
         public void Equals_ShouldBeEqual_WhenValuesAreEquals()
         {
-            const int value = 1;
-            var valueOne = TransactionAmount.Create(value);
-            var valueTwo = TransactionAmount.Create(value);
-            var result = valueOne.Equals(valueTwo);
+            var valueOne = TransactionAmount.Create(1m).Value!;
+            var valueTwo = TransactionAmount.Create(1m).Value!;
 
-            Assert.True(result);
+            Assert.True(valueOne.Equals(valueTwo));
         }
 
         [Fact]
         public void GetHashCode_ShouldBeEqual_WhenValuesAreEquals()
         {
-            const int value = 1;
-            var valueOne = TransactionAmount.Create(value);
-            var valueTwo = TransactionAmount.Create(value);
+            var valueOne = TransactionAmount.Create(1m).Value!;
+            var valueTwo = TransactionAmount.Create(1m).Value!;
 
             Assert.Equal(valueOne.GetHashCode(), valueTwo.GetHashCode());
         }

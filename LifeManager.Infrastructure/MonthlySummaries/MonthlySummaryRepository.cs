@@ -72,6 +72,25 @@ namespace LifeManager.Infrastructure.MonthlySummaries
             return [.. years.Select(summaryYear => summaryYear.Value)];
         }
 
+        public async Task<MonthlySummaryNeighbors> GetNeighborsAsync(UserId userId, MonthlySummaryYear year, MonthlySummaryMonth month, CancellationToken cancellationToken)
+        {
+            // Only the keys of the user's months (one row per month ever opened) are read: Year and Month are
+            // value objects, so "before/after this period" can't be expressed as a SQL comparison.
+            var periods = await _dbContext.MonthlySummaries
+                .AsNoTracking()
+                .Where(monthlySummary => monthlySummary.UserId == userId)
+                .OrderBy(monthlySummary => monthlySummary.Year)
+                .ThenBy(monthlySummary => monthlySummary.Month)
+                .Select(monthlySummary => new { monthlySummary.Id, monthlySummary.Year, monthlySummary.Month })
+                .ToListAsync(cancellationToken);
+
+            var current = year.Value * 100 + month.Value;
+            var previous = periods.LastOrDefault(period => period.Year.Value * 100 + period.Month.Value < current);
+            var next = periods.FirstOrDefault(period => period.Year.Value * 100 + period.Month.Value > current);
+
+            return new MonthlySummaryNeighbors(previous?.Id!.Value, next?.Id!.Value);
+        }
+
         public async Task<bool> ExistsAsync(UserId userId, MonthlySummaryMonth month, MonthlySummaryYear year, CancellationToken cancellationToken)
         {
             return await _dbContext.MonthlySummaries
