@@ -1,4 +1,4 @@
-﻿using LifeManager.Domain.Users;
+using LifeManager.Domain.Users;
 using LifeManager.Domain.Users.Interfaces;
 using LifeManager.Domain.Users.ValueObjects;
 using LifeManager.Infrastructure.Postgres;
@@ -10,21 +10,25 @@ namespace LifeManager.Infrastructure.Users
     {
         private readonly LifeManagerDbContext _dbContext = dbContext;
 
-        public User Add(User user)
+        public async Task<User> AddAsync(User user, CancellationToken cancellationToken)
         {
             _dbContext.Add(user);
-            _dbContext.SaveChanges();
+            await _dbContext.SaveChangesAsync(cancellationToken);
 
             return user;
         }
 
-        public User? GetUserByEmail(Email email)
+        public async Task<User?> GetByEmailAsync(Email email, CancellationToken cancellationToken)
         {
-            var user = _dbContext.Users
+            return await _dbContext.Users
                 .AsNoTracking()
-                .SingleOrDefault(user => user.Email == email);
+                .SingleOrDefaultAsync(user => user.Email == email, cancellationToken);
+        }
 
-            return user;
+        public async Task<bool> ExistsByEmailAsync(Email email, CancellationToken cancellationToken)
+        {
+            return await _dbContext.Users
+                .AnyAsync(user => user.Email == email, cancellationToken);
         }
     }
 }

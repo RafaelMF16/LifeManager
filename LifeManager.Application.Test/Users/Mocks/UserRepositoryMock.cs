@@ -1,4 +1,4 @@
-﻿using LifeManager.Application.Test.Configurations.SingletonLists;
+using LifeManager.Application.Test.Configurations.SingletonLists;
 using LifeManager.Domain.Users;
 using LifeManager.Domain.Users.Interfaces;
 using LifeManager.Domain.Users.ValueObjects;
@@ -14,19 +14,20 @@ namespace LifeManager.Application.Test.Users.Mocks
             _instance = UserSingleton.Instance;
         }
 
-        public User Add(User user)
+        public Task<User> AddAsync(User user, CancellationToken cancellationToken)
         {
             _instance.Add(user);
 
             var newId = _instance.Count;
             user.AssignId(newId);
 
-            return user;
+            return Task.FromResult(user);
         }
 
-        public User? GetUserByEmail(Email email)
-        {
-            return _instance.FirstOrDefault(user => user.Email.Value == email.Value);
-        }
+        public Task<User?> GetByEmailAsync(Email email, CancellationToken cancellationToken)
+            => Task.FromResult(_instance.SingleOrDefault(user => user.Email.Value == email.Value));
+
+        public Task<bool> ExistsByEmailAsync(Email email, CancellationToken cancellationToken)
+            => Task.FromResult(_instance.Any(user => user.Email.Value == email.Value));
     }
 }

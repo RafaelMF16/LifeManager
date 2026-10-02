@@ -15,20 +15,15 @@ namespace LifeManager.Application.Test.Auth.Mocks
             _instance = RefreshTokenSingleton.Instance;
         }
 
-        public RefreshToken Add(RefreshToken refreshToken)
+        public Task ReplaceActiveTokenAsync(RefreshToken newToken, CancellationToken cancellationToken)
         {
-            _instance.Add(refreshToken);
-            return refreshToken;
-        }
-
-        public RefreshToken ReplaceActiveToken(RefreshToken newToken)
-        {
-            var activeToken = _instance.Find(token => token.UserId == newToken.UserId && !token.IsRevoked && token.ExpiresAt > DateTimeOffset.UtcNow);
-            activeToken?.RevokeToken();
+            var now = DateTimeOffset.UtcNow;
+            foreach (var activeToken in _instance.Where(token => token.UserId == newToken.UserId && !token.IsRevoked && token.ExpiresAt > now))
+                activeToken.RevokeToken();
 
             _instance.Add(newToken);
 
-            return newToken;
+            return Task.CompletedTask;
         }
 
         public Task<bool> RevokeByHashAsync(RefreshTokenHash tokenHash, CancellationToken cancellationToken)
