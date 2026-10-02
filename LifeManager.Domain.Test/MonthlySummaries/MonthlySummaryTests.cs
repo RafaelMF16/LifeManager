@@ -56,6 +56,36 @@ namespace LifeManager.Domain.Test.MonthlySummaries
             Assert.Equal(10, monthlySummary.Id!.Value);
         }
 
+        [Theory]
+        [InlineData(1000, 250.5, 749.5)]
+        [InlineData(100, 300, -200)]
+        [InlineData(0, 0, 0)]
+        public void ApplyTotals_ShouldReplaceTotalsAndKeepBalanceInSync(decimal totalIncome, decimal totalExpense, decimal expectedBalance)
+        {
+            var monthlySummary = MonthlySummary.Create(1, 11, CurrentYear).Value!;
+
+            var result = monthlySummary.ApplyTotals(totalIncome, totalExpense);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(totalIncome, monthlySummary.TotalIncome.Value);
+            Assert.Equal(totalExpense, monthlySummary.TotalExpense.Value);
+            Assert.Equal(expectedBalance, monthlySummary.Balance.Value);
+            Assert.Equal(expectedBalance, monthlySummary.BalanceAmount);
+        }
+
+        [Fact]
+        public void ApplyTotals_ShouldKeepCurrentTotals_WhenATotalIsNegative()
+        {
+            var monthlySummary = MonthlySummary.Create(1, 11, CurrentYear).Value!;
+
+            var result = monthlySummary.ApplyTotals(-1, 10);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(MonthlySummaryErrors.TotalIncomeNegative, result.Error);
+            Assert.Equal(0, monthlySummary.TotalExpense.Value);
+            Assert.Equal(0, monthlySummary.BalanceAmount);
+        }
+
         [Fact]
         public void Equals_ShouldCompareById()
         {

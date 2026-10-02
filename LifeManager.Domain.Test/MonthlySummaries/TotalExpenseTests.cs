@@ -31,6 +31,17 @@ namespace LifeManager.Domain.Test.MonthlySummaries
         }
 
         [Fact]
+        public void Create_ShouldAcceptNegativeZero_WhenAnEmptySumIsNegated()
+        {
+            var negativeZero = -Array.Empty<decimal>().Sum();
+
+            var result = TotalExpense.Create(negativeZero);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(0m, result.Value.Value);
+        }
+
+        [Fact]
         public void Zero_ShouldHaveZeroValue()
         {
             Assert.Equal(0m, TotalExpense.Zero.Value);

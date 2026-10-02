@@ -2,6 +2,8 @@
 using LifeManager.Application.Test.Auth.Mocks;
 using LifeManager.Application.Test.Categories.Mocks;
 using LifeManager.Application.Test.MonthlySummaries.Mocks;
+using LifeManager.Application.Test.Transactions.Mocks;
+using LifeManager.Domain.Transactions.Interfaces;
 using LifeManager.Application.Test.Users.Mocks;
 using LifeManager.Application.Test.UsersPreferences.Mocks;
 using LifeManager.Domain.Auth.Interfaces;
@@ -27,6 +29,7 @@ namespace LifeManager.Application.Test.Configurations
             services.AddScoped<IUserPreferencesRepository, UserPreferencesRepositoryMock>();
             services.AddScoped<ICategoryRepository, CategoryRepositoryMock>();
             services.AddScoped<IMonthlySummaryRepository, MonthlySummaryRepositoryMock>();
+            services.AddScoped<ITransactionRepository, TransactionRepositoryMock>();
 
             return services;
         }

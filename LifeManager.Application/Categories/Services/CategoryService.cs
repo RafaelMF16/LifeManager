@@ -1,4 +1,4 @@
-using LifeManager.Application.Categories.DTOs;
+﻿using LifeManager.Application.Categories.DTOs;
 using LifeManager.Application.Shared.DTOs;
 using LifeManager.Domain.Categories;
 using LifeManager.Domain.Categories.Errors;
@@ -7,13 +7,15 @@ using LifeManager.Domain.Categories.ValueObjects;
 using LifeManager.Domain.Shared.Paging;
 using LifeManager.Domain.Shared.Results;
 using LifeManager.Domain.Shared.Text;
+using LifeManager.Domain.Transactions.Interfaces;
 using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Application.Categories.Services
 {
-    public class CategoryService(ICategoryRepository categoryRepository)
+    public class CategoryService(ICategoryRepository categoryRepository, ITransactionRepository transactionRepository)
     {
         private readonly ICategoryRepository _categoryRepository = categoryRepository;
+        private readonly ITransactionRepository _transactionRepository = transactionRepository;
 
         public async Task<Result<CategoryResponseDto>> CreateAsync(CategoryDto categoryDto, UserId userId, CancellationToken cancellationToken)
         {
@@ -82,7 +84,12 @@ namespace LifeManager.Application.Categories.Services
 
         public async Task<Result> DeleteAsync(int id, UserId userId, CancellationToken cancellationToken)
         {
-            var deleted = await _categoryRepository.DeleteAsync(new CategoryId(id), userId, cancellationToken);
+            var categoryId = new CategoryId(id);
+
+            if (await _transactionRepository.ExistsByCategoryAsync(categoryId, userId, cancellationToken))
+                return CategoryErrors.InUse;
+
+            var deleted = await _categoryRepository.DeleteAsync(categoryId, userId, cancellationToken);
             if (!deleted)
                 return CategoryErrors.NotFound;
 

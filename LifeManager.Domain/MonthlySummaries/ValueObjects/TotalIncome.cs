@@ -16,7 +16,8 @@ namespace LifeManager.Domain.MonthlySummaries.ValueObjects
 
         public static Result<TotalIncome> Create(decimal value)
         {
-            if (decimal.IsNegative(value))
+            // `< 0`, not decimal.IsNegative: a negative zero (-0m) is still zero.
+            if (value < 0)
                 return MonthlySummaryErrors.TotalIncomeNegative;
 
             return new TotalIncome(value);
