@@ -475,7 +475,7 @@ namespace LifeManager.Application.Test.Categories
         public async Task DeleteAsync_ShouldReturnInUseAndKeepCategory_WhenTransactionsUseIt()
         {
             var createdCategory = await CreateCategory("Food", FirstUserId);
-            var monthlySummary = MonthlySummary.FromPersistence(1, FirstUserId.Value, 3, DateTimeOffset.UtcNow.Year, 0, 0);
+            var monthlySummary = MonthlySummary.FromPersistence(1, FirstUserId.Value, 3, DateTimeOffset.UtcNow.Year, 0, 0, 0);
             MonthlySummarySingleton.Instance.Add(monthlySummary);
             var transaction = Transaction.Create(
                 MoneyFlowType.Expense, createdCategory.Id, 10m, "Market", new DateOnly(DateTimeOffset.UtcNow.Year, 3, 1), monthlySummary).Value!;

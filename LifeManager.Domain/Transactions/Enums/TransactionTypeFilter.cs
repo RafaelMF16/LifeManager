@@ -4,6 +4,7 @@ namespace LifeManager.Domain.Transactions.Enums
     {
         All = 1,
         Expense = 2,
-        Income = 3
+        Income = 3,
+        Investment = 4
     }
 }

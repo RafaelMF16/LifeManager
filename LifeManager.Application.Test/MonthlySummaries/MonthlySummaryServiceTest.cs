@@ -40,7 +40,7 @@ namespace LifeManager.Application.Test.MonthlySummaries
             var result = await _monthlySummaryService.CreateAsync(new MonthlySummaryDto(3), FirstUserId, CancellationToken.None);
 
             Assert.True(result.IsSuccess);
-            Assert.Equal(new MonthlySummaryResponseDto(1, 3, CurrentYear, 0, 0, 0), result.Value);
+            Assert.Equal(new MonthlySummaryResponseDto(1, 3, CurrentYear, 0, 0, 0, 0), result.Value);
             var stored = Assert.Single(MonthlySummarySingleton.Instance);
             Assert.Equal(FirstUserId, stored.UserId);
         }
@@ -95,7 +95,7 @@ namespace LifeManager.Application.Test.MonthlySummaries
         [Fact]
         public async Task GetByIdAsync_ShouldReturnTotalsCountsAndNeighbors_WhenMonthBelongsToUser()
         {
-            var month = Stored(2, FirstUserId.Value, 3, CurrentYear, totalIncome: 100, totalExpense: 30);
+            var month = Stored(2, FirstUserId.Value, 3, CurrentYear, totalIncome: 100, totalExpense: 30, totalInvestment: 25);
             Seed(
                 Stored(1, FirstUserId.Value, 11, CurrentYear - 1),
                 month,
@@ -104,12 +104,13 @@ namespace LifeManager.Application.Test.MonthlySummaries
             TransactionSingleton.Instance.AddRange(
                 StoredTransaction(1, month, MoneyFlowType.Income, 100),
                 StoredTransaction(2, month, MoneyFlowType.Expense, 10),
-                StoredTransaction(3, month, MoneyFlowType.Expense, 20));
+                StoredTransaction(3, month, MoneyFlowType.Expense, 20),
+                StoredTransaction(4, month, MoneyFlowType.Investment, 25));
 
             var result = await _monthlySummaryService.GetByIdAsync(2, FirstUserId, CancellationToken.None);
 
             Assert.True(result.IsSuccess);
-            Assert.Equal(new MonthlySummaryDetailsResponseDto(2, 3, CurrentYear, 100, 30, 70, 1, 2, 1, 3), result.Value);
+            Assert.Equal(new MonthlySummaryDetailsResponseDto(2, 3, CurrentYear, 100, 30, 25, 45, 1, 2, 1, 1, 3), result.Value);
         }
 
         [Fact]
@@ -124,6 +125,7 @@ namespace LifeManager.Application.Test.MonthlySummaries
             Assert.Null(result.Value.NextId);
             Assert.Equal(0, result.Value.IncomeCount);
             Assert.Equal(0, result.Value.ExpenseCount);
+            Assert.Equal(0, result.Value.InvestmentCount);
         }
 
         [Fact]
@@ -161,14 +163,17 @@ namespace LifeManager.Application.Test.MonthlySummaries
         [InlineData(MonthlySummarySortBy.TotalIncome, SortDirection.Asc, new[] { 1, 3, 2 })]
         [InlineData(MonthlySummarySortBy.TotalExpense, SortDirection.Desc, new[] { 1, 2, 3 })]
         [InlineData(MonthlySummarySortBy.TotalExpense, SortDirection.Asc, new[] { 3, 2, 1 })]
+        [InlineData(MonthlySummarySortBy.TotalInvestment, SortDirection.Desc, new[] { 2, 3, 1 })]
+        [InlineData(MonthlySummarySortBy.TotalInvestment, SortDirection.Asc, new[] { 1, 3, 2 })]
         [InlineData(MonthlySummarySortBy.Balance, SortDirection.Desc, new[] { 3, 2, 1 })]
         [InlineData(MonthlySummarySortBy.Balance, SortDirection.Asc, new[] { 1, 2, 3 })]
         public async Task GetPagedAsync_ShouldSortByAmountColumn(MonthlySummarySortBy sortBy, SortDirection sortDirection, int[] expectedIds)
         {
+            // Balances: 1 → −800, 2 → 100, 3 → 350.
             Seed(
                 Stored(1, FirstUserId.Value, 1, CurrentYear, totalIncome: 100, totalExpense: 900),
-                Stored(2, FirstUserId.Value, 2, CurrentYear, totalIncome: 800, totalExpense: 500),
-                Stored(3, FirstUserId.Value, 3, CurrentYear, totalIncome: 400, totalExpense: 0));
+                Stored(2, FirstUserId.Value, 2, CurrentYear, totalIncome: 800, totalExpense: 500, totalInvestment: 200),
+                Stored(3, FirstUserId.Value, 3, CurrentYear, totalIncome: 400, totalExpense: 0, totalInvestment: 50));
 
             var query = new MonthlySummaryListQueryDto { SortBy = sortBy, SortDirection = sortDirection };
             var result = await _monthlySummaryService.GetPagedAsync(query, FirstUserId, CancellationToken.None);
@@ -277,8 +282,8 @@ namespace LifeManager.Application.Test.MonthlySummaries
         }
 
         /// <summary>A summary as stored in the database: any year and any totals, unlike <see cref="MonthlySummary.Create"/>.</summary>
-        private static MonthlySummary Stored(int id, int userId, int month, int year, decimal totalIncome = 0, decimal totalExpense = 0)
-            => MonthlySummary.FromPersistence(id, userId, month, year, totalIncome, totalExpense);
+        private static MonthlySummary Stored(int id, int userId, int month, int year, decimal totalIncome = 0, decimal totalExpense = 0, decimal totalInvestment = 0)
+            => MonthlySummary.FromPersistence(id, userId, month, year, totalIncome, totalExpense, totalInvestment);
 
         private static Transaction StoredTransaction(int id, MonthlySummary month, MoneyFlowType type, decimal amount)
             => Transaction.FromPersistence(id, month.Id!.Value, type, 1, amount, "description", new DateOnly(month.Year.Value, month.Month.Value, 1));

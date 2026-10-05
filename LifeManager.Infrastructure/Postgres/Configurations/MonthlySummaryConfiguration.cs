@@ -37,6 +37,11 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
                 .HasPrecision(AmountPrecision, AmountScale)
                 .HasConversion(totalExpense => totalExpense.Value, totalExpense => TotalExpense.FromPersistence(totalExpense));
 
+            builder.Property(monthlySummary => monthlySummary.TotalInvestment)
+                .IsRequired()
+                .HasPrecision(AmountPrecision, AmountScale)
+                .HasConversion(totalInvestment => totalInvestment.Value, totalInvestment => TotalInvestment.FromPersistence(totalInvestment));
+
             builder.Property(monthlySummary => monthlySummary.BalanceAmount)
                 .IsRequired()
                 .HasPrecision(AmountPrecision, AmountScale);

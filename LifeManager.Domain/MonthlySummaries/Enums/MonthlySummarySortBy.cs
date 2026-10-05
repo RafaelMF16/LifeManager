@@ -5,6 +5,7 @@ namespace LifeManager.Domain.MonthlySummaries.Enums
         Period = 1,
         TotalIncome = 2,
         TotalExpense = 3,
-        Balance = 4
+        Balance = 4,
+        TotalInvestment = 5
     }
 }

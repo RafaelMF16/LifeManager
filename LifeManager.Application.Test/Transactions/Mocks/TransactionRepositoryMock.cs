@@ -59,6 +59,7 @@ namespace LifeManager.Application.Test.Transactions.Mocks
             {
                 TransactionTypeFilter.Income => query.Where(transaction => transaction.Type == MoneyFlowType.Income),
                 TransactionTypeFilter.Expense => query.Where(transaction => transaction.Type == MoneyFlowType.Expense),
+                TransactionTypeFilter.Investment => query.Where(transaction => transaction.Type == MoneyFlowType.Investment),
                 _ => query
             };
 
@@ -80,7 +81,8 @@ namespace LifeManager.Application.Test.Transactions.Mocks
 
             return Task.FromResult(new TransactionCounts(
                 transactions.Count(transaction => transaction.Type == MoneyFlowType.Income),
-                transactions.Count(transaction => transaction.Type == MoneyFlowType.Expense)));
+                transactions.Count(transaction => transaction.Type == MoneyFlowType.Expense),
+                transactions.Count(transaction => transaction.Type == MoneyFlowType.Investment)));
         }
 
         public Task<bool> ExistsByCategoryAsync(CategoryId categoryId, UserId userId, CancellationToken cancellationToken)
@@ -124,9 +126,10 @@ namespace LifeManager.Application.Test.Transactions.Mocks
             var transactions = _instance.Where(transaction => transaction.MonthlySummaryId == monthlySummaryId).ToList();
             var totalIncome = transactions.Where(transaction => transaction.Type == MoneyFlowType.Income).Sum(transaction => transaction.SignedAmount);
             var totalExpense = -transactions.Where(transaction => transaction.Type == MoneyFlowType.Expense).Sum(transaction => transaction.SignedAmount);
+            var totalInvestment = -transactions.Where(transaction => transaction.Type == MoneyFlowType.Investment).Sum(transaction => transaction.SignedAmount);
 
             // Fails loudly, like the real repository, so an invalid recalculation can't pass a test silently.
-            var applyResult = monthlySummary.ApplyTotals(totalIncome, totalExpense);
+            var applyResult = monthlySummary.ApplyTotals(totalIncome, totalExpense, totalInvestment);
             if (!applyResult.IsSuccess)
                 throw new InvalidOperationException($"Recalculated totals are invalid: {applyResult.Error.Code}");
         }

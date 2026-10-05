@@ -3,6 +3,7 @@
     public enum MoneyFlowType
     {
         Expense = 1,
-        Income = 2
+        Income = 2,
+        Investment = 3
     }
 }

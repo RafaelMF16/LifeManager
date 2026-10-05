@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 LifeManager is a personal finance / life management API (.NET 10, C#, PostgreSQL via EF Core + Npgsql). It is consumed by the sibling React SPA `LifeManagerFront` (`../LifeManagerFront`, served at `https://localhost:5173`).
 
 Current state:
-- **Exposed over HTTP:** Auth (register/login/refresh/logout), Users (`GET /api/Users/Me` → `{ name }` of the authenticated user, shown in the frontend's Header menu), UserPreferences (get/save theme + language), Categories (full CRUD with a paged, searchable listing), MonthlySummaries (create a month, month details, and a paged listing filtered by year/balance and sortable by period, income, expenses or balance) and Transactions (full CRUD inside a month, which keeps the month's totals up to date).
+- **Exposed over HTTP:** Auth (register/login/refresh/logout), Users (`GET /api/Users/Me` → `{ name }` of the authenticated user, shown in the frontend's Header menu), UserPreferences (get/save theme + language), Categories (full CRUD with a paged, searchable listing), MonthlySummaries (create a month, month details, and a paged listing filtered by year/balance and sortable by period, income, expenses, investment or balance), Transactions (full CRUD inside a month, which keeps the month's totals up to date; types Expense, Income and Investment) and FinanceDashboard (one aggregated read of a period of months for the frontend's dashboard).
 
 ## Commands
 
@@ -150,10 +150,11 @@ The codebase is mid-migration to a `Result`/`Result<T>` pattern (`LifeManager.Do
 ### MonthlySummaries
 
 - **Creating a month:** `POST /api/MonthlySummaries` takes only `{ month }`; the service uses the current UTC year, since `MonthlySummaryYear.Create` only accepts the current year (`MonthlySummary.YearNotCurrent`). `FromPersistence` skips that rule, so past years rehydrate. A new month starts with zero totals. One month per user: unique index `(UserId, Year, Month)` + `MonthlySummary.AlreadyExists` (409).
+- **Totals:** `TotalIncome`, `TotalExpense` and `TotalInvestment` (all VOs, never negative). **Balance = income − expense − investment**: an investment is money set aside, so it leaves the account like an expense but is kept apart from spending. A redemption is recorded by the user as Income.
 - **Balance column:** `Balance` (VO) is derived and ignored by EF; `BalanceAmount` is its persisted copy (same idea as `Category.NormalizedName`) so the listing filters (`Positive` = ≥ 0, `Negative` = < 0) and sorts by it in SQL. Anything that changes the totals must also update `BalanceAmount` (including in `ExecuteUpdateAsync`).
-- **Details:** `GET /api/MonthlySummaries/{id}` returns `MonthlySummaryDetailsResponseDto`: the totals plus `IncomeCount`/`ExpenseCount` (`ITransactionRepository.CountByTypeAsync`) and `PreviousId`/`NextId`, the user's closest months before and after (`IMonthlySummaryRepository.GetNeighborsAsync`, which reads only the user's month keys because Year/Month are value objects and can't be compared in SQL). Create and the listing still return `MonthlySummaryResponseDto`.
-- **Totals** only change through transactions: `MonthlySummary.ApplyTotals(income, expense)` replaces both totals and keeps `BalanceAmount` in sync (see Transactions).
-- **Listing:** `GET /api/MonthlySummaries?page=&pageSize=&year=&balance=All|Positive|Negative&sortBy=Period|TotalIncome|TotalExpense|Balance&sortDirection=` (default `Period`/`Desc`, newest first). Every sort ends with Year, Month, Id in the same direction. `GET /api/MonthlySummaries/Years` returns the user's distinct years (newest first) for the year filter.
+- **Details:** `GET /api/MonthlySummaries/{id}` returns `MonthlySummaryDetailsResponseDto`: the totals plus `IncomeCount`/`ExpenseCount`/`InvestmentCount` (`ITransactionRepository.CountByTypeAsync`) and `PreviousId`/`NextId`, the user's closest months before and after (`IMonthlySummaryRepository.GetNeighborsAsync`, which reads only the user's month keys because Year/Month are value objects and can't be compared in SQL). Create and the listing still return `MonthlySummaryResponseDto`.
+- **Totals** only change through transactions: `MonthlySummary.ApplyTotals(income, expense, investment)` replaces the three totals and keeps `BalanceAmount` in sync (see Transactions).
+- **Listing:** `GET /api/MonthlySummaries?page=&pageSize=&year=&balance=All|Positive|Negative&sortBy=Period|TotalIncome|TotalExpense|TotalInvestment|Balance&sortDirection=` (default `Period`/`Desc`, newest first). Every sort ends with Year, Month, Id in the same direction. `GET /api/MonthlySummaries/Years` returns the user's distinct years (newest first) for the year filter.
 - **Tests:** `MonthlySummary.FromPersistence(...)` (internal) rehydrates a stored summary without the creation rules, so tests can seed past years and non-zero totals that `Create` can't produce; the repository mock also uses it for its detached copies.
 
 ### Transactions
@@ -165,10 +166,39 @@ The codebase is mid-migration to a `Result`/`Result<T>` pattern (`LifeManager.Do
   - the amount is always positive (the type gives the direction), with at most 2 decimals and at most `TransactionAmount.MaxValue` (fits `numeric(14,2)`);
   - the date is a `DateOnly` (`date` column) that must fall inside the month's year/month (`Transaction.DateOutsideMonth`). A transaction never moves to another month.
   - the category is required and must belong to the user: the service loads it with `ICategoryRepository.GetByIdAsync(id, userId)` and returns `Category.NotFound` otherwise.
-- **Derived columns:** `NormalizedDescription` (trigram GIN index, search like Categories) and `SignedAmount` (income positive, expense negative). `SignedAmount` exists because EF can't do arithmetic on a converted value object: the listing sorts by it (`Amount` sort = signed value) and the totals are summed from it. `ExecuteUpdateAsync` must set both together with `Amount`/`Type`/`Description`.
-- **Totals are recalculated on every write** (`TransactionRepository.WriteAndRecalculateTotalsAsync`), inside one database transaction: lock the month row with `SELECT ... FOR UPDATE`, write, `GROUP BY Type SUM(SignedAmount)`, `ApplyTotals`, then `ExecuteUpdateAsync` the month's `TotalIncome`/`TotalExpense`/`BalanceAmount`. The lock serializes concurrent writes to the same month; summing (instead of adding/subtracting deltas) means the totals can't drift. The mock does the same recalculation on `MonthlySummarySingleton`.
-- **Listing:** `?page=&pageSize=&type=All|Expense|Income&categoryId=&search=&sortBy=Date|Description|Category|Amount&sortDirection=` (default `Date`/`Desc`). Every sort ends with `TransactionDate`, `Id` in the same direction. `Category` sorts by the joined category's `NormalizedName`.
+- **Derived columns:** `NormalizedDescription` (trigram GIN index, search like Categories) and `SignedAmount` (income positive; expense and investment negative, since both leave the account). `SignedAmount` exists because EF can't do arithmetic on a converted value object: the listing sorts by it (`Amount` sort = signed value) and the totals are summed from it. `ExecuteUpdateAsync` must set both together with `Amount`/`Type`/`Description`.
+- **Totals are recalculated on every write** (`TransactionRepository.WriteAndRecalculateTotalsAsync`), inside one database transaction: lock the month row with `SELECT ... FOR UPDATE`, write, `GROUP BY Type SUM(SignedAmount)`, `ApplyTotals`, then `ExecuteUpdateAsync` the month's `TotalIncome`/`TotalExpense`/`TotalInvestment`/`BalanceAmount`. The lock serializes concurrent writes to the same month; summing (instead of adding/subtracting deltas) means the totals can't drift. The mock does the same recalculation on `MonthlySummarySingleton`.
+- **Listing:** `?page=&pageSize=&type=All|Expense|Income|Investment&categoryId=&search=&sortBy=Date|Description|Category|Amount&sortDirection=` (default `Date`/`Desc`). Every sort ends with `TransactionDate`, `Id` in the same direction. `Category` sorts by the joined category's `NormalizedName`.
 - **Category FK is `NO ACTION`**, not `RESTRICT`: deleting a user cascades to both its categories and (through its months) its transactions in the same statement, and `NO ACTION` only checks the FK at the end of it. Deleting a category that transactions still use is blocked earlier by `CategoryService.DeleteAsync` (`ITransactionRepository.ExistsByCategoryAsync` → `Category.InUse`, 409).
+
+### FinanceDashboard
+
+- **Endpoint:** `GET /api/FinanceDashboard?from=yyyy-MM&to=yyyy-MM&comparison=PreviousPeriod|SamePeriodLastYear`.
+  - It returns one `FinanceDashboardResponseDto` with everything the dashboard shows:
+    - the period and the comparison period;
+    - income/expense/investment/balance totals, each with previous value, difference and `ChangeRatio`;
+    - one row per month of the period;
+    - expense and investment breakdowns by category.
+  - The frontend resolves presets ("last 6 months", "this year") into `from`/`to` itself, since only it knows the user's local date. The endpoint never reads the clock.
+- **Period rules** (`DashboardPeriod`/`YearMonth` in the Domain, codes in `FinanceDashboardErrors`, all 400):
+  - whole months in `yyyy-MM`, years 2000–2100 (`InvalidFrom`/`InvalidTo`);
+  - `to ≥ from` (`EndBeforeStart`);
+  - at most 36 months (`PeriodTooLong`).
+- **Comparison periods** (`DashboardPeriod.ComparisonFor`):
+  - `PreviousPeriod` is the same number of months right before.
+  - `SamePeriodLastYear` is the same months 12 months back. It's only allowed for periods up to 12 months (`ComparisonTooLong`), so the two never overlap.
+  - An undefined value returns `InvalidComparison`. Over HTTP, model binding already rejects an undefined value (e.g. `comparison=7`) with ASP.NET's ProblemDetails 400, so this is only a guard for direct callers of the domain.
+- **One grouped query:** `FinanceDashboardRepository` sums the user's transactions per category, type and month.
+  - It filters on `TransactionDate` over the comparison start through the period end. Ownership is checked through the month (`MonthlySummaries.Any(... UserId)`).
+  - It groups on plain columns (`CategoryId`, `Type`, `TransactionDate.Year/Month`) and sums `SignedAmount`.
+  - Category names come from a second query over the user's categories, because grouping by the converted `Name` isn't translated reliably.
+  - No extra index is needed. The mock mirrors all of this over the singletons.
+- **Assembly in `FinanceDashboardService`:**
+  - Months with no transactions are zero-filled.
+  - Breakdowns list the top `TopCategoryCount` (8) categories by amount (ties by name, then id). The rest go into `Others`, whose previous amount is the previous total minus the listed ones, so the parts always add up.
+  - `ChangeRatio = (current − previous) / |previous|`, rounded to 4 places, and null when the previous value is 0.
+  - `Share` is the part of the breakdown total (0 when the total is 0).
+  - `MonthlyAmounts` lines up with `Months`.
 
 ### Paged listings (standard for every list endpoint)
 

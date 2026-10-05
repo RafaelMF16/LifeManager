@@ -46,8 +46,8 @@ namespace LifeManager.Application.Test.Transactions
             CategorySingleton.Instance.Clear();
 
             MonthlySummarySingleton.Instance.AddRange(
-                MonthlySummary.FromPersistence(MonthId, FirstUserId.Value, 3, CurrentYear, 0, 0),
-                MonthlySummary.FromPersistence(OtherUserMonthId, SecondUserId.Value, 3, CurrentYear, 0, 0));
+                MonthlySummary.FromPersistence(MonthId, FirstUserId.Value, 3, CurrentYear, 0, 0, 0),
+                MonthlySummary.FromPersistence(OtherUserMonthId, SecondUserId.Value, 3, CurrentYear, 0, 0, 0));
 
             SeedCategory(MarketCategoryId, FirstUserId, "Mercado");
             SeedCategory(SalaryCategoryId, FirstUserId, "Salário");
@@ -138,6 +138,31 @@ namespace LifeManager.Application.Test.Transactions
                 new TransactionResponseDto(created.Id, MoneyFlowType.Expense, HealthCategoryId, "Saúde", 250m, "Farmácia", Day(11)),
                 result.Value);
             AssertMonthTotals(0m, 250m);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldUpdateMonthInvestmentAndBalance_WhenTypeIsInvestment()
+        {
+            await Create(Income("Salário", 5000m, 5));
+            await Create(Expense("Supermercado", 1500m, 6));
+
+            var result = await _transactionService.CreateAsync(MonthId, Investment("Tesouro Selic", 1000m, 7), FirstUserId, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(MoneyFlowType.Investment, result.Value.Type);
+            Assert.Equal(1000m, result.Value.Amount);
+            AssertMonthTotals(5000m, 1500m, 1000m);
+        }
+
+        [Fact]
+        public async Task UpdateAsync_ShouldMoveAmountBetweenTotals_WhenTypeChangesToInvestment()
+        {
+            var created = await Create(Expense("Aporte", 400m, 10));
+
+            var result = await _transactionService.UpdateAsync(MonthId, created.Id, Investment("Aporte", 400m, 10), FirstUserId, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            AssertMonthTotals(0m, 0m, 400m);
         }
 
         [Fact]
@@ -238,6 +263,20 @@ namespace LifeManager.Application.Test.Transactions
             Assert.Equal([2], health.Value!.Items.Select(item => item.Id));
         }
 
+        [Fact]
+        public async Task GetPagedAsync_ShouldReturnOnlyInvestments_WhenTypeFilterIsInvestment()
+        {
+            await Create(Expense("Supermercado", 200m, 4));
+            await Create(Investment("Tesouro Selic", 500m, 5));
+            await Create(Income("Salário", 3000m, 5));
+
+            var query = new TransactionListQueryDto { Type = TransactionTypeFilter.Investment };
+            var result = await _transactionService.GetPagedAsync(MonthId, query, FirstUserId, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal([2], result.Value.Items.Select(item => item.Id));
+        }
+
         [Theory]
         [InlineData(TransactionSortBy.Description, SortDirection.Asc, new[] { 2, 3, 1 })]
         [InlineData(TransactionSortBy.Description, SortDirection.Desc, new[] { 1, 3, 2 })]
@@ -323,13 +362,17 @@ namespace LifeManager.Application.Test.Transactions
             return result.Value!;
         }
 
-        private static void AssertMonthTotals(decimal totalIncome, decimal totalExpense)
+        private static TransactionDto Investment(string description, decimal amount, int day)
+            => new(MoneyFlowType.Investment, MarketCategoryId, amount, description, Day(day));
+
+        private static void AssertMonthTotals(decimal totalIncome, decimal totalExpense, decimal totalInvestment = 0m)
         {
             var month = MonthlySummarySingleton.Instance.Single(monthlySummary => monthlySummary.Id!.Value == MonthId);
 
             Assert.Equal(totalIncome, month.TotalIncome.Value);
             Assert.Equal(totalExpense, month.TotalExpense.Value);
-            Assert.Equal(totalIncome - totalExpense, month.BalanceAmount);
+            Assert.Equal(totalInvestment, month.TotalInvestment.Value);
+            Assert.Equal(totalIncome - totalExpense - totalInvestment, month.BalanceAmount);
         }
 
         private static void SeedCategory(int id, UserId userId, string name)

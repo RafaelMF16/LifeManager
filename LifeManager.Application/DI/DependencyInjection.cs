@@ -1,5 +1,6 @@
 ﻿using LifeManager.Application.Auth.Services;
 using LifeManager.Application.Categories.Services;
+using LifeManager.Application.FinanceDashboard.Services;
 using LifeManager.Application.MonthlySummaries.Services;
 using LifeManager.Application.Transactions.Services;
 using LifeManager.Application.EnvironmentVariables.Services;
@@ -21,6 +22,7 @@ namespace LifeManager.Application.DI
             services.AddScoped<CategoryService>();
             services.AddScoped<MonthlySummaryService>();
             services.AddScoped<TransactionService>();
+            services.AddScoped<FinanceDashboardService>();
             return services;
         }
     }
