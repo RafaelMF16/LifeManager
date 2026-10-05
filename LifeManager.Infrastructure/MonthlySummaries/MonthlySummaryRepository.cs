@@ -110,6 +110,9 @@ namespace LifeManager.Infrastructure.MonthlySummaries
                 MonthlySummarySortBy.TotalExpense => descending
                     ? query.OrderByDescending(monthlySummary => monthlySummary.TotalExpense)
                     : query.OrderBy(monthlySummary => monthlySummary.TotalExpense),
+                MonthlySummarySortBy.TotalInvestment => descending
+                    ? query.OrderByDescending(monthlySummary => monthlySummary.TotalInvestment)
+                    : query.OrderBy(monthlySummary => monthlySummary.TotalInvestment),
                 MonthlySummarySortBy.Balance => descending
                     ? query.OrderByDescending(monthlySummary => monthlySummary.BalanceAmount)
                     : query.OrderBy(monthlySummary => monthlySummary.BalanceAmount),

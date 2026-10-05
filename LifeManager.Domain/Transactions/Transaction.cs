@@ -25,7 +25,8 @@ namespace LifeManager.Domain.Transactions
         public string NormalizedDescription { get; private set; }
 
         /// <summary>
-        /// Persisted <see cref="Amount"/> with the sign of its <see cref="Type"/> (income positive, expense negative),
+        /// Persisted <see cref="Amount"/> with the sign of its <see cref="Type"/> (income positive; expense and investment
+        /// negative, since both leave the account),
         /// so listings can sort by value and totals can be summed in the database. Always derived from both.
         /// </summary>
         public decimal SignedAmount { get; private set; }

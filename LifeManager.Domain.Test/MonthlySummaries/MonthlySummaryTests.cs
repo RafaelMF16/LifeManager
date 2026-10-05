@@ -23,6 +23,7 @@ namespace LifeManager.Domain.Test.MonthlySummaries
             Assert.Equal(CurrentYear, monthlySummary.Year.Value);
             Assert.Equal(0m, monthlySummary.TotalIncome.Value);
             Assert.Equal(0m, monthlySummary.TotalExpense.Value);
+            Assert.Equal(0m, monthlySummary.TotalInvestment.Value);
             Assert.Equal(0m, monthlySummary.Balance.Value);
             Assert.Equal(monthlySummary.Balance.Value, monthlySummary.BalanceAmount);
         }
@@ -57,18 +58,21 @@ namespace LifeManager.Domain.Test.MonthlySummaries
         }
 
         [Theory]
-        [InlineData(1000, 250.5, 749.5)]
-        [InlineData(100, 300, -200)]
-        [InlineData(0, 0, 0)]
-        public void ApplyTotals_ShouldReplaceTotalsAndKeepBalanceInSync(decimal totalIncome, decimal totalExpense, decimal expectedBalance)
+        [InlineData(1000, 250.5, 0, 749.5)]
+        [InlineData(100, 300, 0, -200)]
+        [InlineData(0, 0, 0, 0)]
+        [InlineData(1000, 300, 200, 500)]
+        [InlineData(100, 0, 300, -200)]
+        public void ApplyTotals_ShouldReplaceTotalsAndKeepBalanceInSync(decimal totalIncome, decimal totalExpense, decimal totalInvestment, decimal expectedBalance)
         {
             var monthlySummary = MonthlySummary.Create(1, 11, CurrentYear).Value!;
 
-            var result = monthlySummary.ApplyTotals(totalIncome, totalExpense);
+            var result = monthlySummary.ApplyTotals(totalIncome, totalExpense, totalInvestment);
 
             Assert.True(result.IsSuccess);
             Assert.Equal(totalIncome, monthlySummary.TotalIncome.Value);
             Assert.Equal(totalExpense, monthlySummary.TotalExpense.Value);
+            Assert.Equal(totalInvestment, monthlySummary.TotalInvestment.Value);
             Assert.Equal(expectedBalance, monthlySummary.Balance.Value);
             Assert.Equal(expectedBalance, monthlySummary.BalanceAmount);
         }
@@ -78,10 +82,24 @@ namespace LifeManager.Domain.Test.MonthlySummaries
         {
             var monthlySummary = MonthlySummary.Create(1, 11, CurrentYear).Value!;
 
-            var result = monthlySummary.ApplyTotals(-1, 10);
+            var result = monthlySummary.ApplyTotals(-1, 10, 0);
 
             Assert.False(result.IsSuccess);
             Assert.Equal(MonthlySummaryErrors.TotalIncomeNegative, result.Error);
+            Assert.Equal(0, monthlySummary.TotalExpense.Value);
+            Assert.Equal(0, monthlySummary.BalanceAmount);
+        }
+
+        [Fact]
+        public void ApplyTotals_ShouldKeepCurrentTotals_WhenInvestmentIsNegative()
+        {
+            var monthlySummary = MonthlySummary.Create(1, 11, CurrentYear).Value!;
+
+            var result = monthlySummary.ApplyTotals(100, 10, -1);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(MonthlySummaryErrors.TotalInvestmentNegative, result.Error);
+            Assert.Equal(0, monthlySummary.TotalIncome.Value);
             Assert.Equal(0, monthlySummary.TotalExpense.Value);
             Assert.Equal(0, monthlySummary.BalanceAmount);
         }

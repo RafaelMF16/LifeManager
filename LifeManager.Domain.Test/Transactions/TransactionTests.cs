@@ -39,6 +39,7 @@ namespace LifeManager.Domain.Test.Transactions
         [Theory]
         [InlineData(MoneyFlowType.Expense, -50)]
         [InlineData(MoneyFlowType.Income, 50)]
+        [InlineData(MoneyFlowType.Investment, -50)]
         public void Create_ShouldSignAmountByType(MoneyFlowType type, decimal expectedSignedAmount)
         {
             var transaction = Transaction.Create(type, 1, 50m, "description", MarchDay(1), March()).Value!;

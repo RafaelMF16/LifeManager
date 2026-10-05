@@ -112,6 +112,7 @@ namespace LifeManager.Application.Test.MonthlySummaries.Mocks
             {
                 MonthlySummarySortBy.TotalIncome => monthlySummary => monthlySummary.TotalIncome.Value,
                 MonthlySummarySortBy.TotalExpense => monthlySummary => monthlySummary.TotalExpense.Value,
+                MonthlySummarySortBy.TotalInvestment => monthlySummary => monthlySummary.TotalInvestment.Value,
                 MonthlySummarySortBy.Balance => monthlySummary => monthlySummary.BalanceAmount,
                 _ => monthlySummary => monthlySummary.Year.Value
             };
@@ -134,6 +135,7 @@ namespace LifeManager.Application.Test.MonthlySummaries.Mocks
                 monthlySummary.Month.Value,
                 monthlySummary.Year.Value,
                 monthlySummary.TotalIncome.Value,
-                monthlySummary.TotalExpense.Value);
+                monthlySummary.TotalExpense.Value,
+                monthlySummary.TotalInvestment.Value);
     }
 }

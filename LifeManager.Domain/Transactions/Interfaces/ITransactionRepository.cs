@@ -9,7 +9,7 @@ using LifeManager.Domain.Users.ValueObjects;
 namespace LifeManager.Domain.Transactions.Interfaces
 {
     /// <remarks>
-    /// Every write also recalculates the month's totals (income, expense and balance) from its transactions,
+    /// Every write also recalculates the month's totals (income, expense, investment and balance) from its transactions,
     /// in the same database transaction, so the summary never drifts from what is stored.
     /// </remarks>
     public interface ITransactionRepository

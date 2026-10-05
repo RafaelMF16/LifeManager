@@ -9,9 +9,10 @@ namespace LifeManager.Domain.MonthlySummaries.ValueObjects
             Value = value;
         }
 
-        public static Balance Create(TotalIncome totalIncome, TotalExpense totalExpense)
+        /// <summary>What is left in the account: income minus what was spent and what was set aside as investment.</summary>
+        public static Balance Create(TotalIncome totalIncome, TotalExpense totalExpense, TotalInvestment totalInvestment)
         {
-            var value = totalIncome.Value - totalExpense.Value;
+            var value = totalIncome.Value - totalExpense.Value - totalInvestment.Value;
 
             return new Balance(value);
         }

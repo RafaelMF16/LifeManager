@@ -10,9 +10,11 @@ namespace LifeManager.Application.MonthlySummaries.DTOs
         int Year,
         decimal TotalIncome,
         decimal TotalExpense,
+        decimal TotalInvestment,
         decimal Balance,
         int IncomeCount,
         int ExpenseCount,
+        int InvestmentCount,
         int? PreviousId,
         int? NextId);
 }

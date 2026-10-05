@@ -117,6 +117,10 @@ namespace LifeManager.Infrastructure.Migrations
                         .HasPrecision(14, 2)
                         .HasColumnType("numeric(14,2)");
 
+                    b.Property<decimal>("TotalInvestment")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
 

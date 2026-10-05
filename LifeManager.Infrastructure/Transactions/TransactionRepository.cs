@@ -58,6 +58,7 @@ namespace LifeManager.Infrastructure.Transactions
             {
                 TransactionTypeFilter.Income => transactions.Where(transaction => transaction.Type == MoneyFlowType.Income),
                 TransactionTypeFilter.Expense => transactions.Where(transaction => transaction.Type == MoneyFlowType.Expense),
+                TransactionTypeFilter.Investment => transactions.Where(transaction => transaction.Type == MoneyFlowType.Investment),
                 _ => transactions
             };
 
@@ -88,7 +89,8 @@ namespace LifeManager.Infrastructure.Transactions
 
             return new TransactionCounts(
                 counts.Where(count => count.Type == MoneyFlowType.Income).Sum(count => count.Count),
-                counts.Where(count => count.Type == MoneyFlowType.Expense).Sum(count => count.Count));
+                counts.Where(count => count.Type == MoneyFlowType.Expense).Sum(count => count.Count),
+                counts.Where(count => count.Type == MoneyFlowType.Investment).Sum(count => count.Count));
         }
 
         public async Task<bool> ExistsByCategoryAsync(CategoryId categoryId, UserId userId, CancellationToken cancellationToken)
@@ -155,8 +157,9 @@ namespace LifeManager.Infrastructure.Transactions
 
             var totalIncome = totals.Where(total => total.Type == MoneyFlowType.Income).Sum(total => total.Total);
             var totalExpense = -totals.Where(total => total.Type == MoneyFlowType.Expense).Sum(total => total.Total);
+            var totalInvestment = -totals.Where(total => total.Type == MoneyFlowType.Investment).Sum(total => total.Total);
 
-            var applyResult = monthlySummary.ApplyTotals(totalIncome, totalExpense);
+            var applyResult = monthlySummary.ApplyTotals(totalIncome, totalExpense, totalInvestment);
             if (!applyResult.IsSuccess)
                 throw new InvalidOperationException($"Recalculated totals are invalid: {applyResult.Error.Code}");
 
@@ -165,6 +168,7 @@ namespace LifeManager.Infrastructure.Transactions
                 .ExecuteUpdateAsync(setters => setters
                     .SetProperty(storedSummary => storedSummary.TotalIncome, monthlySummary.TotalIncome)
                     .SetProperty(storedSummary => storedSummary.TotalExpense, monthlySummary.TotalExpense)
+                    .SetProperty(storedSummary => storedSummary.TotalInvestment, monthlySummary.TotalInvestment)
                     .SetProperty(storedSummary => storedSummary.BalanceAmount, monthlySummary.BalanceAmount), cancellationToken);
 
             await databaseTransaction.CommitAsync(cancellationToken);

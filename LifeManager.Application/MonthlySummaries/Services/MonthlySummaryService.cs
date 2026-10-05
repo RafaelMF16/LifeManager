@@ -47,9 +47,11 @@ namespace LifeManager.Application.MonthlySummaries.Services
                 monthlySummary.Year.Value,
                 monthlySummary.TotalIncome.Value,
                 monthlySummary.TotalExpense.Value,
+                monthlySummary.TotalInvestment.Value,
                 monthlySummary.Balance.Value,
                 counts.IncomeCount,
                 counts.ExpenseCount,
+                counts.InvestmentCount,
                 neighbors.PreviousId,
                 neighbors.NextId);
         }
@@ -80,6 +82,7 @@ namespace LifeManager.Application.MonthlySummaries.Services
                 monthlySummary.Year.Value,
                 monthlySummary.TotalIncome.Value,
                 monthlySummary.TotalExpense.Value,
+                monthlySummary.TotalInvestment.Value,
                 monthlySummary.Balance.Value);
     }
 }
