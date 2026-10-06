@@ -149,6 +149,7 @@ namespace LifeManager.Application.Transactions.Services
                 categoryName,
                 transaction.Amount.Value,
                 transaction.Description.Value,
-                transaction.TransactionDate);
+                transaction.TransactionDate,
+                transaction.RecurringTransactionId?.Value);
     }
 }

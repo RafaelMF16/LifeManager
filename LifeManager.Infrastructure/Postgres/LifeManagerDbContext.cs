@@ -1,6 +1,8 @@
 ﻿using LifeManager.Domain.Auth;
+using LifeManager.Domain.Budgets;
 using LifeManager.Domain.Categories;
 using LifeManager.Domain.MonthlySummaries;
+using LifeManager.Domain.RecurringTransactions;
 using LifeManager.Domain.Transactions;
 using LifeManager.Domain.Users;
 using LifeManager.Domain.UsersPreferences;
@@ -16,6 +18,8 @@ namespace LifeManager.Infrastructure.Postgres
         public DbSet<Category> Categories { get; set; }
         public DbSet<MonthlySummary> MonthlySummaries { get; set; }
         public DbSet<Transaction> Transactions { get; set; }
+        public DbSet<RecurringTransaction> RecurringTransactions { get; set; }
+        public DbSet<Budget> Budgets { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

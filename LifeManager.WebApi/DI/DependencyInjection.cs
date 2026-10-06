@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using LifeManager.WebApi.RecurringTransactions.Jobs;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
@@ -13,6 +14,8 @@ namespace LifeManager.WebApi.DI
             ConfigureJwtAuthentication(builder);
 
             ConfigureCors(builder);
+
+            builder.Services.AddHostedService<RecurringTransactionsJob>();
 
             return builder.Services;
         }

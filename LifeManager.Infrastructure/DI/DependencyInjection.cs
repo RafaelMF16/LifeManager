@@ -5,6 +5,10 @@ using LifeManager.Domain.MonthlySummaries.Interfaces;
 using LifeManager.Infrastructure.MonthlySummaries;
 using LifeManager.Domain.Transactions.Interfaces;
 using LifeManager.Infrastructure.Transactions;
+using LifeManager.Domain.RecurringTransactions.Interfaces;
+using LifeManager.Infrastructure.RecurringTransactions;
+using LifeManager.Domain.Budgets.Interfaces;
+using LifeManager.Infrastructure.Budgets;
 using LifeManager.Domain.FinanceDashboard.Interfaces;
 using LifeManager.Infrastructure.FinanceDashboard;
 using LifeManager.Domain.Users.Interfaces;
@@ -31,6 +35,8 @@ namespace LifeManager.Infrastructure.DI
             services.AddScoped<IMonthlySummaryRepository, MonthlySummaryRepository>();
             services.AddScoped<ITransactionRepository, TransactionRepository>();
             services.AddScoped<IFinanceDashboardRepository, FinanceDashboardRepository>();
+            services.AddScoped<IRecurringTransactionRepository, RecurringTransactionRepository>();
+            services.AddScoped<IBudgetRepository, BudgetRepository>();
 
             return services;
         }

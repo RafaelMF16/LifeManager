@@ -2,6 +2,7 @@ using LifeManager.Domain.MonthlySummaries.Enums;
 using LifeManager.Domain.MonthlySummaries.ValueObjects;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.Paging;
+using LifeManager.Domain.Shared.ValueObjects;
 using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Domain.MonthlySummaries.Interfaces
@@ -28,5 +29,13 @@ namespace LifeManager.Domain.MonthlySummaries.Interfaces
         Task<MonthlySummaryNeighbors> GetNeighborsAsync(UserId userId, MonthlySummaryYear year, MonthlySummaryMonth month, CancellationToken cancellationToken);
 
         Task<bool> ExistsAsync(UserId userId, MonthlySummaryMonth month, MonthlySummaryYear year, CancellationToken cancellationToken);
+
+        Task<MonthlySummary?> GetByPeriodAsync(UserId userId, YearMonth month, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Adds the month unless the user already has it (e.g. opened at the same moment by a concurrent request),
+        /// and returns the stored one either way.
+        /// </summary>
+        Task<MonthlySummary> AddIfMissingAsync(MonthlySummary monthlySummary, CancellationToken cancellationToken);
     }
 }

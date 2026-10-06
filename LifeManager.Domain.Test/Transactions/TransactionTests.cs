@@ -1,4 +1,5 @@
 using LifeManager.Domain.MonthlySummaries;
+using LifeManager.Domain.RecurringTransactions;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Transactions;
 using LifeManager.Domain.Transactions.Errors;
@@ -147,6 +148,45 @@ namespace LifeManager.Domain.Test.Transactions
 
             Assert.NotNull(transaction.Id);
             Assert.Equal(10, transaction.Id!.Value);
+        }
+
+        [Fact]
+        public void CreateFromRecurrence_ShouldCopyTheRecurrence_AndRememberIt()
+        {
+            var recurrence = RecurringTransaction.Create(1, MoneyFlowType.Income, 4, 8000m, "Salário", 5, $"{CurrentYear}-03", null, new DateOnly(CurrentYear, 3, 1)).Value!;
+            recurrence.AssignId(9);
+
+            var result = Transaction.CreateFromRecurrence(recurrence, March());
+
+            Assert.True(result.IsSuccess);
+            var transaction = result.Value;
+            Assert.Equal(MoneyFlowType.Income, transaction.Type);
+            Assert.Equal(4, transaction.CategoryId.Value);
+            Assert.Equal(8000m, transaction.Amount.Value);
+            Assert.Equal(8000m, transaction.SignedAmount);
+            Assert.Equal("Salário", transaction.Description.Value);
+            Assert.Equal(MarchDay(5), transaction.TransactionDate);
+            Assert.Equal(9, transaction.RecurringTransactionId!.Value);
+            Assert.Equal(7, transaction.MonthlySummaryId.Value);
+        }
+
+        [Fact]
+        public void CreateFromRecurrence_ShouldReturnDateOutsideMonth_WhenTheMonthIsAnother()
+        {
+            var recurrence = RecurringTransaction.Create(1, MoneyFlowType.Income, 4, 8000m, "Salário", 5, $"{CurrentYear}-04", null, new DateOnly(CurrentYear, 3, 1)).Value!;
+            recurrence.AssignId(9);
+
+            var result = Transaction.CreateFromRecurrence(recurrence, March());
+
+            Assert.Equal(TransactionErrors.DateOutsideMonth, result.Error);
+        }
+
+        [Fact]
+        public void Create_ShouldHaveNoRecurrence_WhenEnteredByHand()
+        {
+            var transaction = Transaction.Create(MoneyFlowType.Expense, 1, 50m, "description", MarchDay(1), March()).Value!;
+
+            Assert.Null(transaction.RecurringTransactionId);
         }
     }
 }

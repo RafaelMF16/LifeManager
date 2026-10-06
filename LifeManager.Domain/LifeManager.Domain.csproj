@@ -9,6 +9,7 @@
     <ItemGroup>
 	    <InternalsVisibleTo Include="LifeManager.Infrastructure" />
 	    <InternalsVisibleTo Include="LifeManager.Application.Test" />
+	    <InternalsVisibleTo Include="LifeManager.Domain.Test" />
     </ItemGroup>
 
 </Project>

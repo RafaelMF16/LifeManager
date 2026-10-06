@@ -7,7 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 LifeManager is a personal finance / life management API (.NET 10, C#, PostgreSQL via EF Core + Npgsql). It is consumed by the sibling React SPA `LifeManagerFront` (`../LifeManagerFront`, served at `https://localhost:5173`).
 
 Current state:
-- **Exposed over HTTP:** Auth (register/login/refresh/logout), Users (`GET /api/Users/Me` → `{ name }` of the authenticated user, shown in the frontend's Header menu), UserPreferences (get/save theme + language), Categories (full CRUD with a paged, searchable listing), MonthlySummaries (create a month, month details, and a paged listing filtered by year/balance and sortable by period, income, expenses, investment or balance), Transactions (full CRUD inside a month, which keeps the month's totals up to date; types Expense, Income and Investment) and FinanceDashboard (one aggregated read of a period of months for the frontend's dashboard).
+- **Exposed over HTTP:** Auth (register/login/refresh/logout), Users (`GET /api/Users/Me` → `{ name }` of the authenticated user, shown in the frontend's Header menu), UserPreferences (get/save theme + language), Categories (full CRUD with a paged, searchable listing), MonthlySummaries (create a month, month details, and a paged listing filtered by year/balance and sortable by period, income, expenses, investment or balance), Transactions (full CRUD inside a month, which keeps the month's totals up to date; types Expense, Income and Investment), RecurringTransactions (monthly transactions posted automatically by a background job), Budgets (monthly spending limits and investment targets, per category or for the month total, versioned by month) and FinanceDashboard (one aggregated read of a period of months for the frontend's dashboard, goals included).
+- **Background work:** one hosted service, `RecurringTransactionsJob` (see RecurringTransactions).
 
 ## Commands
 
@@ -48,6 +49,8 @@ Required configuration keys, read from `IConfiguration` (user secrets or environ
 - `lifeManagerConnectionString`: the Postgres connection.
 - `accessTokenSecretKey` and `refreshTokenSecretKey`: the JWT signing secrets.
 
+Optional: `businessTimeZone` (IANA id, default `America/Sao_Paulo`), the time zone of "today" for business rules (`AppClock`). The host needs time zone data (tzdata); an unknown id throws on first use.
+
 Note: `LifeManager.Tests` (singular) is a leftover scaffold project. It is not referenced in `LifeManager.slnx` and contains no code beyond its `.csproj`. The real test suites are `LifeManager.Domain.Test` and `LifeManager.Application.Test`.
 
 ## Architecture
@@ -57,21 +60,23 @@ Layered/Clean Architecture split across four projects, referencing inward only. 
 - **LifeManager.Domain**
   - Holds entities, value objects, domain errors and repository interfaces, with no external dependencies.
   - Each feature folder has `ValueObjects/`, `Errors/` and (where relevant) `Interfaces/`.
-  - `Shared/` holds `Results/` (Result pattern), `Paging/` (`PageRequest`, `PagedList<T>`, `PagingErrors`), `Text/` (`SearchText`) and `Enums/` (`MoneyFlowType`, `SortDirection`).
-  - `InternalsVisibleTo` exposes internals to Infrastructure, so value objects' `internal static FromPersistence(...)` rehydrate from the database without re-validating. `LifeManager.Application.Test` also sees them, to seed stored state that the validating factories can't create.
+  - `Shared/` holds `Results/` (Result pattern), `Paging/` (`PageRequest`, `PagedList<T>`, `PagingErrors`), `Text/` (`SearchText`), `Enums/` (`MoneyFlowType`, `SortDirection`) and `ValueObjects/` (`YearMonth`: `yyyy-MM`, years 2000–2100, `Ordinal`/`AddMonths`/`FirstDay`/`LastDay`; used by the dashboard, recurrences and budgets).
+  - `InternalsVisibleTo` exposes internals to Infrastructure, so value objects' `internal static FromPersistence(...)` rehydrate from the database without re-validating. `LifeManager.Application.Test` and `LifeManager.Domain.Test` also see them, to seed stored state that the validating factories can't create.
 - **LifeManager.Application**
-  - Application services orchestrate domain logic: `AuthService`, `TokenService`, `UserService`, `UserPreferencesService`, `CategoryService`, `MonthlySummaryService`, `TransactionService`, `EnvironmentVariableService`.
+  - Application services orchestrate domain logic: `AuthService`, `TokenService`, `UserService`, `UserPreferencesService`, `CategoryService`, `MonthlySummaryService`, `TransactionService`, `RecurringTransactionService`, `RecurringTransactionPostingService`, `BudgetService`, `FinanceDashboardService`, `EnvironmentVariableService`.
+  - `Shared/Time/AppClock` gives "today" (`DateOnly`) in `businessTimeZone`, backed by `TimeProvider` (registered as `TimeProvider.System`; tests replace it). New code that needs the date uses it instead of `DateTimeOffset.UtcNow`.
   - Each feature has its DTOs; `Shared/DTOs/` holds `PagedResponseDto<T>`.
   - Depends on `LifeManager.Domain` only.
   - Services are registered as scoped in `DI/DependencyInjection.cs` (`AddApplicationServices`).
 - **LifeManager.Infrastructure**
-  - Persistence with EF Core + Npgsql. `Postgres/LifeManagerDbContext.cs` has the DbSets `Users`, `RefreshTokens`, `UserPreferences`, `Categories`, `MonthlySummaries`, `Transactions` and declares the `pg_trgm` extension.
+  - Persistence with EF Core + Npgsql. `Postgres/LifeManagerDbContext.cs` has the DbSets `Users`, `RefreshTokens`, `UserPreferences`, `Categories`, `MonthlySummaries`, `Transactions`, `RecurringTransactions`, `Budgets` and declares the `pg_trgm` extension.
   - One `IEntityTypeConfiguration<T>` per entity lives in `Postgres/Configurations/` and is applied via `ApplyConfigurationsFromAssembly`. Value objects are mapped with `HasConversion(vo => vo.Value, v => X.FromPersistence(v))`.
   - Naming is EF's default PascalCase (tables `"Categories"`, columns `"UserId"`), so any raw SQL must quote identifiers.
   - Repositories live in feature folders (`Users/`, `Auth/`, `UsersPreferences/`, `Categories/`, `MonthlySummaries/`, `Transactions/`). Shared query helpers live in `Postgres/Extensions/`.
   - Registered in `DI/DependencyInjection.cs` (`AddInfrastructureServices(connectionString)`).
 - **LifeManager.WebApi**
-  - ASP.NET Core host. Controllers live in feature folders (`Auth/Controllers`, `UsersPreferences/Controllers`, `Categories/Controllers`, `MonthlySummaries/Controllers`, `Transactions/Controllers`) under `[Route("api/[controller]")]`; `TransactionsController` is nested under its month (`api/MonthlySummaries/{monthlySummaryId}/[controller]`).
+  - ASP.NET Core host. Controllers live in feature folders (`Auth/Controllers`, `UsersPreferences/Controllers`, `Categories/Controllers`, `MonthlySummaries/Controllers`, `Transactions/Controllers`, `RecurringTransactions/Controllers`, `Budgets/Controllers`, `FinanceDashboard/Controllers`) under `[Route("api/[controller]")]`; `TransactionsController` is nested under its month (`api/MonthlySummaries/{monthlySummaryId}/[controller]`).
+  - Hosted services live next to their feature (`RecurringTransactions/Jobs/RecurringTransactionsJob.cs`) and are registered in `AddApiServices`.
   - `Program.cs` wires controllers (enums serialized as strings via `JsonStringEnumConverter`), OpenAPI (Development only), Infrastructure, Application, and `DI/DependencyInjection.cs` (`AddApiServices`: JWT bearer auth + the `AllowFrontend` CORS policy for `https://localhost:5173` with credentials).
   - Middleware order: `ExceptionHandlingMiddleware` → CORS → HTTPS redirection → authentication → authorization.
 
@@ -117,8 +122,8 @@ Test projects mirror the layer they test 1:1 (`LifeManager.Domain.Test` → Doma
 
 `LifeManager.Domain` is modeled with DDD tactical patterns, and the folder layout is the ubiquitous language:
 
-- **Feature folders as bounded contexts:** `Users`, `Auth`, `UsersPreferences`, `Categories`, `Transactions` and `MonthlySummaries` each own their entity, value objects, errors and repository interface. Cross-context references go through IDs (e.g. `Category.UserId`, `Transaction.MonthlySummaryId`, `Transaction.CategoryId`); when a read needs data from another context (a transaction's category name), the repository joins and returns a read model (`TransactionListItem`).
-- **Entities** (`User`, `RefreshToken`, `UserPreferences`, `Category`, `Transaction`, `MonthlySummary`) have identity (`Id`) and encapsulate their own invariants.
+- **Feature folders as bounded contexts:** `Users`, `Auth`, `UsersPreferences`, `Categories`, `Transactions`, `MonthlySummaries`, `RecurringTransactions` and `Budgets` each own their entity, value objects, errors and repository interface. Cross-context references go through IDs (e.g. `Category.UserId`, `Transaction.MonthlySummaryId`, `Transaction.CategoryId`); when a read needs data from another context (a transaction's category name), the repository joins and returns a read model (`TransactionListItem`).
+- **Entities** (`User`, `RefreshToken`, `UserPreferences`, `Category`, `Transaction`, `MonthlySummary`, `RecurringTransaction`, `Budget`) have identity (`Id`) and encapsulate their own invariants.
   - Private constructors force construction through a validating `static Create(...)` factory.
   - Mutation happens only through intention-revealing methods (`AssignId`, `RevokeToken`, `Rename`) rather than public setters.
 - **Value objects** (`Email`, `UserName`, `PasswordHash`, `PlainPassword`, `CategoryName`, `TransactionAmount`, `RefreshTokenHash`, id types like `UserId`/`CategoryId`, etc.) are immutable, validate themselves in `Create`, and implement structural `Equals`/`GetHashCode`. They are the primitives that make illegal states unrepresentable instead of passing raw strings/decimals around.
@@ -132,7 +137,7 @@ The codebase is mid-migration to a `Result`/`Result<T>` pattern (`LifeManager.Do
 - `Error` is a record with a `Code`, `Message`, and `ErrorType` (`Validation`, `NotFound`, `Unauthorized`, `Failure`, `Conflict`), created via static factories (`Error.Validation(...)`, `Error.Conflict(...)`, etc.).
 - `Result` / `Result<T>` have implicit conversions from `Error` and from `T`, so factory methods can `return SomeErrors.Whatever;` or `return new Thing(...)` directly instead of throwing.
 - `ResultExtensions` provides `Map`, `Bind`, and `Tap` for chaining `Result<T>` operations functionally (see `User.Create` and `TokenService.GenerateTokensAsync` for the chaining style). The extensions are synchronous, so async steps (repository calls) go after the chain, in the early-return style of `CategoryService`.
-- Every context (`Users`, `Auth`, `UsersPreferences`, `Categories`, `MonthlySummaries`, `Transactions`) uses this pattern; there is no `DomainException` anymore. New code must not throw for expected failures.
+- Every context (`Users`, `Auth`, `UsersPreferences`, `Categories`, `MonthlySummaries`, `Transactions`, `RecurringTransactions`, `Budgets`) uses this pattern; there is no `DomainException` anymore. New code must not throw for expected failures.
 
 ### Categories (reference flow for new features)
 
@@ -169,7 +174,34 @@ The codebase is mid-migration to a `Result`/`Result<T>` pattern (`LifeManager.Do
 - **Derived columns:** `NormalizedDescription` (trigram GIN index, search like Categories) and `SignedAmount` (income positive; expense and investment negative, since both leave the account). `SignedAmount` exists because EF can't do arithmetic on a converted value object: the listing sorts by it (`Amount` sort = signed value) and the totals are summed from it. `ExecuteUpdateAsync` must set both together with `Amount`/`Type`/`Description`.
 - **Totals are recalculated on every write** (`TransactionRepository.WriteAndRecalculateTotalsAsync`), inside one database transaction: lock the month row with `SELECT ... FOR UPDATE`, write, `GROUP BY Type SUM(SignedAmount)`, `ApplyTotals`, then `ExecuteUpdateAsync` the month's `TotalIncome`/`TotalExpense`/`TotalInvestment`/`BalanceAmount`. The lock serializes concurrent writes to the same month; summing (instead of adding/subtracting deltas) means the totals can't drift. The mock does the same recalculation on `MonthlySummarySingleton`.
 - **Listing:** `?page=&pageSize=&type=All|Expense|Income|Investment&categoryId=&search=&sortBy=Date|Description|Category|Amount&sortDirection=` (default `Date`/`Desc`). Every sort ends with `TransactionDate`, `Id` in the same direction. `Category` sorts by the joined category's `NormalizedName`.
-- **Category FK is `NO ACTION`**, not `RESTRICT`: deleting a user cascades to both its categories and (through its months) its transactions in the same statement, and `NO ACTION` only checks the FK at the end of it. Deleting a category that transactions still use is blocked earlier by `CategoryService.DeleteAsync` (`ITransactionRepository.ExistsByCategoryAsync` → `Category.InUse`, 409).
+- **Category FK is `NO ACTION`**, not `RESTRICT`: deleting a user cascades to both its categories and (through its months) its transactions in the same statement, and `NO ACTION` only checks the FK at the end of it. Deleting a category that transactions or recurring transactions still use is blocked earlier by `CategoryService.DeleteAsync` (`ExistsByCategoryAsync` on both repositories → `Category.InUse`, 409).
+- **Totals helper:** the lock + recalculation lives in `Infrastructure/Transactions/MonthlySummaryTotals.cs` (`LockAsync`, `RecalculateAsync`, both inside the caller's database transaction), shared by `TransactionRepository` and the recurring posting.
+- **Recurring link:** `Transaction.RecurringTransactionId` (nullable) is the recurrence that posted it (`Transaction.CreateFromRecurrence`); it is returned as `recurringTransactionId` so the frontend can mark it. FK `SET NULL`: deleting the recurrence keeps what it posted. A unique partial index on `(RecurringTransactionId, MonthlySummaryId)` is the last guard against posting a recurrence twice in a month.
+
+### RecurringTransactions
+
+- **Endpoints:** `api/RecurringTransactions`: `GET` paged listing, `GET {id}`, `POST` → 201, `PUT {id}`, `POST {id}/Pause`, `POST {id}/Resume`, `DELETE {id}` → 204 (posted transactions are kept). Owned by `UserId` directly.
+- **Model** (`Domain/RecurringTransactions/RecurringTransaction.cs`): type/category/amount/description reuse the transaction value objects and error codes; `DayOfMonth` (`RecurrenceDay`, 1–31; a shorter month falls on its last day); `StartMonth`, optional `EndMonth`; `IsActive`; and the **posting cursor** `NextMonth`, the first month not posted yet. `NextOccurrenceDate` is its persisted derived copy (null once past `EndMonth`), indexed (partial, `WHERE "IsActive"`) for the due query. Months are stored as their first day (`date`). `Status` = Finished (no next occurrence) / Paused / Active.
+- **Rules** (`RecurringTransactionErrors`): the start can't be before the current month (`StartInPast`, no backfilling history) and can only change while the recurrence hasn't started (`StartLocked`); `EndBeforeStart`; `Pause`/`Resume` (`AlreadyPaused`/`NotPaused`). Resuming skips the paused months (the cursor jumps to the current month). Updates change only the next occurrences.
+- **Posting** (`RecurringTransactionPostingService.PostDueOccurrencesAsync`): while the recurrence is due (`IsActive && NextOccurrenceDate <= AppClock.Today()`), get or open the occurrence's month (`MonthlySummary.OpenForRecurringPosting`, which skips the current-year rule so a catch-up across New Year works; `IMonthlySummaryRepository.AddIfMissingAsync` is an `INSERT … ON CONFLICT DO NOTHING`), build the transaction, advance the cursor and call `TryPostOccurrenceAsync`. That runs in one database transaction: a **compare-and-swap** on the cursor (`WHERE NextMonth = expected AND IsActive`, which also row-locks the recurrence), the insert, and the month's totals recalculation. If the CAS hits 0 rows (another run posted it, or it was paused/deleted) nothing is written and posting stops quietly. Missed months are caught up one by one.
+- **User edits use the same CAS** (`TryUpdateAsync(…, expectedNextMonth)`): if the job moved the cursor in between, the edit returns `RecurringTransaction.ChangedConcurrently` (409) instead of overwriting it.
+- **Saving posts right away:** create, update and resume call the posting service, so an occurrence whose day already passed this month shows up without waiting for the job.
+- **Job** (`WebApi/RecurringTransactions/Jobs/RecurringTransactionsJob.cs`, a `BackgroundService`): runs at startup and then every hour (`PeriodicTimer` on `TimeProvider`). It reads up to `DueBatchSize` (500) due ids in one scope, then posts each in its own scope (the `DbContext` is scoped, the job a singleton), logging and skipping failures; the next run retries them. The schedule is the cursor in the database, so the job holds no state and several API instances can run it safely.
+- **Listing:** `?page=&pageSize=&type=All|Expense|Income|Investment&status=All|Active|Paused|Finished&search=&sortBy=NextOccurrence|Description|Amount|Day&sortDirection=` (default `NextOccurrence`/`Asc`). Every sort ends with `NormalizedDescription`, `Id`; finished recurrences (null next occurrence) come last ascending and first descending (PostgreSQL's NULL order, mirrored in the mock).
+
+### Budgets
+
+- **Endpoints:** `GET api/Budgets?month=yyyy-MM` (the goals in force that month, each with the actual amount), `PUT api/Budgets` (`{ type, categoryId?, from, amount }`: sets the goal from that month on) → 200, `DELETE api/Budgets/{id}?month=yyyy-MM` (removes the goal `id` belongs to from that month on) → 204.
+- **Model:** a `Budget` row is **one version** of a goal: `Type` (only `Expense` = spending limit or `Investment` = target; `Budget.InvalidType`), `CategoryId` (null = the month's total of that type), `Amount` (`BudgetAmount`, same rules as transactions), `EffectiveFrom` and optional `EffectiveTo` (plain `date` columns holding the first day of a month, so they can be range-compared in SQL; `FromMonth`/`ToMonth` expose them as `YearMonth`). Versions of one goal never overlap; unique `(UserId, Type, CategoryId, EffectiveFrom)` with `NULLS NOT DISTINCT`.
+- **Versioning** (`BudgetTimeline`, pure domain logic): `SetFrom(versions, newVersion)` deletes the versions starting after that month, closes the one in force (`EffectiveTo` = previous month), or rewrites a version starting in that same month, or just extends the one in force when the amount is the same; `RemoveFrom` deletes/closes the same way (`Budget.NotFound` when there's nothing from that month on). It returns a `BudgetTimelineChange` that `IBudgetRepository.ApplyChangeAsync` applies in one database transaction (deletes first). Earlier months always keep the goal they had.
+- **Month view** (`BudgetService.GetMonthAsync`): an aggregated read, not a paged listing (bounded by the user's categories, like the dashboard). Actual amounts come from `IFinanceDashboardRepository.GetCategoryMonthTotalsAsync` for that month; the month-total goal compares with the type's whole total. Each item has `goal`, `actual`, `remaining`, `ratio` and `achieved` (`Budget.IsMetBy`: expense ≤ goal, investment ≥ goal).
+- **Category FK is `CASCADE`**: a goal means nothing without its category, so deleting a category deletes its goals (and doesn't block the deletion).
+
+### FinanceDashboard goals
+
+- The dashboard response also has `budgets` (`DashboardBudgetsDto`), for the period only (no comparison). `IBudgetRepository.GetOverlappingAsync` reads the versions overlapping the period, and each month is evaluated with the version in force then (`BudgetTimeline.GoalIn`) against the same rows the rest of the dashboard uses, so no extra transaction query and categories beyond the top 8 still count.
+- `months` (aligned with the response's months): the month-total goals and whether each was met. `expense`/`investment`: those goals summed over the months that had them, with `monthsWithGoal`/`monthsAchieved`. `expenseCategories`/`investmentCategories`: category goals furthest from the goal first (`Gap`: summed overspending or shortfall), top `TopBudgetCategoryCount` (5).
+- The endpoint still never reads the clock: the running month is counted like any other, and the frontend leaves it out of its "X of N closed months".
 
 ### FinanceDashboard
 
@@ -241,4 +273,6 @@ Services use primary-constructor dependency injection (e.g. `CategoryService(ICa
   - **Resolving services:** test classes extend `BaseTest` and call `ServiceProvider.GetRequiredService<T>()`. To assert on call counters, cast the repository back to its mock, e.g. `(CategoryRepositoryMock)ServiceProvider.GetRequiredService<ICategoryRepository>()`.
   - **Shared data:** the mocks store data in shared singleton in-memory lists (`Configurations/SingletonLists/*Singleton.cs`), so test classes are tagged `[Collection("ApplicationServices")]` to run serially. Clear the relevant singleton in the test class constructor (e.g. `CategorySingleton.Instance.Clear()`).
   - **Mocks must behave like the real repository:** same filtering, ordering, uniqueness and paging rules. Otherwise service tests pass against behavior production doesn't have.
+  - **Time:** `TimeProvider` is replaced by the hand-written `Configurations/FakeTimeProvider` (starts at the real time). Cast it from the container and call `SetToday(date)` (noon UTC, the same date in São Paulo) to test date rules.
+  - **Concurrency hooks:** `RecurringTransactionRepositoryMock.BeforeNextPost`/`BeforeNextUpdate` run right before the next cursor check, to simulate a concurrent posting or edit.
 - `LifeManager.Domain.Test` tests value objects and entities directly with no DI, asserting on `Result.IsSuccess`/`Result.Error` and value-object `.Value` properties. Shared building blocks (`SearchText`, `PageRequest`/`PagedList`) are tested in `Shared/`.

@@ -6,6 +6,8 @@ using LifeManager.Application.Test.Configurations.SingletonLists;
 using LifeManager.Domain.Categories.Errors;
 using LifeManager.Domain.Categories.Interfaces;
 using LifeManager.Domain.MonthlySummaries;
+using LifeManager.Domain.RecurringTransactions;
+using LifeManager.Domain.Shared.ValueObjects;
 using LifeManager.Domain.Transactions;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.Paging;
@@ -32,6 +34,7 @@ namespace LifeManager.Application.Test.Categories
             CategorySingleton.Instance.Clear();
             MonthlySummarySingleton.Instance.Clear();
             TransactionSingleton.Instance.Clear();
+            RecurringTransactionSingleton.Instance.Clear();
         }
 
         [Fact]
@@ -487,6 +490,20 @@ namespace LifeManager.Application.Test.Categories
             Assert.False(result.IsSuccess);
             Assert.Equal(CategoryErrors.InUse, result.Error);
             Assert.Equal(ErrorType.Conflict, result.Error.Type);
+            Assert.Single(CategorySingleton.Instance);
+        }
+
+        [Fact]
+        public async Task DeleteAsync_ShouldReturnInUseAndKeepCategory_WhenRecurringTransactionsUseIt()
+        {
+            var createdCategory = await CreateCategory("Salary", FirstUserId);
+            YearMonth.TryParse("2026-10", out var october);
+            RecurringTransactionSingleton.Instance.Add(RecurringTransaction.FromPersistence(
+                1, FirstUserId.Value, MoneyFlowType.Income, createdCategory.Id, 8000m, "Salário", 5, october, null, true, october));
+
+            var result = await _categoryService.DeleteAsync(createdCategory.Id, FirstUserId, CancellationToken.None);
+
+            Assert.Equal(CategoryErrors.InUse, result.Error);
             Assert.Single(CategorySingleton.Instance);
         }
 

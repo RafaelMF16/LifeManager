@@ -1,6 +1,6 @@
-using LifeManager.Domain.FinanceDashboard.ValueObjects;
+using LifeManager.Domain.Shared.ValueObjects;
 
-namespace LifeManager.Domain.Test.FinanceDashboard
+namespace LifeManager.Domain.Test.Shared
 {
     public class YearMonthTests
     {
