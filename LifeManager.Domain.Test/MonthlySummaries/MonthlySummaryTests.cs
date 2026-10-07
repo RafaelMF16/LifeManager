@@ -1,5 +1,7 @@
 using LifeManager.Domain.MonthlySummaries;
 using LifeManager.Domain.MonthlySummaries.Errors;
+using LifeManager.Domain.Shared.ValueObjects;
+using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Domain.Test.MonthlySummaries
 {
@@ -122,6 +124,23 @@ namespace LifeManager.Domain.Test.MonthlySummaries
             var second = MonthlySummary.Create(1, 1, CurrentYear).Value!;
 
             Assert.False(first.Equals(second));
+        }
+
+        [Fact]
+        public void OpenForRecurringPosting_ShouldOpenAnEmptyMonth_EvenInAnotherYear()
+        {
+            YearMonth.TryParse($"{CurrentYear - 1}-12", out var lastDecember);
+
+            var monthlySummary = MonthlySummary.OpenForRecurringPosting(new UserId(3), lastDecember);
+
+            Assert.Null(monthlySummary.Id);
+            Assert.Equal(3, monthlySummary.UserId.Value);
+            Assert.Equal(12, monthlySummary.Month.Value);
+            Assert.Equal(CurrentYear - 1, monthlySummary.Year.Value);
+            Assert.Equal(0m, monthlySummary.TotalIncome.Value);
+            Assert.Equal(0m, monthlySummary.TotalExpense.Value);
+            Assert.Equal(0m, monthlySummary.TotalInvestment.Value);
+            Assert.Equal(0m, monthlySummary.BalanceAmount);
         }
     }
 }

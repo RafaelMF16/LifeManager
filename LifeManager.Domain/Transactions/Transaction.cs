@@ -1,6 +1,8 @@
 ﻿using LifeManager.Domain.Categories.ValueObjects;
 using LifeManager.Domain.MonthlySummaries;
 using LifeManager.Domain.MonthlySummaries.ValueObjects;
+using LifeManager.Domain.RecurringTransactions;
+using LifeManager.Domain.RecurringTransactions.ValueObjects;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.Results;
 using LifeManager.Domain.Transactions.Errors;
@@ -17,6 +19,9 @@ namespace LifeManager.Domain.Transactions
         public TransactionAmount Amount { get; private set; }
         public TransactionDescription Description { get; private set; }
         public DateOnly TransactionDate { get; private set; }
+
+        /// <summary>The recurrence that posted this transaction; null for transactions entered by hand.</summary>
+        public RecurringTransactionId? RecurringTransactionId { get; private set; }
 
         /// <summary>
         /// Persisted copy of <see cref="TransactionDescription.NormalizedValue"/>, kept as its own column so it can be
@@ -68,6 +73,25 @@ namespace LifeManager.Domain.Transactions
                     transactionDate));
         }
 
+        /// <summary>
+        /// Posts the recurrence's next occurrence, dated <see cref="RecurringTransaction.NextOccurrenceDate"/>, into
+        /// that date's month. The transaction remembers its recurrence but is otherwise an ordinary transaction.
+        /// </summary>
+        public static Result<Transaction> CreateFromRecurrence(RecurringTransaction recurringTransaction, MonthlySummary monthlySummary)
+        {
+            var occurrenceDate = recurringTransaction.NextOccurrenceDate
+                ?? throw new InvalidOperationException("A finished recurrence has no occurrence to post");
+
+            return Create(
+                    recurringTransaction.Type,
+                    recurringTransaction.CategoryId.Value,
+                    recurringTransaction.Amount.Value,
+                    recurringTransaction.Description.Value,
+                    occurrenceDate,
+                    monthlySummary)
+                .Tap(transaction => transaction.RecurringTransactionId = recurringTransaction.Id);
+        }
+
         /// <summary>Changes every field except the month: a transaction always stays in the month it was created in.</summary>
         public Result<Transaction> Update(
             MoneyFlowType type,
@@ -99,7 +123,8 @@ namespace LifeManager.Domain.Transactions
             int idCategory,
             decimal amount,
             string description,
-            DateOnly transactionDate)
+            DateOnly transactionDate,
+            int? idRecurringTransaction = null)
         {
             var transaction = new Transaction(
                 new MonthlySummaryId(idMonthlySummary),
@@ -107,7 +132,10 @@ namespace LifeManager.Domain.Transactions
                 new CategoryId(idCategory),
                 TransactionAmount.FromPersistence(amount),
                 TransactionDescription.FromPersistence(description),
-                transactionDate);
+                transactionDate)
+            {
+                RecurringTransactionId = idRecurringTransaction is null ? null : new RecurringTransactionId(idRecurringTransaction.Value)
+            };
             transaction.AssignId(id);
 
             return transaction;

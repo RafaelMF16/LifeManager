@@ -1,5 +1,6 @@
 using LifeManager.Domain.MonthlySummaries.ValueObjects;
 using LifeManager.Domain.Shared.Results;
+using LifeManager.Domain.Shared.ValueObjects;
 using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Domain.MonthlySummaries
@@ -49,6 +50,20 @@ namespace LifeManager.Domain.MonthlySummaries
                     .Map(summaryYear => new MonthlySummary(
                         userId, summaryMonth, summaryYear, TotalIncome.Zero, TotalExpense.Zero, TotalInvestment.Zero)));
         }
+
+        /// <summary>
+        /// Opens the month a recurring transaction is posted into when the user hasn't opened it yet. Unlike
+        /// <see cref="Create"/> it isn't limited to the current year: an occurrence from late December can be posted
+        /// after the year turns, when the service catches up.
+        /// </summary>
+        public static MonthlySummary OpenForRecurringPosting(UserId userId, YearMonth month)
+            => new(
+                userId,
+                MonthlySummaryMonth.FromPersistence(month.Month),
+                MonthlySummaryYear.FromPersistence(month.Year),
+                TotalIncome.Zero,
+                TotalExpense.Zero,
+                TotalInvestment.Zero);
 
         /// <summary>
         /// Rehydrates a stored summary without the creation rules (current year only, zero totals):

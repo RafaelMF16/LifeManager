@@ -60,6 +60,45 @@ namespace LifeManager.Infrastructure.Migrations
                     b.ToTable("RefreshTokens");
                 });
 
+            modelBuilder.Entity("LifeManager.Domain.Budgets.Budget", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<int?>("CategoryId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("UserId", "Type", "CategoryId", "EffectiveFrom")
+                        .IsUnique();
+
+                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("UserId", "Type", "CategoryId", "EffectiveFrom"), false);
+
+                    b.ToTable("Budgets");
+                });
+
             modelBuilder.Entity("LifeManager.Domain.Categories.Category", b =>
                 {
                     b.Property<int>("Id")
@@ -135,6 +174,72 @@ namespace LifeManager.Infrastructure.Migrations
                     b.ToTable("MonthlySummaries");
                 });
 
+            modelBuilder.Entity("LifeManager.Domain.RecurringTransactions.RecurringTransaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("DayOfMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<DateOnly?>("EndMonth")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateOnly>("NextMonth")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("NextOccurrenceDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("NormalizedDescription")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<DateOnly>("StartMonth")
+                        .HasColumnType("date");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("NextOccurrenceDate")
+                        .HasFilter("\"IsActive\"");
+
+                    b.HasIndex("NormalizedDescription");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("NormalizedDescription"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("NormalizedDescription"), new[] { "gin_trgm_ops" });
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("RecurringTransactions");
+                });
+
             modelBuilder.Entity("LifeManager.Domain.Transactions.Transaction", b =>
                 {
                     b.Property<int>("Id")
@@ -163,6 +268,9 @@ namespace LifeManager.Infrastructure.Migrations
                         .HasMaxLength(80)
                         .HasColumnType("character varying(80)");
 
+                    b.Property<int?>("RecurringTransactionId")
+                        .HasColumnType("integer");
+
                     b.Property<decimal>("SignedAmount")
                         .HasPrecision(14, 2)
                         .HasColumnType("numeric(14,2)");
@@ -183,6 +291,10 @@ namespace LifeManager.Infrastructure.Migrations
                     NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("NormalizedDescription"), new[] { "gin_trgm_ops" });
 
                     b.HasIndex("MonthlySummaryId", "TransactionDate");
+
+                    b.HasIndex("RecurringTransactionId", "MonthlySummaryId")
+                        .IsUnique()
+                        .HasFilter("\"RecurringTransactionId\" IS NOT NULL");
 
                     b.ToTable("Transactions");
                 });
@@ -254,6 +366,20 @@ namespace LifeManager.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("LifeManager.Domain.Budgets.Budget", b =>
+                {
+                    b.HasOne("LifeManager.Domain.Categories.Category", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("LifeManager.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("LifeManager.Domain.Categories.Category", b =>
                 {
                     b.HasOne("LifeManager.Domain.Users.User", null)
@@ -265,6 +391,21 @@ namespace LifeManager.Infrastructure.Migrations
 
             modelBuilder.Entity("LifeManager.Domain.MonthlySummaries.MonthlySummary", b =>
                 {
+                    b.HasOne("LifeManager.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LifeManager.Domain.RecurringTransactions.RecurringTransaction", b =>
+                {
+                    b.HasOne("LifeManager.Domain.Categories.Category", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
                     b.HasOne("LifeManager.Domain.Users.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
@@ -285,6 +426,11 @@ namespace LifeManager.Infrastructure.Migrations
                         .HasForeignKey("MonthlySummaryId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("LifeManager.Domain.RecurringTransactions.RecurringTransaction", null)
+                        .WithMany()
+                        .HasForeignKey("RecurringTransactionId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("LifeManager.Domain.UsersPreferences.UserPreferences", b =>

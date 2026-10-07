@@ -4,6 +4,10 @@ using LifeManager.Application.Test.Categories.Mocks;
 using LifeManager.Application.Test.MonthlySummaries.Mocks;
 using LifeManager.Application.Test.Transactions.Mocks;
 using LifeManager.Application.Test.FinanceDashboard.Mocks;
+using LifeManager.Application.Test.RecurringTransactions.Mocks;
+using LifeManager.Application.Test.Budgets.Mocks;
+using LifeManager.Domain.Budgets.Interfaces;
+using LifeManager.Domain.RecurringTransactions.Interfaces;
 using LifeManager.Domain.FinanceDashboard.Interfaces;
 using LifeManager.Domain.Transactions.Interfaces;
 using LifeManager.Application.Test.Users.Mocks;
@@ -33,6 +37,10 @@ namespace LifeManager.Application.Test.Configurations
             services.AddScoped<IMonthlySummaryRepository, MonthlySummaryRepositoryMock>();
             services.AddScoped<ITransactionRepository, TransactionRepositoryMock>();
             services.AddScoped<IFinanceDashboardRepository, FinanceDashboardRepositoryMock>();
+            services.AddScoped<IRecurringTransactionRepository, RecurringTransactionRepositoryMock>();
+            services.AddScoped<IBudgetRepository, BudgetRepositoryMock>();
+
+            services.AddSingleton<TimeProvider, FakeTimeProvider>();
 
             return services;
         }

@@ -1,8 +1,8 @@
 using System.Globalization;
 
-namespace LifeManager.Domain.FinanceDashboard.ValueObjects
+namespace LifeManager.Domain.Shared.ValueObjects
 {
-    /// <summary>A calendar month (year + month), the unit every dashboard period is made of.</summary>
+    /// <summary>A calendar month (year + month): the unit dashboard periods, recurrences and budgets are made of.</summary>
     public sealed record YearMonth
     {
         public const int MinYear = 2000;

@@ -1,12 +1,16 @@
 ﻿using LifeManager.Application.Auth.Services;
+using LifeManager.Application.Budgets.Services;
 using LifeManager.Application.Categories.Services;
 using LifeManager.Application.FinanceDashboard.Services;
 using LifeManager.Application.MonthlySummaries.Services;
+using LifeManager.Application.RecurringTransactions.Services;
+using LifeManager.Application.Shared.Time;
 using LifeManager.Application.Transactions.Services;
 using LifeManager.Application.EnvironmentVariables.Services;
 using LifeManager.Application.Users.Services;
 using LifeManager.Application.UsersPreferences.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace LifeManager.Application.DI
 {
@@ -23,6 +27,12 @@ namespace LifeManager.Application.DI
             services.AddScoped<MonthlySummaryService>();
             services.AddScoped<TransactionService>();
             services.AddScoped<FinanceDashboardService>();
+            services.AddScoped<RecurringTransactionService>();
+            services.AddScoped<RecurringTransactionPostingService>();
+            services.AddScoped<BudgetService>();
+
+            services.TryAddSingleton(TimeProvider.System);
+            services.AddSingleton<AppClock>();
             return services;
         }
     }

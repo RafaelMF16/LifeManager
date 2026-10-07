@@ -132,44 +132,18 @@ namespace LifeManager.Infrastructure.Transactions
         }
 
         /// <summary>
-        /// Runs the write and recalculates the month's totals from its transactions in one database transaction.
-        /// The month's row is locked first (FOR UPDATE), so concurrent writes to the same month run one after
-        /// the other and the last recalculation always sees every committed transaction.
+        /// Runs the write and recalculates the month's totals from its transactions in one database transaction
+        /// (see <see cref="MonthlySummaryTotals"/>).
         /// </summary>
         private async Task<T> WriteAndRecalculateTotalsAsync<T>(MonthlySummaryId monthlySummaryId, Func<Task<T>> write, CancellationToken cancellationToken)
         {
             await using var databaseTransaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
-            var id = monthlySummaryId.Value;
-            var lockedSummaries = await _dbContext.MonthlySummaries
-                .FromSql($"""SELECT * FROM "MonthlySummaries" WHERE "Id" = {id} FOR UPDATE""")
-                .AsNoTracking()
-                .ToListAsync(cancellationToken);
-            var monthlySummary = lockedSummaries.Single();
+            var monthlySummary = await MonthlySummaryTotals.LockAsync(_dbContext, monthlySummaryId, cancellationToken);
 
             var result = await write();
 
-            var totals = await _dbContext.Transactions
-                .Where(transaction => transaction.MonthlySummaryId == monthlySummaryId)
-                .GroupBy(transaction => transaction.Type)
-                .Select(group => new { Type = group.Key, Total = group.Sum(transaction => transaction.SignedAmount) })
-                .ToListAsync(cancellationToken);
-
-            var totalIncome = totals.Where(total => total.Type == MoneyFlowType.Income).Sum(total => total.Total);
-            var totalExpense = -totals.Where(total => total.Type == MoneyFlowType.Expense).Sum(total => total.Total);
-            var totalInvestment = -totals.Where(total => total.Type == MoneyFlowType.Investment).Sum(total => total.Total);
-
-            var applyResult = monthlySummary.ApplyTotals(totalIncome, totalExpense, totalInvestment);
-            if (!applyResult.IsSuccess)
-                throw new InvalidOperationException($"Recalculated totals are invalid: {applyResult.Error.Code}");
-
-            await _dbContext.MonthlySummaries
-                .Where(storedSummary => storedSummary.Id == monthlySummaryId)
-                .ExecuteUpdateAsync(setters => setters
-                    .SetProperty(storedSummary => storedSummary.TotalIncome, monthlySummary.TotalIncome)
-                    .SetProperty(storedSummary => storedSummary.TotalExpense, monthlySummary.TotalExpense)
-                    .SetProperty(storedSummary => storedSummary.TotalInvestment, monthlySummary.TotalInvestment)
-                    .SetProperty(storedSummary => storedSummary.BalanceAmount, monthlySummary.BalanceAmount), cancellationToken);
+            await MonthlySummaryTotals.RecalculateAsync(_dbContext, monthlySummary, cancellationToken);
 
             await databaseTransaction.CommitAsync(cancellationToken);
 

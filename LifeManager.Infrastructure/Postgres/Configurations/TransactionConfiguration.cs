@@ -1,5 +1,6 @@
 using LifeManager.Domain.Categories;
 using LifeManager.Domain.MonthlySummaries;
+using LifeManager.Domain.RecurringTransactions;
 using LifeManager.Domain.Transactions;
 using LifeManager.Domain.Transactions.ValueObjects;
 using Microsoft.EntityFrameworkCore;
@@ -59,6 +60,17 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
                 .WithMany()
                 .HasForeignKey(transaction => transaction.CategoryId)
                 .OnDelete(DeleteBehavior.NoAction);
+
+            // Deleting a recurrence keeps what it already posted, as ordinary transactions.
+            builder.HasOne<RecurringTransaction>()
+                .WithMany()
+                .HasForeignKey(transaction => transaction.RecurringTransactionId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // A recurrence posts at most once per month: the last guard against a double posting.
+            builder.HasIndex(transaction => new { transaction.RecurringTransactionId, transaction.MonthlySummaryId })
+                .IsUnique()
+                .HasFilter("\"RecurringTransactionId\" IS NOT NULL");
         }
     }
 }

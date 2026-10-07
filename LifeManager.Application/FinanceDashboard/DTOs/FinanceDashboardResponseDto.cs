@@ -10,5 +10,6 @@ namespace LifeManager.Application.FinanceDashboard.DTOs
         DashboardTotalsDto Totals,
         IReadOnlyList<DashboardMonthDto> Months,
         DashboardCategoryBreakdownDto Expenses,
-        DashboardCategoryBreakdownDto Investments);
+        DashboardCategoryBreakdownDto Investments,
+        DashboardBudgetsDto Budgets);
 }

@@ -1,6 +1,7 @@
 using LifeManager.Domain.FinanceDashboard.Enums;
 using LifeManager.Domain.FinanceDashboard.Errors;
 using LifeManager.Domain.Shared.Results;
+using LifeManager.Domain.Shared.ValueObjects;
 
 namespace LifeManager.Domain.FinanceDashboard.ValueObjects
 {

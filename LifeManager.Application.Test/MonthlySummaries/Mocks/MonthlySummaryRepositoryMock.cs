@@ -5,6 +5,7 @@ using LifeManager.Domain.MonthlySummaries.Interfaces;
 using LifeManager.Domain.MonthlySummaries.ValueObjects;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.Paging;
+using LifeManager.Domain.Shared.ValueObjects;
 using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Application.Test.MonthlySummaries.Mocks
@@ -103,6 +104,34 @@ namespace LifeManager.Application.Test.MonthlySummaries.Mocks
                 && monthlySummary.Month.Equals(month));
 
             return Task.FromResult(exists);
+        }
+
+        public Task<MonthlySummary?> GetByPeriodAsync(UserId userId, YearMonth month, CancellationToken cancellationToken)
+        {
+            var stored = _instance.SingleOrDefault(monthlySummary =>
+                monthlySummary.UserId == userId
+                && monthlySummary.Year.Value == month.Year
+                && monthlySummary.Month.Value == month.Month);
+
+            return Task.FromResult(stored is null ? null : ToDetachedCopy(stored));
+        }
+
+        // Mirrors the real INSERT ... ON CONFLICT DO NOTHING: an existing month is returned untouched.
+        public async Task<MonthlySummary> AddIfMissingAsync(MonthlySummary monthlySummary, CancellationToken cancellationToken)
+        {
+            var period = YearMonth.From(new DateOnly(monthlySummary.Year.Value, monthlySummary.Month.Value, 1));
+
+            var stored = await GetByPeriodAsync(monthlySummary.UserId, period, cancellationToken);
+            if (stored is not null)
+                return stored;
+
+            AddCallCount++;
+
+            var newId = _instance.Count == 0 ? 1 : _instance.Max(existing => existing.Id!.Value) + 1;
+            monthlySummary.AssignId(newId);
+            _instance.Add(monthlySummary);
+
+            return ToDetachedCopy(monthlySummary);
         }
 
         // Mirrors MonthlySummaryRepository.Order: chosen column, then year, month and Id in the same direction.

@@ -27,6 +27,11 @@ namespace LifeManager.Application.Test.Transactions.Mocks
         {
             AddCallCount++;
 
+            // Mirrors the unique (RecurringTransactionId, MonthlySummaryId) index: a recurrence posts once per month.
+            if (transaction.RecurringTransactionId is not null
+                && _instance.Any(stored => stored.RecurringTransactionId == transaction.RecurringTransactionId && stored.MonthlySummaryId == transaction.MonthlySummaryId))
+                throw new InvalidOperationException("Duplicate posting of a recurring transaction in the same month");
+
             var newId = _instance.Count == 0 ? 1 : _instance.Max(stored => stored.Id!.Value) + 1;
             transaction.AssignId(newId);
 
@@ -176,6 +181,7 @@ namespace LifeManager.Application.Test.Transactions.Mocks
                 transaction.CategoryId.Value,
                 transaction.Amount.Value,
                 transaction.Description.Value,
-                transaction.TransactionDate);
+                transaction.TransactionDate,
+                transaction.RecurringTransactionId?.Value);
     }
 }
