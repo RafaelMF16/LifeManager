@@ -2,6 +2,7 @@
 using LifeManager.Application.Budgets.Services;
 using LifeManager.Application.Categories.Services;
 using LifeManager.Application.FinanceDashboard.Services;
+using LifeManager.Application.Habits.Services;
 using LifeManager.Application.MonthlySummaries.Services;
 using LifeManager.Application.RecurringTransactions.Services;
 using LifeManager.Application.Shared.Time;
@@ -30,6 +31,7 @@ namespace LifeManager.Application.DI
             services.AddScoped<RecurringTransactionService>();
             services.AddScoped<RecurringTransactionPostingService>();
             services.AddScoped<BudgetService>();
+            services.AddScoped<PlayerWalletService>();
 
             services.TryAddSingleton(TimeProvider.System);
             services.AddSingleton<AppClock>();

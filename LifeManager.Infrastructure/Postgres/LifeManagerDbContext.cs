@@ -1,6 +1,7 @@
 ﻿using LifeManager.Domain.Auth;
 using LifeManager.Domain.Budgets;
 using LifeManager.Domain.Categories;
+using LifeManager.Domain.Habits;
 using LifeManager.Domain.MonthlySummaries;
 using LifeManager.Domain.RecurringTransactions;
 using LifeManager.Domain.Transactions;
@@ -20,6 +21,8 @@ namespace LifeManager.Infrastructure.Postgres
         public DbSet<Transaction> Transactions { get; set; }
         public DbSet<RecurringTransaction> RecurringTransactions { get; set; }
         public DbSet<Budget> Budgets { get; set; }
+        public DbSet<PlayerProfile> PlayerProfiles { get; set; }
+        public DbSet<GameLedgerEntry> GameLedgerEntries { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

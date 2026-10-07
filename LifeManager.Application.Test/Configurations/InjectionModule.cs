@@ -6,7 +6,9 @@ using LifeManager.Application.Test.Transactions.Mocks;
 using LifeManager.Application.Test.FinanceDashboard.Mocks;
 using LifeManager.Application.Test.RecurringTransactions.Mocks;
 using LifeManager.Application.Test.Budgets.Mocks;
+using LifeManager.Application.Test.Habits.Mocks;
 using LifeManager.Domain.Budgets.Interfaces;
+using LifeManager.Domain.Habits.Interfaces;
 using LifeManager.Domain.RecurringTransactions.Interfaces;
 using LifeManager.Domain.FinanceDashboard.Interfaces;
 using LifeManager.Domain.Transactions.Interfaces;
@@ -39,6 +41,7 @@ namespace LifeManager.Application.Test.Configurations
             services.AddScoped<IFinanceDashboardRepository, FinanceDashboardRepositoryMock>();
             services.AddScoped<IRecurringTransactionRepository, RecurringTransactionRepositoryMock>();
             services.AddScoped<IBudgetRepository, BudgetRepositoryMock>();
+            services.AddScoped<IPlayerProfileRepository, PlayerProfileRepositoryMock>();
 
             services.AddSingleton<TimeProvider, FakeTimeProvider>();
 

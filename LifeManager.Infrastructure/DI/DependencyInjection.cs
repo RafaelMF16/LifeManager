@@ -11,6 +11,8 @@ using LifeManager.Domain.Budgets.Interfaces;
 using LifeManager.Infrastructure.Budgets;
 using LifeManager.Domain.FinanceDashboard.Interfaces;
 using LifeManager.Infrastructure.FinanceDashboard;
+using LifeManager.Domain.Habits.Interfaces;
+using LifeManager.Infrastructure.Habits;
 using LifeManager.Domain.Users.Interfaces;
 using LifeManager.Domain.UsersPreferences.Interfaces;
 using LifeManager.Infrastructure.Auth;
@@ -37,6 +39,7 @@ namespace LifeManager.Infrastructure.DI
             services.AddScoped<IFinanceDashboardRepository, FinanceDashboardRepository>();
             services.AddScoped<IRecurringTransactionRepository, RecurringTransactionRepository>();
             services.AddScoped<IBudgetRepository, BudgetRepository>();
+            services.AddScoped<IPlayerProfileRepository, PlayerProfileRepository>();
 
             return services;
         }
