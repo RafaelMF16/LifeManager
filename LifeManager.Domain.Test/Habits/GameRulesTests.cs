@@ -98,6 +98,29 @@ namespace LifeManager.Domain.Test.Habits
         }
 
         [Theory]
+        [InlineData(6, 7, new[] { 7 })]
+        [InlineData(0, 8, new[] { 7 })]
+        [InlineData(6, 70, new[] { 7, 30, 66 })]
+        [InlineData(7, 7, new int[0])]
+        [InlineData(8, 29, new int[0])]
+        [InlineData(7, 3, new int[0])]
+        public void MilestonesCrossed_ShouldListTheMilestonesPassed(int before, int after, int[] expected)
+        {
+            Assert.Equal(expected, GameRules.MilestonesCrossed(before, after));
+        }
+
+        [Theory]
+        [InlineData(6, 7, 1)]
+        [InlineData(7, 8, 0)]
+        [InlineData(0, 14, 2)]
+        [InlineData(13, 14, 1)]
+        [InlineData(14, 3, 0)]
+        public void FreezesEarnedCrossed_ShouldCountTheMultiplesOfSevenPassed(int before, int after, int expected)
+        {
+            Assert.Equal(expected, GameRules.FreezesEarnedCrossed(before, after));
+        }
+
+        [Theory]
         [InlineData(0, 0)]
         [InlineData(4, 0)]
         [InlineData(5, 1)]

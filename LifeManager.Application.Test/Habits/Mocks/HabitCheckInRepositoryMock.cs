@@ -43,7 +43,7 @@ namespace LifeManager.Application.Test.Habits.Mocks
             var profile = Copy(_profiles[profileIndex]);
             var effects = decide(new HabitCheckInContext(profile, successDates, Removed: null));
 
-            var checkIn = HabitCheckIn.Done(habit, date, createdAt, effects.Applied);
+            var checkIn = HabitCheckIn.Done(habit, date, createdAt, effects.Applied, effects.FreezeAwarded);
             checkIn.AssignId(_checkIns.Count == 0 ? 1 : _checkIns.Max(stored => stored.Id!.Value) + 1);
             _checkIns.Add(checkIn);
 

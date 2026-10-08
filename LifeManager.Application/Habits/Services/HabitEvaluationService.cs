@@ -134,18 +134,19 @@ namespace LifeManager.Application.Habits.Services
                 outcome.KnockedOut);
         }
 
-        /// <summary>A habit to avoid kept on a due day: rewarded like a check-in, streak bonus included.</summary>
+        /// <summary>A habit to avoid kept on a due day: rewarded like a check-in, milestones and freezes included.</summary>
         private static HabitEvaluationEffects Clean(Habit habit, DateOnly date, HabitEvaluationContext context, DateOnly today, DateTimeOffset now)
         {
+            var streakBefore = StreakCalculator.Current(habit.Frequency, habit.StartDate, context.SuccessDates, today);
             var successDates = new HashSet<DateOnly>(context.SuccessDates) { date };
             var streak = StreakCalculator.Current(habit.Frequency, habit.StartDate, successDates, today);
-            var outcome = context.Profile.Apply(HabitRewards.ForCompletion(habit, date, streak, successDates));
+            var completion = HabitRewards.ApplyCompletion(habit, context.Profile, GameLedgerEntryKind.CleanDay, date, now, streakBefore, streak, successDates);
 
             return new HabitEvaluationEffects(
-                [HabitCheckIn.Judged(habit, date, HabitCheckInStatus.Clean, now, outcome.Applied)],
-                GameLedgerEntry.FromOutcome(habit.UserId, GameLedgerEntryKind.CleanDay, date, now, habit.Name.Value, outcome, habit.Id),
+                [HabitCheckIn.Judged(habit, date, HabitCheckInStatus.Clean, now, completion.Applied, completion.FreezesEarned > 0)],
+                completion.Entries,
                 streak,
-                outcome.KnockedOut);
+                completion.Outcome.KnockedOut);
         }
 
         /// <summary>The first <paramref name="count"/> days of <paramref name="date"/>'s week that have no check-in.</summary>

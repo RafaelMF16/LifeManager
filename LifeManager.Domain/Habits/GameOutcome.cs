@@ -14,5 +14,18 @@ namespace LifeManager.Domain.Habits
         int KnockoutHpRestored)
     {
         public bool LeveledUp => LevelsGained > 0;
+
+        /// <summary>Several applications in a row read as one: deltas and effects added up.</summary>
+        public static GameOutcome Combine(IReadOnlyCollection<GameOutcome> outcomes)
+            => new(
+                new GameDelta(
+                    outcomes.Sum(outcome => outcome.Applied.Coins),
+                    outcomes.Sum(outcome => outcome.Applied.Xp),
+                    outcomes.Sum(outcome => outcome.Applied.Hp)),
+                outcomes.Sum(outcome => outcome.LevelsGained),
+                outcomes.Sum(outcome => outcome.LevelUpHpRestored),
+                outcomes.Any(outcome => outcome.KnockedOut),
+                outcomes.Sum(outcome => outcome.KnockoutCoinsLost),
+                outcomes.Sum(outcome => outcome.KnockoutHpRestored));
     }
 }

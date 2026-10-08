@@ -321,5 +321,40 @@ namespace LifeManager.Application.Test.Habits
 
             Assert.Equal([UserId], userIds);
         }
+
+        [Fact]
+        public async Task EvaluateUserAsync_ShouldPayTheMilestoneAndEarnAFreeze_WhenACleanDayReachesSeven()
+        {
+            SeedProfile();
+            var habit = SeedHabit(kind: HabitKind.Negative);
+            foreach (var daysAgo in Enumerable.Range(1, 6))
+                SeedCheckIn(habit, LastClosedDay.AddDays(-daysAgo), HabitCheckInStatus.Clean);
+
+            await Evaluate();
+
+            Assert.Equal(7, Stored(habit).CurrentStreak);
+            Assert.Equal(1, Profile().StreakFreezes);
+            Assert.Single(GameLedgerEntrySingleton.Instance, entry => entry.Kind == GameLedgerEntryKind.StreakMilestone);
+            var clean = HabitCheckInSingleton.Instance.Single(checkIn => checkIn.Date == LastClosedDay);
+            Assert.Equal(6 + 25, clean.CoinsAwarded);
+            Assert.True(clean.FreezeAwarded);
+        }
+
+        [Fact]
+        public async Task EvaluateUserAsync_ShouldGiveNoPrize_ForADayAFreezeProtected()
+        {
+            SeedProfile(streakFreezes: 1);
+            var habit = SeedHabit();
+            // Six done days before: the frozen 7th keeps the streak but earns no milestone nor freeze.
+            foreach (var daysAgo in Enumerable.Range(1, 6))
+                SeedCheckIn(habit, LastClosedDay.AddDays(-daysAgo));
+
+            await Evaluate();
+
+            Assert.Equal(7, Stored(habit).CurrentStreak);
+            Assert.Equal(0, Profile().StreakFreezes);
+            Assert.Equal(0, Profile().Coins);
+            Assert.DoesNotContain(GameLedgerEntrySingleton.Instance, entry => entry.Kind == GameLedgerEntryKind.StreakMilestone);
+        }
     }
 }

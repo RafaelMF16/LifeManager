@@ -10,7 +10,8 @@ namespace LifeManager.Domain.Habits.Interfaces
 
     /// <summary>What the rules decided: the streak to store, what was applied to the profile and the ledger lines.</summary>
     /// <param name="Applied">What the profile actually got; stored on a new check-in so it can be undone exactly.</param>
-    public record HabitCheckInEffects(int CurrentStreak, GameDelta Applied, GameOutcome Outcome, IReadOnlyList<GameLedgerEntry> Entries);
+    /// <param name="FreezeAwarded">Whether the check-in earned a streak freeze; stored so its undo takes it back.</param>
+    public record HabitCheckInEffects(int CurrentStreak, GameDelta Applied, GameOutcome Outcome, IReadOnlyList<GameLedgerEntry> Entries, bool FreezeAwarded = false);
 
     /// <remarks>
     /// Check-ins and their undos lock the user's profile first (the same lock as every other change to the game), so

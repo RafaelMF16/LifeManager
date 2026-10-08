@@ -88,6 +88,18 @@ namespace LifeManager.Domain.Habits
         public static int MilestoneBonus(int streak)
             => MilestoneBonuses.TryGetValue(streak, out var bonus) ? bonus : 0;
 
+        /// <summary>
+        /// The milestones a streak passed going from <paramref name="before"/> to <paramref name="after"/>
+        /// (<c>before &lt; milestone &lt;= after</c>), smallest first. A streak can jump past several at once: a
+        /// check-in of yesterday joining two runs, or a weekly habit counting 7 days a week.
+        /// </summary>
+        public static IReadOnlyList<int> MilestonesCrossed(int before, int after)
+            => [.. MilestoneBonuses.Keys.Where(milestone => milestone > before && milestone <= after).Order()];
+
+        /// <summary>Streak freezes earned going from <paramref name="before"/> to <paramref name="after"/>: one per <see cref="FreezeEvery"/> days passed.</summary>
+        public static int FreezesEarnedCrossed(int before, int after)
+            => Math.Max(Math.Max(after, 0) / FreezeEvery - Math.Max(before, 0) / FreezeEvery, 0);
+
         public static int KnockoutCoinLoss(int coins)
             => (int)Math.Floor(Math.Max(coins, 0) * KnockoutCoinLossRate);
     }

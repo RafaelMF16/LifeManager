@@ -114,7 +114,10 @@ namespace LifeManager.Application.Test.Habits
 
             var result = await CheckIn(habit);
 
-            Assert.Equal(expectedCoins, result.Value!.Wallet.CoinsDelta);
+            // The reward alone: a milestone (the 7th day) comes on its own ledger line.
+            var reward = GameLedgerEntrySingleton.Instance.Single(entry => entry.Kind == GameLedgerEntryKind.HabitDone);
+            Assert.Equal(expectedCoins, reward.CoinsDelta);
+            Assert.Equal(expectedCoins + result.Value!.MilestoneCoins, result.Value.Wallet.CoinsDelta);
             Assert.Equal(previousDays + 1, result.Value.CurrentStreak);
         }
 
@@ -236,9 +239,128 @@ namespace LifeManager.Application.Test.Habits
 
             var result = await CheckIn(habit);
 
-            // The week now counts: a 1-week streak is worth 7 days of bonus (+10% on 5 coins).
-            Assert.Equal(6, result.Value!.Wallet.CoinsDelta);
+            // The week now counts: a 1-week streak is worth 7 days, so +10% on 5 coins, the 7-day milestone and a freeze.
+            Assert.Equal(6 + 25, result.Value!.Wallet.CoinsDelta);
             Assert.Equal(1, result.Value.CurrentStreak);
+            Assert.Equal(7, result.Value.MilestoneDays);
+            Assert.Equal(1, result.Value.FreezesEarned);
+        }
+
+        [Fact]
+        public async Task CheckInAsync_ShouldPayTheMilestoneAndEarnAFreeze_OnTheSeventhDay()
+        {
+            SeedProfile(coins: 0);
+            var habit = SeedHabit(difficulty: HabitDifficulty.Easy);
+            SeedDone(habit, [.. Enumerable.Range(1, 6).Select(daysAgo => Today.AddDays(-daysAgo))]);
+
+            var result = await CheckIn(habit);
+
+            Assert.Equal(7, result.Value!.MilestoneDays);
+            Assert.Equal(25, result.Value.MilestoneCoins);
+            Assert.Equal(1, result.Value.FreezesEarned);
+            Assert.Equal(1, Profile().StreakFreezes);
+            Assert.Equal(6 + 25, Profile().Coins);
+            var milestone = Assert.Single(GameLedgerEntrySingleton.Instance, entry => entry.Kind == GameLedgerEntryKind.StreakMilestone);
+            Assert.Equal((25, habit.Id), (milestone.CoinsDelta, milestone.HabitId));
+            var checkIn = HabitCheckInSingleton.Instance.Single(stored => stored.Date == Today);
+            Assert.Equal(6 + 25, checkIn.CoinsAwarded);
+            Assert.True(checkIn.FreezeAwarded);
+        }
+
+        [Fact]
+        public async Task CheckInAsync_ShouldEarnNoFreeze_WhenThePlayerAlreadyHoldsTheMost()
+        {
+            PlayerProfileSingleton.Instance.Add(PlayerProfile.FromPersistence(1, UserId.Value, 0, GameRules.MaxHp, GameRules.MaxHp, 0, GameRules.MaxStreakFreezes));
+            var habit = SeedHabit();
+            SeedDone(habit, [.. Enumerable.Range(1, 6).Select(daysAgo => Today.AddDays(-daysAgo))]);
+
+            var result = await CheckIn(habit);
+
+            Assert.Equal(0, result.Value!.FreezesEarned);
+            Assert.Equal(GameRules.MaxStreakFreezes, Profile().StreakFreezes);
+            Assert.False(HabitCheckInSingleton.Instance.Single(stored => stored.Date == Today).FreezeAwarded);
+            Assert.Equal(25, result.Value.MilestoneCoins);
+        }
+
+        [Fact]
+        public async Task CheckInAsync_ShouldPayNoMilestone_WhenTheStreakDoesNotPassOne()
+        {
+            var habit = SeedHabit();
+            SeedDone(habit, [.. Enumerable.Range(1, 7).Select(daysAgo => Today.AddDays(-daysAgo))]);
+
+            var result = await CheckIn(habit);
+
+            Assert.Null(result.Value!.MilestoneDays);
+            Assert.Equal(0, result.Value.FreezesEarned);
+            Assert.DoesNotContain(GameLedgerEntrySingleton.Instance, entry => entry.Kind == GameLedgerEntryKind.StreakMilestone);
+        }
+
+        [Fact]
+        public async Task CheckInAsync_ShouldPayTheMilestone_WhenCheckingInYesterdayJoinsTwoRuns()
+        {
+            // Done today and the 5 days before yesterday: checking yesterday in makes a 7-day streak at once.
+            var habit = SeedHabit();
+            SeedDone(habit, [Today, .. Enumerable.Range(2, 5).Select(daysAgo => Today.AddDays(-daysAgo))]);
+
+            var result = await CheckIn(habit, Yesterday);
+
+            Assert.Equal(7, result.Value!.CurrentStreak);
+            Assert.Equal(7, result.Value.MilestoneDays);
+            Assert.Equal(1, result.Value.FreezesEarned);
+        }
+
+        [Fact]
+        public async Task UndoCheckInAsync_ShouldTakeBackTheMilestoneAndTheFreeze()
+        {
+            SeedProfile(coins: 0);
+            var habit = SeedHabit();
+            SeedDone(habit, [.. Enumerable.Range(1, 6).Select(daysAgo => Today.AddDays(-daysAgo))]);
+            await CheckIn(habit);
+
+            var result = await _service.UndoCheckInAsync(habit.Id!.Value, Today, UserId, CancellationToken.None);
+
+            Assert.Equal(-(6 + 25), result.Value!.Wallet.CoinsDelta);
+            Assert.Equal(0, Profile().Coins);
+            Assert.Equal(0, Profile().StreakFreezes);
+        }
+
+        [Fact]
+        public async Task UndoCheckInAsync_ShouldNotFail_WhenTheEarnedFreezeWasAlreadySpent()
+        {
+            var habit = SeedHabit();
+            SeedProfile();
+            HabitCheckInSingleton.Instance.Add(HabitCheckIn.FromPersistence(
+                1, habit.Id!.Value, UserId.Value, Today, HabitCheckInStatus.Done, CreatedAt, 31, 10, 1, freezeAwarded: true));
+
+            var result = await _service.UndoCheckInAsync(habit.Id!.Value, Today, UserId, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(0, Profile().StreakFreezes);
+        }
+
+        [Fact]
+        public async Task GetTodayAsync_ShouldReportTheLatestRecentMiss()
+        {
+            var habit = SeedHabit();
+            HabitCheckInSingleton.Instance.Add(HabitCheckIn.FromPersistence(1, habit.Id!.Value, UserId.Value, Today.AddDays(-3), HabitCheckInStatus.Missed, CreatedAt, 0, 0, -5));
+            HabitCheckInSingleton.Instance.Add(HabitCheckIn.FromPersistence(2, habit.Id!.Value, UserId.Value, Today.AddDays(-2), HabitCheckInStatus.Missed, CreatedAt, 0, 0, -5));
+            HabitCheckInSingleton.Instance.Add(HabitCheckIn.FromPersistence(3, habit.Id!.Value, UserId.Value, Today.AddDays(-9), HabitCheckInStatus.Missed, CreatedAt, 0, 0, -5));
+
+            var result = await _service.GetTodayAsync(UserId, CancellationToken.None);
+
+            Assert.Equal(Today.AddDays(-2), result.Value!.LastMissedOn);
+            Assert.Equal(2, result.Value.RecentMissCount);
+        }
+
+        [Fact]
+        public async Task GetTodayAsync_ShouldReportNoMiss_WhenThereWasNone()
+        {
+            SeedHabit();
+
+            var result = await _service.GetTodayAsync(UserId, CancellationToken.None);
+
+            Assert.Null(result.Value!.LastMissedOn);
+            Assert.Equal(0, result.Value.RecentMissCount);
         }
 
         [Fact]

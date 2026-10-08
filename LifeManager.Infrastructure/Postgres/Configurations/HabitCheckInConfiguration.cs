@@ -26,6 +26,7 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
             builder.Property(checkIn => checkIn.CoinsAwarded).IsRequired();
             builder.Property(checkIn => checkIn.XpAwarded).IsRequired();
             builder.Property(checkIn => checkIn.HpAwarded).IsRequired();
+            builder.Property(checkIn => checkIn.FreezeAwarded).IsRequired();
 
             builder.Ignore(checkIn => checkIn.Awarded);
             builder.Ignore(checkIn => checkIn.IsSuccess);

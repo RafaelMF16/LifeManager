@@ -41,7 +41,7 @@ namespace LifeManager.Infrastructure.Habits
 
             var effects = decide(new HabitCheckInContext(profile, successDates, Removed: null));
 
-            _dbContext.HabitCheckIns.Add(HabitCheckIn.Done(habit, date, createdAt, effects.Applied));
+            _dbContext.HabitCheckIns.Add(HabitCheckIn.Done(habit, date, createdAt, effects.Applied, effects.FreezeAwarded));
             await SaveAsync(habit, profile, effects, cancellationToken);
 
             await databaseTransaction.CommitAsync(cancellationToken);

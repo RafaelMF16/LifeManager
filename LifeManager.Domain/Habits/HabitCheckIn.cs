@@ -24,6 +24,9 @@ namespace LifeManager.Domain.Habits
 
         public GameDelta Awarded => new(CoinsAwarded, XpAwarded, HpAwarded);
 
+        /// <summary>Whether this day earned the player a streak freeze, so undoing it takes the freeze back.</summary>
+        public bool FreezeAwarded { get; }
+
         private HabitCheckIn(
             HabitId habitId,
             UserId userId,
@@ -32,7 +35,8 @@ namespace LifeManager.Domain.Habits
             DateTimeOffset createdAt,
             int coinsAwarded,
             int xpAwarded,
-            int hpAwarded)
+            int hpAwarded,
+            bool freezeAwarded)
         {
             HabitId = habitId;
             UserId = userId;
@@ -42,16 +46,17 @@ namespace LifeManager.Domain.Habits
             CoinsAwarded = coinsAwarded;
             XpAwarded = xpAwarded;
             HpAwarded = hpAwarded;
+            FreezeAwarded = freezeAwarded;
         }
 
-        /// <param name="awarded">The delta <see cref="PlayerProfile.Apply"/> actually applied.</param>
-        public static HabitCheckIn Done(Habit habit, DateOnly date, DateTimeOffset createdAt, GameDelta awarded)
-            => Judged(habit, date, HabitCheckInStatus.Done, createdAt, awarded);
+        /// <param name="awarded">The delta <see cref="PlayerProfile.Apply"/> actually applied (reward and milestone).</param>
+        public static HabitCheckIn Done(Habit habit, DateOnly date, DateTimeOffset createdAt, GameDelta awarded, bool freezeAwarded = false)
+            => Judged(habit, date, HabitCheckInStatus.Done, createdAt, awarded, freezeAwarded);
 
         /// <summary>A day the day close judged: missed, protected by a freeze, or clean.</summary>
         /// <param name="applied">What the judgement did to the profile (damage, a clean day's reward, or nothing).</param>
-        public static HabitCheckIn Judged(Habit habit, DateOnly date, HabitCheckInStatus status, DateTimeOffset createdAt, GameDelta applied)
-            => new(habit.Id!, habit.UserId, date, status, createdAt, applied.Coins, applied.Xp, applied.Hp);
+        public static HabitCheckIn Judged(Habit habit, DateOnly date, HabitCheckInStatus status, DateTimeOffset createdAt, GameDelta applied, bool freezeAwarded = false)
+            => new(habit.Id!, habit.UserId, date, status, createdAt, applied.Coins, applied.Xp, applied.Hp, freezeAwarded);
 
         internal static HabitCheckIn FromPersistence(
             int id,
@@ -62,9 +67,10 @@ namespace LifeManager.Domain.Habits
             DateTimeOffset createdAt,
             int coinsAwarded,
             int xpAwarded,
-            int hpAwarded)
+            int hpAwarded,
+            bool freezeAwarded = false)
         {
-            var checkIn = new HabitCheckIn(new HabitId(idHabit), new UserId(idUser), date, status, createdAt, coinsAwarded, xpAwarded, hpAwarded);
+            var checkIn = new HabitCheckIn(new HabitId(idHabit), new UserId(idUser), date, status, createdAt, coinsAwarded, xpAwarded, hpAwarded, freezeAwarded);
             checkIn.AssignId(id);
 
             return checkIn;
