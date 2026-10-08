@@ -24,6 +24,12 @@ namespace LifeManager.Domain.Habits.Interfaces
             CancellationToken cancellationToken);
 
         /// <summary>
+        /// Every active habit of the user of that <paramref name="kind"/>, by name. Not paged: it feeds the day's
+        /// checklist, which is bounded by how many habits one person keeps.
+        /// </summary>
+        Task<IReadOnlyList<Habit>> GetActiveByUserIdAsync(UserId userId, HabitKind kind, CancellationToken cancellationToken);
+
+        /// <summary>
         /// Whether another active (not archived) habit of the user has this name; case- and accent-insensitive, comparing
         /// <see cref="HabitName.NormalizedValue"/>.
         /// </summary>

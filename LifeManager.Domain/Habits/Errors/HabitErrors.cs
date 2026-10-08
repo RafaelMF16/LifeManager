@@ -16,7 +16,12 @@ namespace LifeManager.Domain.Habits.Errors
         public static readonly Error WeekDaysRequired = Error.Validation("Habit.WeekDaysRequired", "Pick at least one day of the week");
         public static readonly Error InvalidTimesPerWeek = Error.Validation("Habit.InvalidTimesPerWeek", "Times per week must be between 1 and 6");
         public static readonly Error InvalidFrequencyCombination = Error.Validation("Habit.InvalidFrequencyCombination", "Week days and times per week only apply to their own frequency type");
-        public static readonly Error NegativeMustBeDaily = Error.Validation("Habit.NegativeMustBeDaily", "A habit to avoid is always tracked daily");
+        public static readonly Error NotCheckable = Error.Validation("Habit.NotCheckable", "A habit to avoid isn't checked in: each day without a relapse counts by itself");
+        public static readonly Error NotScheduled = Error.Validation("Habit.NotScheduled", "The habit isn't scheduled on this day");
+        public static readonly Error CheckInOutsideWindow = Error.Validation("Habit.CheckInOutsideWindow", "Only today and yesterday can be checked in or undone, from the habit's start date");
+
+        public static readonly Error CheckInNotFound = Error.NotFound("Habit.CheckInNotFound", "The habit wasn't checked in on this day");
+        public static readonly Error AlreadyCheckedIn = Error.Conflict("Habit.AlreadyCheckedIn", "The habit was already checked in on this day");
 
         public static readonly Error NameAlreadyExists = Error.Conflict("Habit.NameAlreadyExists", "An active habit with this name already exists");
         public static readonly Error Archived = Error.Conflict("Habit.Archived", "An archived habit cannot be changed; restore it first");

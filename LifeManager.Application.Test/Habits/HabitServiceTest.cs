@@ -118,14 +118,30 @@ namespace LifeManager.Application.Test.Habits
         }
 
         [Fact]
-        public async Task CreateAsync_ShouldReturnValidationError_WhenNegativeHabitIsNotDaily()
+        public async Task CreateAsync_ShouldCreateNegativeHabitOnWeekDays_WhenItIsAvoidedOnlyOnSomeDays()
         {
-            var dto = new HabitDto("Smoke", null, null, HabitKind.Negative, HabitDifficulty.Hard, HabitFrequencyType.TimesPerWeek, null, 2);
+            // Quit gaming on weekdays; the weekend stays free.
+            var dto = new HabitDto("Video games", null, null, HabitKind.Negative, HabitDifficulty.Hard, HabitFrequencyType.WeekDays,
+                [DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday], null);
 
             var result = await _habitService.CreateAsync(dto, FirstUserId, CancellationToken.None);
 
-            Assert.Equal(HabitErrors.NegativeMustBeDaily, result.Error);
-            Assert.Equal(ErrorType.Validation, result.Error!.Type);
+            Assert.True(result.IsSuccess);
+            Assert.Equal(HabitKind.Negative, result.Value.Kind);
+            Assert.Equal(5, result.Value.WeekDays.Count);
+            var habit = Assert.Single(HabitSingleton.Instance);
+            Assert.Equal(HabitWeekDays.Monday | HabitWeekDays.Tuesday | HabitWeekDays.Wednesday | HabitWeekDays.Thursday | HabitWeekDays.Friday, habit.WeekDays);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldCreateNegativeHabitWithAWeeklyAllowance()
+        {
+            var dto = new HabitDto("Video games", null, null, HabitKind.Negative, HabitDifficulty.Medium, HabitFrequencyType.TimesPerWeek, null, 2);
+
+            var result = await _habitService.CreateAsync(dto, FirstUserId, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(2, result.Value.TimesPerWeek);
         }
 
         [Fact]

@@ -88,11 +88,14 @@ namespace LifeManager.Domain.Test.Habits
         [Theory]
         [InlineData(HabitFrequencyType.WeekDays, HabitWeekDays.Monday, null)]
         [InlineData(HabitFrequencyType.TimesPerWeek, HabitWeekDays.None, 3)]
-        public void Create_ShouldReturnFailure_WhenNegativeHabitIsNotDaily(HabitFrequencyType frequencyType, HabitWeekDays weekDays, int? timesPerWeek)
+        public void Create_ShouldAcceptNegativeHabit_WithAnyFrequency(HabitFrequencyType frequencyType, HabitWeekDays weekDays, int? timesPerWeek)
         {
             var result = Create(kind: HabitKind.Negative, frequencyType: frequencyType, weekDays: weekDays, timesPerWeek: timesPerWeek);
 
-            Assert.Equal(HabitErrors.NegativeMustBeDaily, result.Error);
+            Assert.True(result.IsSuccess);
+            Assert.Equal(frequencyType, result.Value.FrequencyType);
+            Assert.Equal(weekDays, result.Value.WeekDays);
+            Assert.Equal(timesPerWeek, result.Value.TimesPerWeek);
         }
 
         [Fact]
@@ -137,13 +140,16 @@ namespace LifeManager.Domain.Test.Habits
         }
 
         [Fact]
-        public void Update_ShouldReturnFailure_WhenNegativeHabitGetsAWeeklyFrequency()
+        public void Update_ShouldChangeTheFrequency_WhenHabitIsNegative()
         {
             var habit = Create(kind: HabitKind.Negative).Value!;
 
-            var result = habit.Update("Smoke", null, null, HabitDifficulty.Hard, HabitFrequencyType.TimesPerWeek, HabitWeekDays.None, 2);
+            var result = habit.Update("Video games", null, null, HabitDifficulty.Hard, HabitFrequencyType.TimesPerWeek, HabitWeekDays.None, 2);
 
-            Assert.Equal(HabitErrors.NegativeMustBeDaily, result.Error);
+            Assert.True(result.IsSuccess);
+            Assert.Equal(HabitFrequencyType.TimesPerWeek, habit.FrequencyType);
+            Assert.Equal(2, habit.TimesPerWeek);
+            Assert.Equal(HabitKind.Negative, habit.Kind);
         }
 
         [Fact]

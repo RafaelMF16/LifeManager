@@ -43,6 +43,7 @@ namespace LifeManager.Application.Test.Configurations
             services.AddScoped<IBudgetRepository, BudgetRepositoryMock>();
             services.AddScoped<IPlayerProfileRepository, PlayerProfileRepositoryMock>();
             services.AddScoped<IHabitRepository, HabitRepositoryMock>();
+            services.AddScoped<IHabitCheckInRepository, HabitCheckInRepositoryMock>();
 
             services.AddSingleton<TimeProvider, FakeTimeProvider>();
 

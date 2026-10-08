@@ -24,6 +24,7 @@ namespace LifeManager.Infrastructure.Postgres
         public DbSet<PlayerProfile> PlayerProfiles { get; set; }
         public DbSet<GameLedgerEntry> GameLedgerEntries { get; set; }
         public DbSet<Habit> Habits { get; set; }
+        public DbSet<HabitCheckIn> HabitCheckIns { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

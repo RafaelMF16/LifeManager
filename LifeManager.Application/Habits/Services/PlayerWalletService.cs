@@ -2,6 +2,7 @@ using LifeManager.Application.Habits.DTOs;
 using LifeManager.Domain.Habits;
 using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.Habits.Interfaces;
+using LifeManager.Domain.Habits.ValueObjects;
 using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Application.Habits.Services
@@ -21,18 +22,20 @@ namespace LifeManager.Application.Habits.Services
             var profile = await _playerProfileRepository.GetByUserIdAsync(userId, cancellationToken)
                 ?? PlayerProfile.CreateDefault(userId);
 
-            return ToResponseDto(profile);
+            return PlayerProfileResponseDto.From(profile);
         }
 
         /// <param name="occurredOn">The game day the change belongs to (e.g. the check-in's date).</param>
         /// <param name="description">What caused it (a habit or reward name), kept in the ledger as it is now.</param>
+        /// <param name="habitId">The habit behind the change, when there is one.</param>
         public async Task<WalletChangeDto> ApplyAsync(
             UserId userId,
             GameLedgerEntryKind kind,
             GameDelta delta,
             DateOnly occurredOn,
             string? description,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            HabitId? habitId = null)
         {
             var createdAt = _timeProvider.GetUtcNow();
             GameOutcome? outcome = null;
@@ -40,31 +43,10 @@ namespace LifeManager.Application.Habits.Services
             var profile = await _playerProfileRepository.ApplyAsync(userId, lockedProfile =>
             {
                 outcome = lockedProfile.Apply(delta);
-                return GameLedgerEntry.FromOutcome(userId, kind, occurredOn, createdAt, description, outcome);
+                return GameLedgerEntry.FromOutcome(userId, kind, occurredOn, createdAt, description, outcome, habitId);
             }, cancellationToken);
 
-            var applied = outcome!.Applied;
-
-            return new WalletChangeDto(
-                ToResponseDto(profile),
-                applied.Coins,
-                applied.Xp,
-                applied.Hp,
-                outcome.LevelsGained,
-                outcome.KnockedOut,
-                outcome.KnockoutCoinsLost);
+            return WalletChangeDto.From(profile, outcome!);
         }
-
-        private static PlayerProfileResponseDto ToResponseDto(PlayerProfile profile)
-            => new(
-                profile.Level,
-                profile.XpInLevel,
-                profile.XpToNextLevel,
-                profile.TotalXp,
-                profile.Hp,
-                profile.MaxHp,
-                profile.Coins,
-                profile.StreakFreezes,
-                GameRules.MaxStreakFreezes);
     }
 }

@@ -9,13 +9,28 @@ namespace LifeManager.WebApi.Habits.Controllers
     [ApiController]
     [Authorize]
     [Route("api/[controller]")]
-    public class HabitsController(HabitService habitService) : Controller
+    public class HabitsController(HabitService habitService, HabitCheckInService habitCheckInService) : Controller
     {
         private readonly HabitService _habitService = habitService;
+        private readonly HabitCheckInService _habitCheckInService = habitCheckInService;
 
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] HabitListQueryDto query, CancellationToken cancellationToken)
             => (await _habitService.GetPagedAsync(query, User.GetUserId(), cancellationToken)).Match(Ok);
+
+        /// <summary>The day's checklist, plus yesterday's habits that can still be checked in.</summary>
+        [HttpGet("Today")]
+        public async Task<IActionResult> GetToday(CancellationToken cancellationToken)
+            => (await _habitCheckInService.GetTodayAsync(User.GetUserId(), cancellationToken)).Match(Ok);
+
+        [HttpPost("{id:int}/CheckIns")]
+        public async Task<IActionResult> CheckIn(int id, [FromBody] HabitCheckInDto checkInDto, CancellationToken cancellationToken)
+            => (await _habitCheckInService.CheckInAsync(id, checkInDto, User.GetUserId(), cancellationToken)).Match(Ok);
+
+        /// <param name="date">"yyyy-MM-dd": today or yesterday.</param>
+        [HttpDelete("{id:int}/CheckIns/{date}")]
+        public async Task<IActionResult> UndoCheckIn(int id, DateOnly date, CancellationToken cancellationToken)
+            => (await _habitCheckInService.UndoCheckInAsync(id, date, User.GetUserId(), cancellationToken)).Match(Ok);
 
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken)

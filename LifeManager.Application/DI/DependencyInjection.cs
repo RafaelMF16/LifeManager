@@ -33,6 +33,7 @@ namespace LifeManager.Application.DI
             services.AddScoped<BudgetService>();
             services.AddScoped<PlayerWalletService>();
             services.AddScoped<HabitService>();
+            services.AddScoped<HabitCheckInService>();
 
             services.TryAddSingleton(TimeProvider.System);
             services.AddSingleton<AppClock>();

@@ -30,6 +30,9 @@ namespace LifeManager.Domain.Habits
         /// <summary>A copy of what caused it (a habit or reward name) as it was then, so renaming it later keeps the history.</summary>
         public string? Description { get; }
 
+        /// <summary>The habit behind the change (check-in, miss, relapse...), when there is one.</summary>
+        public HabitId? HabitId { get; }
+
         private GameLedgerEntry(
             UserId userId,
             GameLedgerEntryKind kind,
@@ -38,7 +41,8 @@ namespace LifeManager.Domain.Habits
             int coinsDelta,
             int xpDelta,
             int hpDelta,
-            string? description)
+            string? description,
+            HabitId? habitId)
         {
             UserId = userId;
             Kind = kind;
@@ -48,12 +52,14 @@ namespace LifeManager.Domain.Habits
             XpDelta = xpDelta;
             HpDelta = hpDelta;
             Description = description;
+            HabitId = habitId;
         }
 
         /// <summary>
         /// The entries for one <see cref="PlayerProfile.Apply"/>: the <paramref name="kind"/> entry with the applied
         /// delta, then a <see cref="GameLedgerEntryKind.LevelUp"/> entry when the HP was refilled by a new level and a
-        /// <see cref="GameLedgerEntryKind.Knockout"/> entry when the player was knocked out.
+        /// <see cref="GameLedgerEntryKind.Knockout"/> entry when the player was knocked out. Every entry carries
+        /// <paramref name="habitId"/>.
         /// </summary>
         public static IReadOnlyList<GameLedgerEntry> FromOutcome(
             UserId userId,
@@ -61,19 +67,20 @@ namespace LifeManager.Domain.Habits
             DateOnly occurredOn,
             DateTimeOffset createdAt,
             string? description,
-            GameOutcome outcome)
+            GameOutcome outcome,
+            HabitId? habitId = null)
         {
             var applied = outcome.Applied;
             var entries = new List<GameLedgerEntry>
             {
-                new(userId, kind, occurredOn, createdAt, applied.Coins, applied.Xp, applied.Hp, Truncate(description))
+                new(userId, kind, occurredOn, createdAt, applied.Coins, applied.Xp, applied.Hp, Truncate(description), habitId)
             };
 
             if (outcome.LeveledUp)
-                entries.Add(new GameLedgerEntry(userId, GameLedgerEntryKind.LevelUp, occurredOn, createdAt, 0, 0, outcome.LevelUpHpRestored, null));
+                entries.Add(new GameLedgerEntry(userId, GameLedgerEntryKind.LevelUp, occurredOn, createdAt, 0, 0, outcome.LevelUpHpRestored, null, habitId));
 
             if (outcome.KnockedOut)
-                entries.Add(new GameLedgerEntry(userId, GameLedgerEntryKind.Knockout, occurredOn, createdAt, -outcome.KnockoutCoinsLost, 0, outcome.KnockoutHpRestored, null));
+                entries.Add(new GameLedgerEntry(userId, GameLedgerEntryKind.Knockout, occurredOn, createdAt, -outcome.KnockoutCoinsLost, 0, outcome.KnockoutHpRestored, null, habitId));
 
             return entries;
         }

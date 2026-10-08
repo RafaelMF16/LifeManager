@@ -8,6 +8,16 @@ namespace LifeManager.Domain.Habits.ValueObjects
     /// How often a habit should be done. <see cref="WeekDays"/> is only set for <see cref="HabitFrequencyType.WeekDays"/>
     /// and <see cref="TimesPerWeek"/> only for <see cref="HabitFrequencyType.TimesPerWeek"/>.
     /// </summary>
+    /// <remarks>
+    /// For a habit to avoid (<see cref="HabitKind.Negative"/>) the same values read differently:
+    /// <list type="bullet">
+    /// <item><see cref="HabitFrequencyType.Daily"/>: avoided every day.</item>
+    /// <item><see cref="HabitFrequencyType.WeekDays"/>: avoided on the picked days only; the other days are free (no
+    /// relapse to log, no damage, no coins).</item>
+    /// <item><see cref="HabitFrequencyType.TimesPerWeek"/>: a weekly allowance, "at most N times a week". Up to N relapses
+    /// a week cost nothing; each one past it costs HP, and a week that closes within it counts for the streak (in weeks).</item>
+    /// </list>
+    /// </remarks>
     public class HabitFrequency
     {
         public const int MinTimesPerWeek = 1;

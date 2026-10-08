@@ -33,6 +33,15 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
                 .WithMany()
                 .HasForeignKey(entry => entry.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Property(entry => entry.HabitId)
+                .HasConversion(id => id!.Value, id => new HabitId(id));
+
+            // SET NULL: the statement outlives the habit (habits are archived, not deleted, but a user deletion cascades).
+            builder.HasOne<Habit>()
+                .WithMany()
+                .HasForeignKey(entry => entry.HabitId)
+                .OnDelete(DeleteBehavior.SetNull);
         }
     }
 }

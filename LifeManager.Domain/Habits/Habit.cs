@@ -8,6 +8,7 @@ namespace LifeManager.Domain.Habits
 {
     /// <summary>
     /// A habit the user wants to build (<see cref="HabitKind.Positive"/>) or to quit (<see cref="HabitKind.Negative"/>).
+    /// Both kinds take any frequency; <see cref="HabitFrequency"/> describes what each one means for a habit to quit.
     /// Deleting it from the UI archives it, so its history stays; an archived habit can't change until it is restored.
     /// </summary>
     public class Habit
@@ -190,6 +191,34 @@ namespace LifeManager.Domain.Habits
             return this;
         }
 
+        /// <summary>
+        /// Whether <paramref name="date"/> can be checked in, or its check-in undone, on <paramref name="today"/>: an
+        /// active habit to build, a day it is due on, from its start date, and only today or yesterday.
+        /// </summary>
+        public Result EnsureCanCheckIn(DateOnly date, DateOnly today)
+        {
+            if (IsArchived)
+                return HabitErrors.Archived;
+
+            if (Kind == HabitKind.Negative)
+                return HabitErrors.NotCheckable;
+
+            if (date < StartDate || !StreakCalculator.IsEditable(date, today))
+                return HabitErrors.CheckInOutsideWindow;
+
+            if (!Frequency.IsScheduledOn(date))
+                return HabitErrors.NotScheduled;
+
+            return Result.Success();
+        }
+
+        /// <summary>Stores the recalculated streak, raising the record when it's beaten.</summary>
+        public void SetStreak(int currentStreak)
+        {
+            CurrentStreak = Math.Max(currentStreak, 0);
+            LongestStreak = Math.Max(LongestStreak, CurrentStreak);
+        }
+
         /// <summary>Rehydrates a stored habit without re-validating it.</summary>
         internal static Habit FromPersistence(
             int id,
@@ -263,10 +292,6 @@ namespace LifeManager.Domain.Habits
             var frequencyResult = HabitFrequency.Create(frequencyType, weekDays, timesPerWeek);
             if (!frequencyResult.IsSuccess)
                 return frequencyResult.Error;
-
-            // Every day without a relapse is a clean day, so a habit to avoid has no schedule.
-            if (kind == HabitKind.Negative && frequencyResult.Value.Type != HabitFrequencyType.Daily)
-                return HabitErrors.NegativeMustBeDaily;
 
             return new ValidatedValues(nameResult.Value, descriptionResult.Value, triggerResult.Value, frequencyResult.Value);
         }

@@ -58,6 +58,16 @@ namespace LifeManager.Infrastructure.Habits
             return await Order(query, sortBy, sortDirection).ToPagedListAsync(pageRequest, cancellationToken);
         }
 
+        public async Task<IReadOnlyList<Habit>> GetActiveByUserIdAsync(UserId userId, HabitKind kind, CancellationToken cancellationToken)
+        {
+            return await _dbContext.Habits
+                .AsNoTracking()
+                .Where(habit => habit.UserId == userId && habit.Kind == kind && habit.ArchivedAt == null)
+                .OrderBy(habit => habit.NormalizedName)
+                .ThenBy(habit => habit.Id)
+                .ToListAsync(cancellationToken);
+        }
+
         public async Task<bool> ExistsActiveByNameAsync(UserId userId, HabitName name, HabitId? ignoredHabitId, CancellationToken cancellationToken)
         {
             var normalizedName = name.NormalizedValue;

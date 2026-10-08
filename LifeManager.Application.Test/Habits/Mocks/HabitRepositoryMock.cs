@@ -73,6 +73,20 @@ namespace LifeManager.Application.Test.Habits.Mocks
             return Task.FromResult(new PagedList<Habit>(items, matching.Count, pageRequest.Page, pageRequest.PageSize));
         }
 
+        public Task<IReadOnlyList<Habit>> GetActiveByUserIdAsync(UserId userId, HabitKind kind, CancellationToken cancellationToken)
+        {
+            IReadOnlyList<Habit> habits =
+            [
+                .. _instance
+                    .Where(habit => habit.UserId == userId && habit.Kind == kind && !habit.IsArchived)
+                    .OrderBy(habit => habit.NormalizedName, StringComparer.Ordinal)
+                    .ThenBy(habit => habit.Id!.Value)
+                    .Select(ToDetachedCopy)
+            ];
+
+            return Task.FromResult(habits);
+        }
+
         public Task<bool> ExistsActiveByNameAsync(UserId userId, HabitName name, HabitId? ignoredHabitId, CancellationToken cancellationToken)
         {
             ExistsActiveByNameCallCount++;
@@ -97,7 +111,7 @@ namespace LifeManager.Application.Test.Habits.Mocks
             return Task.CompletedTask;
         }
 
-        private static Habit ToDetachedCopy(Habit habit)
+        internal static Habit ToDetachedCopy(Habit habit)
             => Habit.FromPersistence(
                 habit.Id!.Value,
                 habit.UserId.Value,

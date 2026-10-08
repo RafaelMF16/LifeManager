@@ -1,3 +1,5 @@
+using LifeManager.Domain.Habits;
+
 namespace LifeManager.Application.Habits.DTOs
 {
     public record PlayerProfileResponseDto(
@@ -9,5 +11,18 @@ namespace LifeManager.Application.Habits.DTOs
         int MaxHp,
         int Coins,
         int StreakFreezes,
-        int MaxStreakFreezes);
+        int MaxStreakFreezes)
+    {
+        public static PlayerProfileResponseDto From(PlayerProfile profile)
+            => new(
+                profile.Level,
+                profile.XpInLevel,
+                profile.XpToNextLevel,
+                profile.TotalXp,
+                profile.Hp,
+                profile.MaxHp,
+                profile.Coins,
+                profile.StreakFreezes,
+                GameRules.MaxStreakFreezes);
+    }
 }
