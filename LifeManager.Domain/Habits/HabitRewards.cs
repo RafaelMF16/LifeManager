@@ -34,7 +34,9 @@ namespace LifeManager.Domain.Habits
         /// <param name="successDates">Already including <paramref name="date"/>.</param>
         public static GameDelta ForCompletion(Habit habit, DateOnly date, int streak, IReadOnlySet<DateOnly> successDates)
         {
-            if (IsWeekly(habit) && StreakCalculator.CountInWeek(successDates, date) - 1 >= habit.TimesPerWeek)
+            if (IsWeekly(habit)
+                && habit.Kind == HabitKind.Positive
+                && StreakCalculator.CountInWeek(successDates, date) - 1 >= habit.TimesPerWeek)
                 return GameDelta.None;
 
             var reward = GameRules.Reward(habit.Difficulty);
@@ -65,6 +67,10 @@ namespace LifeManager.Domain.Habits
         /// entry) and the freezes it earned.
         /// </summary>
         /// <param name="successDates">Already including <paramref name="date"/>.</param>
+        /// <param name="days">
+        /// Completed days paid at once: a weekly limit's clean week pays one reward per relapse-free day. Milestones and
+        /// freezes still follow the streak, so they are paid once.
+        /// </param>
         public static HabitCompletion ApplyCompletion(
             Habit habit,
             PlayerProfile profile,
@@ -73,10 +79,12 @@ namespace LifeManager.Domain.Habits
             DateTimeOffset now,
             int streakBefore,
             int streakAfter,
-            IReadOnlySet<DateOnly> successDates)
+            IReadOnlySet<DateOnly> successDates,
+            int days = 1)
         {
             var userId = habit.UserId;
-            var rewardOutcome = profile.Apply(ForCompletion(habit, date, streakAfter, successDates));
+            var reward = ForCompletion(habit, date, streakAfter, successDates);
+            var rewardOutcome = profile.Apply(new GameDelta(reward.Coins * days, reward.Xp * days, reward.Hp * days));
             var entries = new List<GameLedgerEntry>(GameLedgerEntry.FromOutcome(userId, kind, date, now, habit.Name.Value, rewardOutcome, habit.Id));
             var outcomes = new List<GameOutcome> { rewardOutcome };
 
@@ -95,6 +103,14 @@ namespace LifeManager.Domain.Habits
 
             return new HabitCompletion(GameOutcome.Combine(outcomes), entries, gain.MilestoneDays, gain.MilestoneCoins, freezesEarned);
         }
+
+        /// <summary>
+        /// HP a relapse costs: the habit's damage, except within a weekly limit, where only a relapse past the limit
+        /// costs anything.
+        /// </summary>
+        /// <param name="weekRelapseCount">The week's relapses, this one included.</param>
+        public static int RelapseDamage(Habit habit, int weekRelapseCount)
+            => IsWeekly(habit) && weekRelapseCount <= (habit.TimesPerWeek ?? 0) ? 0 : GameRules.Damage(habit.Difficulty);
 
         /// <summary>The streak in days for the coin bonus: a weekly habit's streak counts in weeks.</summary>
         public static int StreakBonusDays(Habit habit, int streak)

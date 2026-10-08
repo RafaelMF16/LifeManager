@@ -20,8 +20,12 @@ namespace LifeManager.Domain.Habits.Errors
         public static readonly Error NotScheduled = Error.Validation("Habit.NotScheduled", "The habit isn't scheduled on this day");
         public static readonly Error CheckInOutsideWindow = Error.Validation("Habit.CheckInOutsideWindow", "Only today and yesterday can be checked in or undone, from the habit's start date");
 
+        public static readonly Error NotAvoidable = Error.Validation("Habit.NotAvoidable", "Only a habit to avoid has relapses");
+
         public static readonly Error CheckInNotFound = Error.NotFound("Habit.CheckInNotFound", "The habit wasn't checked in on this day");
+        public static readonly Error RelapseNotFound = Error.NotFound("Habit.RelapseNotFound", "No relapse was logged on this day");
         public static readonly Error AlreadyCheckedIn = Error.Conflict("Habit.AlreadyCheckedIn", "The habit was already checked in on this day");
+        public static readonly Error AlreadyRelapsed = Error.Conflict("Habit.AlreadyRelapsed", "A relapse was already logged on this day");
 
         public static readonly Error NameAlreadyExists = Error.Conflict("Habit.NameAlreadyExists", "An active habit with this name already exists");
         public static readonly Error Archived = Error.Conflict("Habit.Archived", "An archived habit cannot be changed; restore it first");

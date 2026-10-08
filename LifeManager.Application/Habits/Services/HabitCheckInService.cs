@@ -34,15 +34,16 @@ namespace LifeManager.Application.Habits.Services
             var yesterday = today.AddDays(-1);
 
             var habits = await _habitRepository.GetActiveByUserIdAsync(userId, HabitKind.Positive, cancellationToken);
+            var habitsToAvoid = await _habitRepository.GetActiveByUserIdAsync(userId, HabitKind.Negative, cancellationToken);
             // Covers yesterday's and today's week (they may differ on a Monday) and the recent misses.
             var weekStart = StreakCalculator.WeekStart(yesterday);
             var recentStart = today.AddDays(-RecentMissDays);
             var from = recentStart < weekStart ? recentStart : weekStart;
             var checkIns = await _habitCheckInRepository.GetByUserIdAsync(userId, from, today, cancellationToken);
 
-            var activeHabitIds = habits.Select(habit => habit.Id!.Value).ToHashSet();
+            var activeHabitIds = habits.Concat(habitsToAvoid).Select(habit => habit.Id!.Value).ToHashSet();
             var recentMisses = checkIns
-                .Where(checkIn => checkIn.Status == HabitCheckInStatus.Missed
+                .Where(checkIn => checkIn.Status is HabitCheckInStatus.Missed or HabitCheckInStatus.Relapse
                     && checkIn.Date >= recentStart
                     && activeHabitIds.Contains(checkIn.HabitId.Value))
                 .ToList();
@@ -69,7 +70,46 @@ namespace LifeManager.Application.Habits.Services
                     yesterdayPending.Add(ToTodayItem(habit, yesterday, successDates));
             }
 
-            return new HabitTodayDto(today, todayItems, yesterdayPending, lastMissedOn, recentMisses.Count);
+            var relapseDatesByHabit = checkIns
+                .Where(checkIn => checkIn.Status == HabitCheckInStatus.Relapse)
+                .GroupBy(checkIn => checkIn.HabitId.Value)
+                .ToDictionary(group => group.Key, group => group.Select(checkIn => checkIn.Date).ToHashSet());
+
+            var avoiding = new List<HabitAvoidItemDto>();
+            var freeToday = new List<string>();
+
+            foreach (var habit in habitsToAvoid)
+            {
+                if (habit.EnsureCanRelapse(today, today).IsSuccess)
+                    avoiding.Add(ToAvoidItem(habit, today, relapseDatesByHabit.GetValueOrDefault(habit.Id!.Value) ?? []));
+                else if (habit.StartDate <= today && !habit.Frequency.IsScheduledOn(today))
+                    freeToday.Add(habit.Name.Value);
+            }
+
+            return new HabitTodayDto(today, todayItems, yesterdayPending, lastMissedOn, recentMisses.Count, avoiding, freeToday);
+        }
+
+        private static HabitAvoidItemDto ToAvoidItem(Habit habit, DateOnly today, IReadOnlySet<DateOnly> relapseDates)
+        {
+            var yesterday = today.AddDays(-1);
+            var relapsedToday = relapseDates.Contains(today);
+            var relapsedYesterday = relapseDates.Contains(yesterday);
+            int? weekRelapseCount = habit.FrequencyType == HabitFrequencyType.TimesPerWeek ? StreakCalculator.CountInWeek(relapseDates, today) : null;
+
+            return new HabitAvoidItemDto(
+                habit.Id!.Value,
+                habit.Name.Value,
+                habit.Trigger?.Value,
+                habit.Difficulty,
+                habit.FrequencyType,
+                habit.TimesPerWeek,
+                habit.CurrentStreak,
+                habit.LongestStreak,
+                relapsedToday,
+                relapsedYesterday,
+                !relapsedYesterday && habit.EnsureCanRelapse(yesterday, today).IsSuccess,
+                weekRelapseCount,
+                relapsedToday ? 0 : HabitRewards.RelapseDamage(habit, (weekRelapseCount ?? 0) + 1));
         }
 
         public async Task<Result<HabitCheckInResultDto>> CheckInAsync(int id, HabitCheckInDto checkInDto, UserId userId, CancellationToken cancellationToken)
@@ -90,11 +130,11 @@ namespace LifeManager.Application.Habits.Services
 
             HabitCompletion? completion = null;
 
-            var effects = await _habitCheckInRepository.CheckInAsync(habit, date, now, context =>
+            var effects = await _habitCheckInRepository.RecordAsync(habit, date, HabitCheckInStatus.Done, now, context =>
             {
                 profile = context.Profile;
-                var streakBefore = StreakCalculator.Current(habit.Frequency, habit.StartDate, Without(context.SuccessDates, date), today);
-                var streak = StreakCalculator.Current(habit.Frequency, habit.StartDate, context.SuccessDates, today);
+                var streakBefore = StreakCalculator.Current(habit, Without(context.SuccessDates, date), context.FailedDates, today);
+                var streak = StreakCalculator.Current(habit, context.SuccessDates, context.FailedDates, today);
                 completion = HabitRewards.ApplyCompletion(habit, context.Profile, GameLedgerEntryKind.HabitDone, date, now, streakBefore, streak, context.SuccessDates);
 
                 return new HabitCheckInEffects(streak, completion.Applied, completion.Outcome, completion.Entries, completion.FreezesEarned > 0);
@@ -137,10 +177,10 @@ namespace LifeManager.Application.Habits.Services
             var now = _timeProvider.GetUtcNow();
             PlayerProfile? profile = null;
 
-            var effects = await _habitCheckInRepository.UndoCheckInAsync(habit, date, context =>
+            var effects = await _habitCheckInRepository.RemoveAsync(habit, date, HabitCheckInStatus.Done, context =>
             {
                 profile = context.Profile;
-                var streak = StreakCalculator.Current(habit.Frequency, habit.StartDate, context.SuccessDates, today);
+                var streak = StreakCalculator.Current(habit, context.SuccessDates, context.FailedDates, today);
 
                 var removed = context.Removed!;
                 var awarded = removed.Awarded;

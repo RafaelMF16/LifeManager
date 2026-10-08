@@ -56,9 +56,9 @@ namespace LifeManager.Infrastructure.Habits
                 .AsNoTracking()
                 .Where(checkIn => checkIn.HabitId == habit.Id && checkIn.Date >= weekStart && checkIn.Date <= weekEnd)
                 .ToListAsync(cancellationToken);
-            var successDates = await HabitCheckInRepository.GetSuccessDatesAsync(_dbContext, habit.Id!, cancellationToken);
+            var (successDates, failedDates) = await HabitCheckInRepository.GetHistoryAsync(_dbContext, habit.Id!, cancellationToken);
 
-            var effects = decide(new HabitEvaluationContext(profile, weekCheckIns, successDates));
+            var effects = decide(new HabitEvaluationContext(profile, weekCheckIns, successDates, failedDates));
 
             _dbContext.HabitCheckIns.AddRange(effects.NewCheckIns);
             await PlayerWallet.SaveAsync(_dbContext, profile, effects.Entries, cancellationToken);

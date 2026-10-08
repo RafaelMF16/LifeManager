@@ -25,9 +25,10 @@ namespace LifeManager.Application.Test.Habits.Mocks
             return Task.FromResult(checkIns);
         }
 
-        public Task<HabitCheckInEffects?> CheckInAsync(
+        public Task<HabitCheckInEffects?> RecordAsync(
             Habit habit,
             DateOnly date,
+            HabitCheckInStatus status,
             DateTimeOffset createdAt,
             Func<HabitCheckInContext, HabitCheckInEffects> decide,
             CancellationToken cancellationToken)
@@ -38,12 +39,13 @@ namespace LifeManager.Application.Test.Habits.Mocks
                 return Task.FromResult<HabitCheckInEffects?>(null);
 
             var successDates = SuccessDates(habit.Id!);
-            successDates.Add(date);
+            var failedDates = FailedDates(habit.Id!);
+            (HabitCheckIn.SuccessStatuses.Contains(status) ? successDates : failedDates).Add(date);
 
             var profile = Copy(_profiles[profileIndex]);
-            var effects = decide(new HabitCheckInContext(profile, successDates, Removed: null));
+            var effects = decide(new HabitCheckInContext(profile, successDates, failedDates, Removed: null));
 
-            var checkIn = HabitCheckIn.Done(habit, date, createdAt, effects.Applied, effects.FreezeAwarded);
+            var checkIn = HabitCheckIn.Judged(habit, date, status, createdAt, effects.Applied, effects.FreezeAwarded);
             checkIn.AssignId(_checkIns.Count == 0 ? 1 : _checkIns.Max(stored => stored.Id!.Value) + 1);
             _checkIns.Add(checkIn);
 
@@ -52,27 +54,31 @@ namespace LifeManager.Application.Test.Habits.Mocks
             return Task.FromResult<HabitCheckInEffects?>(effects);
         }
 
-        public Task<HabitCheckInEffects?> UndoCheckInAsync(
+        public Task<HabitCheckInEffects?> RemoveAsync(
             Habit habit,
             DateOnly date,
+            HabitCheckInStatus status,
             Func<HabitCheckInContext, HabitCheckInEffects> decide,
             CancellationToken cancellationToken)
         {
             var profileIndex = LockProfile(habit.UserId);
 
-            var checkIn = _checkIns.SingleOrDefault(stored => stored.HabitId == habit.Id && stored.Date == date && stored.Status == HabitCheckInStatus.Done);
+            var checkIn = _checkIns.SingleOrDefault(stored => stored.HabitId == habit.Id && stored.Date == date && stored.Status == status);
             if (checkIn is null)
                 return Task.FromResult<HabitCheckInEffects?>(null);
 
             _checkIns.Remove(checkIn);
 
             var profile = Copy(_profiles[profileIndex]);
-            var effects = decide(new HabitCheckInContext(profile, SuccessDates(habit.Id!), checkIn));
+            var effects = decide(new HabitCheckInContext(profile, SuccessDates(habit.Id!), FailedDates(habit.Id!), checkIn));
 
             Save(habit, profileIndex, profile, effects);
 
             return Task.FromResult<HabitCheckInEffects?>(effects);
         }
+
+        private HashSet<DateOnly> FailedDates(HabitId habitId)
+            => [.. _checkIns.Where(checkIn => checkIn.HabitId == habitId && checkIn.Status == HabitCheckInStatus.Relapse).Select(checkIn => checkIn.Date)];
 
         /// <summary>Like PlayerWallet.LockAsync: creates the default profile if missing.</summary>
         private int LockProfile(UserId userId)

@@ -356,5 +356,44 @@ namespace LifeManager.Application.Test.Habits
             Assert.Equal(0, Profile().Coins);
             Assert.DoesNotContain(GameLedgerEntrySingleton.Instance, entry => entry.Kind == GameLedgerEntryKind.StreakMilestone);
         }
+
+        [Fact]
+        public async Task EvaluateUserAsync_ShouldPayEachRelapseFreeDay_WhenAWeeklyLimitWasKept()
+        {
+            SeedProfile();
+            // Limit 2, two relapses in the week from Monday 2026-09-28; its Sunday (10-04) is judged now.
+            var habit = SeedHabit(evaluatedUntil: new DateOnly(2026, 10, 3), kind: HabitKind.Negative, difficulty: HabitDifficulty.Easy,
+                frequencyType: HabitFrequencyType.TimesPerWeek, timesPerWeek: 2);
+            SeedCheckIn(habit, new DateOnly(2026, 9, 28), HabitCheckInStatus.Relapse);
+            SeedCheckIn(habit, new DateOnly(2026, 9, 30), HabitCheckInStatus.Relapse);
+
+            await Evaluate();
+
+            var clean = HabitCheckInSingleton.Instance.Where(checkIn => checkIn.Status == HabitCheckInStatus.Clean).ToList();
+            Assert.Equal(5, clean.Count);
+            // 5 clean days × 5 coins, the 1-week streak's +10% (5 → 6 each, 30) and its 7-day milestone (25).
+            Assert.Equal(5 * 6 + 25, Profile().Coins);
+            Assert.Equal(5 * 10, Profile().TotalXp);
+            Assert.Equal(1, Stored(habit).CurrentStreak);
+            Assert.Equal(1, Profile().StreakFreezes);
+            var rewarded = Assert.Single(clean, checkIn => checkIn.CoinsAwarded > 0);
+            Assert.Equal(new DateOnly(2026, 10, 4), rewarded.Date);
+        }
+
+        [Fact]
+        public async Task EvaluateUserAsync_ShouldPayNothing_WhenAWeeklyLimitWasPassed()
+        {
+            SeedProfile();
+            var habit = SeedHabit(evaluatedUntil: new DateOnly(2026, 10, 3), kind: HabitKind.Negative,
+                frequencyType: HabitFrequencyType.TimesPerWeek, timesPerWeek: 1);
+            SeedCheckIn(habit, new DateOnly(2026, 9, 28), HabitCheckInStatus.Relapse);
+            SeedCheckIn(habit, new DateOnly(2026, 9, 30), HabitCheckInStatus.Relapse);
+
+            await Evaluate();
+
+            Assert.Equal(0, Profile().Coins);
+            Assert.DoesNotContain(HabitCheckInSingleton.Instance, checkIn => checkIn.Status == HabitCheckInStatus.Clean);
+            Assert.Equal(new DateOnly(2026, 10, 5), Stored(habit).EvaluatedUntil);
+        }
     }
 }

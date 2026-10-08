@@ -123,11 +123,34 @@ namespace LifeManager.Domain.Test.Habits
         }
 
         [Fact]
-        public void Judge_ShouldSkip_AHabitToAvoidsWeeklyLimit()
+        public void Judge_ShouldSkip_AWeeklyLimitBeforeItsSunday()
         {
             var habit = Habit(kind: HabitKind.Negative, frequencyType: HabitFrequencyType.TimesPerWeek, timesPerWeek: 2);
 
-            Assert.Equal(HabitDayVerdictKind.Skip, HabitDayVerdict.Judge(habit, Sunday, []).Kind);
+            Assert.Equal(HabitDayVerdictKind.Skip, HabitDayVerdict.Judge(habit, Wednesday, []).Kind);
+        }
+
+        [Fact]
+        public void Judge_ShouldMakeEveryRelapseFreeDayClean_WhenAWeeklyLimitWasKept()
+        {
+            var habit = Habit(kind: HabitKind.Negative, frequencyType: HabitFrequencyType.TimesPerWeek, timesPerWeek: 2);
+
+            var verdict = HabitDayVerdict.Judge(habit, Sunday, [CheckIn(habit, Monday, HabitCheckInStatus.Relapse), CheckIn(habit, Wednesday, HabitCheckInStatus.Relapse)]);
+
+            Assert.Equal(HabitDayVerdictKind.WeekClean, verdict.Kind);
+            Assert.Equal(5, verdict.CleanDays!.Count);
+            Assert.DoesNotContain(Monday, verdict.CleanDays);
+            Assert.DoesNotContain(Wednesday, verdict.CleanDays);
+        }
+
+        [Fact]
+        public void Judge_ShouldSettle_AWeeklyLimitThatWasPassed()
+        {
+            var habit = Habit(kind: HabitKind.Negative, frequencyType: HabitFrequencyType.TimesPerWeek, timesPerWeek: 1);
+
+            var verdict = HabitDayVerdict.Judge(habit, Sunday, [CheckIn(habit, Monday, HabitCheckInStatus.Relapse), CheckIn(habit, Wednesday, HabitCheckInStatus.Relapse)]);
+
+            Assert.Equal(HabitDayVerdictKind.Settled, verdict.Kind);
         }
     }
 }

@@ -34,6 +34,7 @@ namespace LifeManager.Application.DI
             services.AddScoped<PlayerWalletService>();
             services.AddScoped<HabitService>();
             services.AddScoped<HabitCheckInService>();
+            services.AddScoped<HabitRelapseService>();
             services.AddScoped<HabitEvaluationService>();
 
             services.TryAddSingleton(TimeProvider.System);

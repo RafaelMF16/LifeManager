@@ -212,6 +212,28 @@ namespace LifeManager.Domain.Habits
             return Result.Success();
         }
 
+        /// <summary>
+        /// Whether a relapse can be logged on <paramref name="date"/>, or undone, on <paramref name="today"/>: an active
+        /// habit to avoid, on a day it is avoided (a set-days habit's other days are free), from its start date, and only
+        /// today or yesterday.
+        /// </summary>
+        public Result EnsureCanRelapse(DateOnly date, DateOnly today)
+        {
+            if (IsArchived)
+                return HabitErrors.Archived;
+
+            if (Kind != HabitKind.Negative)
+                return HabitErrors.NotAvoidable;
+
+            if (date < StartDate || !StreakCalculator.IsEditable(date, today))
+                return HabitErrors.CheckInOutsideWindow;
+
+            if (!Frequency.IsScheduledOn(date))
+                return HabitErrors.NotScheduled;
+
+            return Result.Success();
+        }
+
         /// <summary>Moves the day-close cursor: <paramref name="date"/> has been judged.</summary>
         public void MarkEvaluated(DateOnly date)
         {

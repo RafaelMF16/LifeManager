@@ -9,10 +9,14 @@ namespace LifeManager.WebApi.Habits.Controllers
     [ApiController]
     [Authorize]
     [Route("api/[controller]")]
-    public class HabitsController(HabitService habitService, HabitCheckInService habitCheckInService) : Controller
+    public class HabitsController(
+        HabitService habitService,
+        HabitCheckInService habitCheckInService,
+        HabitRelapseService habitRelapseService) : Controller
     {
         private readonly HabitService _habitService = habitService;
         private readonly HabitCheckInService _habitCheckInService = habitCheckInService;
+        private readonly HabitRelapseService _habitRelapseService = habitRelapseService;
 
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] HabitListQueryDto query, CancellationToken cancellationToken)
@@ -40,6 +44,16 @@ namespace LifeManager.WebApi.Habits.Controllers
         public async Task<IActionResult> Create([FromBody] HabitDto habitDto, CancellationToken cancellationToken)
             => (await _habitService.CreateAsync(habitDto, User.GetUserId(), cancellationToken))
                 .Match(habit => CreatedAtAction(nameof(GetById), new { id = habit.Id }, habit));
+
+        /// <summary>Logs a relapse of a habit to avoid, today or yesterday.</summary>
+        [HttpPost("{id:int}/Relapses")]
+        public async Task<IActionResult> Relapse(int id, [FromBody] HabitRelapseDto relapseDto, CancellationToken cancellationToken)
+            => (await _habitRelapseService.RelapseAsync(id, relapseDto, User.GetUserId(), cancellationToken)).Match(Ok);
+
+        /// <param name="date">"yyyy-MM-dd": today or yesterday.</param>
+        [HttpDelete("{id:int}/Relapses/{date}")]
+        public async Task<IActionResult> UndoRelapse(int id, DateOnly date, CancellationToken cancellationToken)
+            => (await _habitRelapseService.UndoRelapseAsync(id, date, User.GetUserId(), cancellationToken)).Match(Ok);
 
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, [FromBody] HabitUpdateDto habitDto, CancellationToken cancellationToken)

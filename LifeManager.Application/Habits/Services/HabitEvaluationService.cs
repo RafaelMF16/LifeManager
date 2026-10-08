@@ -87,7 +87,8 @@ namespace LifeManager.Application.Habits.Services
             {
                 HabitDayVerdictKind.Missed => Missed(habit, date, context, today, now, forgiveDamage, [date]),
                 HabitDayVerdictKind.WeekShort => Missed(habit, date, context, today, now, forgiveDamage, FreeDaysOfWeek(context, date, verdict.Shortfall)),
-                HabitDayVerdictKind.Clean => Clean(habit, date, context, today, now),
+                HabitDayVerdictKind.Clean => Clean(habit, date, context, today, now, [date]),
+                HabitDayVerdictKind.WeekClean => Clean(habit, date, context, today, now, verdict.CleanDays!),
                 _ => HabitEvaluationEffects.None
             };
         }
@@ -119,7 +120,7 @@ namespace LifeManager.Application.Habits.Services
                 return new HabitEvaluationEffects(
                     frozen,
                     GameLedgerEntry.FromOutcome(habit.UserId, GameLedgerEntryKind.FreezeUsed, date, now, habit.Name.Value, frozenOutcome, habit.Id),
-                    StreakCalculator.Current(habit.Frequency, habit.StartDate, successDates, today),
+                    StreakCalculator.Current(habit, successDates, context.FailedDates, today),
                     KnockedOut: false);
             }
 
@@ -130,23 +131,38 @@ namespace LifeManager.Application.Habits.Services
             return new HabitEvaluationEffects(
                 missed,
                 GameLedgerEntry.FromOutcome(habit.UserId, GameLedgerEntryKind.HabitMissed, date, now, habit.Name.Value, outcome, habit.Id),
-                StreakCalculator.Current(habit.Frequency, habit.StartDate, context.SuccessDates, today),
+                StreakCalculator.Current(habit, context.SuccessDates, context.FailedDates, today),
                 outcome.KnockedOut);
         }
 
-        /// <summary>A habit to avoid kept on a due day: rewarded like a check-in, milestones and freezes included.</summary>
-        private static HabitEvaluationEffects Clean(Habit habit, DateOnly date, HabitEvaluationContext context, DateOnly today, DateTimeOffset now)
+        /// <summary>
+        /// A habit to avoid kept on a due day, or a weekly limit's week that closed within it (every relapse-free day is
+        /// clean): rewarded like a check-in per clean day, milestones and freezes included.
+        /// </summary>
+        private static HabitEvaluationEffects Clean(
+            Habit habit,
+            DateOnly date,
+            HabitEvaluationContext context,
+            DateOnly today,
+            DateTimeOffset now,
+            IReadOnlyList<DateOnly> cleanDays)
         {
-            var streakBefore = StreakCalculator.Current(habit.Frequency, habit.StartDate, context.SuccessDates, today);
-            var successDates = new HashSet<DateOnly>(context.SuccessDates) { date };
-            var streak = StreakCalculator.Current(habit.Frequency, habit.StartDate, successDates, today);
-            var completion = HabitRewards.ApplyCompletion(habit, context.Profile, GameLedgerEntryKind.CleanDay, date, now, streakBefore, streak, successDates);
+            var streakBefore = StreakCalculator.Current(habit, context.SuccessDates, context.FailedDates, today);
+            var successDates = new HashSet<DateOnly>(context.SuccessDates);
+            successDates.UnionWith(cleanDays);
+            var streak = StreakCalculator.Current(habit, successDates, context.FailedDates, today);
+            var completion = HabitRewards.ApplyCompletion(
+                habit, context.Profile, GameLedgerEntryKind.CleanDay, date, now, streakBefore, streak, successDates, cleanDays.Count);
 
-            return new HabitEvaluationEffects(
-                [HabitCheckIn.Judged(habit, date, HabitCheckInStatus.Clean, now, completion.Applied, completion.FreezesEarned > 0)],
-                completion.Entries,
-                streak,
-                completion.Outcome.KnockedOut);
+            // The whole reward sits on the latest clean day; a week's other clean days are markers for the streak.
+            var rewardDay = cleanDays.Max();
+            var clean = cleanDays
+                .Select(day => day == rewardDay
+                    ? HabitCheckIn.Judged(habit, day, HabitCheckInStatus.Clean, now, completion.Applied, completion.FreezesEarned > 0)
+                    : HabitCheckIn.Judged(habit, day, HabitCheckInStatus.Clean, now, GameDelta.None))
+                .ToList();
+
+            return new HabitEvaluationEffects(clean, completion.Entries, streak, completion.Outcome.KnockedOut);
         }
 
         /// <summary>The first <paramref name="count"/> days of <paramref name="date"/>'s week that have no check-in.</summary>

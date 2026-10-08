@@ -1,5 +1,6 @@
 using LifeManager.Application.Test.Configurations.SingletonLists;
 using LifeManager.Domain.Habits;
+using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.Habits.Interfaces;
 using LifeManager.Domain.Users.ValueObjects;
 
@@ -59,9 +60,13 @@ namespace LifeManager.Application.Test.Habits.Mocks
             IReadOnlyList<HabitCheckIn> weekCheckIns =
                 [.. _checkIns.Where(checkIn => checkIn.HabitId == habit.Id && checkIn.Date >= weekStart && checkIn.Date <= weekEnd)];
             var successDates = _checkIns.Where(checkIn => checkIn.HabitId == habit.Id && checkIn.IsSuccess).Select(checkIn => checkIn.Date).ToHashSet();
+            var failedDates = _checkIns
+                .Where(checkIn => checkIn.HabitId == habit.Id && checkIn.Status == HabitCheckInStatus.Relapse)
+                .Select(checkIn => checkIn.Date)
+                .ToHashSet();
 
             var profile = Copy(_profiles[profileIndex]);
-            var effects = decide(new HabitEvaluationContext(profile, weekCheckIns, successDates));
+            var effects = decide(new HabitEvaluationContext(profile, weekCheckIns, successDates, failedDates));
 
             foreach (var checkIn in effects.NewCheckIns)
             {

@@ -6,7 +6,12 @@ namespace LifeManager.Domain.Habits.Interfaces
     /// <param name="Profile">The locked profile; the rules change it (damage, reward, a freeze).</param>
     /// <param name="WeekCheckIns">The habit's check-ins in the judged day's week (Monday to Sunday).</param>
     /// <param name="SuccessDates">The habit's days that count for the streak so far.</param>
-    public record HabitEvaluationContext(PlayerProfile Profile, IReadOnlyList<HabitCheckIn> WeekCheckIns, IReadOnlySet<DateOnly> SuccessDates);
+    /// <param name="FailedDates">The habit's relapse days.</param>
+    public record HabitEvaluationContext(
+        PlayerProfile Profile,
+        IReadOnlyList<HabitCheckIn> WeekCheckIns,
+        IReadOnlySet<DateOnly> SuccessDates,
+        IReadOnlySet<DateOnly> FailedDates);
 
     /// <summary>What the judgement writes.</summary>
     /// <param name="NewCheckIns">Missed, frozen or clean days, on days that have no check-in.</param>
