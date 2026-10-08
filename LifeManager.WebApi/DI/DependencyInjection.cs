@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using LifeManager.WebApi.Habits.Jobs;
 using LifeManager.WebApi.RecurringTransactions.Jobs;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -16,6 +17,7 @@ namespace LifeManager.WebApi.DI
             ConfigureCors(builder);
 
             builder.Services.AddHostedService<RecurringTransactionsJob>();
+            builder.Services.AddHostedService<HabitsDayCloseJob>();
 
             return builder.Services;
         }

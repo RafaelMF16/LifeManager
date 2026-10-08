@@ -212,6 +212,13 @@ namespace LifeManager.Domain.Habits
             return Result.Success();
         }
 
+        /// <summary>Moves the day-close cursor: <paramref name="date"/> has been judged.</summary>
+        public void MarkEvaluated(DateOnly date)
+        {
+            if (date > EvaluatedUntil)
+                EvaluatedUntil = date;
+        }
+
         /// <summary>Stores the recalculated streak, raising the record when it's beaten.</summary>
         public void SetStreak(int currentStreak)
         {

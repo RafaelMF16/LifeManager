@@ -120,6 +120,20 @@ namespace LifeManager.Domain.Test.Habits
         }
 
         [Theory]
+        [InlineData(HabitCheckInStatus.Done, true)]
+        [InlineData(HabitCheckInStatus.Frozen, true)]
+        [InlineData(HabitCheckInStatus.Clean, true)]
+        [InlineData(HabitCheckInStatus.Missed, false)]
+        [InlineData(HabitCheckInStatus.Relapse, false)]
+        public void IsSuccess_ShouldCountDoneFrozenAndCleanDays(HabitCheckInStatus status, bool expected)
+        {
+            var habit = Habit.FromPersistence(1, 1, "Habit", null, null, HabitKind.Positive, HabitDifficulty.Easy,
+                HabitFrequencyType.Daily, HabitWeekDays.None, null, LongAgo, DateTimeOffset.UnixEpoch, null, 0, 0, LongAgo);
+
+            Assert.Equal(expected, HabitCheckIn.Judged(habit, Today, status, DateTimeOffset.UnixEpoch, GameDelta.None).IsSuccess);
+        }
+
+        [Theory]
         [InlineData(0, true)]
         [InlineData(1, true)]
         [InlineData(2, false)]

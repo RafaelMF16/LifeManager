@@ -58,6 +58,10 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
 
             builder.HasIndex(habit => new { habit.UserId, habit.ArchivedAt });
 
+            // Serves the day close's "what is behind" query: only active habits are judged.
+            builder.HasIndex(habit => habit.EvaluatedUntil)
+                .HasFilter("\"ArchivedAt\" IS NULL");
+
             // Lets LIKE '%term%' on NormalizedName use an index instead of scanning the table.
             builder.HasIndex(habit => habit.NormalizedName)
                 .HasMethod("gin")

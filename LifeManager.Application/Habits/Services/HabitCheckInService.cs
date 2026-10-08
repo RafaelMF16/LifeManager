@@ -20,9 +20,6 @@ namespace LifeManager.Application.Habits.Services
         AppClock appClock,
         TimeProvider timeProvider)
     {
-        /// <summary>A week of a times-per-week streak is worth this many days of streak bonus.</summary>
-        private const int DaysPerStreakWeek = 7;
-
         private readonly IHabitRepository _habitRepository = habitRepository;
         private readonly IHabitCheckInRepository _habitCheckInRepository = habitCheckInRepository;
         private readonly AppClock _appClock = appClock;
@@ -81,7 +78,7 @@ namespace LifeManager.Application.Habits.Services
             {
                 profile = context.Profile;
                 var streak = StreakCalculator.Current(habit.Frequency, habit.StartDate, context.SuccessDates, today);
-                var outcome = context.Profile.Apply(Reward(habit, date, streak, context.SuccessDates));
+                var outcome = context.Profile.Apply(HabitRewards.ForCompletion(habit, date, streak, context.SuccessDates));
                 var entries = GameLedgerEntry.FromOutcome(habit.UserId, GameLedgerEntryKind.HabitDone, date, now, habit.Name.Value, outcome, habit.Id);
 
                 return new HabitCheckInEffects(streak, outcome.Applied, outcome, entries);
@@ -131,26 +128,6 @@ namespace LifeManager.Application.Habits.Services
             return new HabitCheckInResultDto(habit.Id!.Value, date, false, habit.CurrentStreak, habit.LongestStreak, WalletChangeDto.From(profile!, effects.Outcome));
         }
 
-        /// <summary>
-        /// The habit's coins (with the streak bonus, <paramref name="streak"/> already counting this day), XP and the
-        /// completion's HP. Nothing once a times-per-week habit had already met its target that week.
-        /// </summary>
-        /// <param name="successDates">Already including <paramref name="date"/>.</param>
-        private static GameDelta Reward(Habit habit, DateOnly date, int streak, IReadOnlySet<DateOnly> successDates)
-        {
-            if (habit.FrequencyType == HabitFrequencyType.TimesPerWeek
-                && StreakCalculator.CountInWeek(successDates, date) - 1 >= habit.TimesPerWeek)
-                return GameDelta.None;
-
-            var reward = GameRules.Reward(habit.Difficulty);
-            var coins = GameRules.CoinsWithStreakBonus(reward.Coins, StreakBonusDays(habit, streak));
-
-            return new GameDelta(coins, reward.Xp, GameRules.HealPerCompletion);
-        }
-
-        private static int StreakBonusDays(Habit habit, int streak)
-            => habit.FrequencyType == HabitFrequencyType.TimesPerWeek ? streak * DaysPerStreakWeek : streak;
-
         private static bool IsWeekTargetMet(Habit habit, IReadOnlySet<DateOnly> successDates, DateOnly date)
             => habit.FrequencyType == HabitFrequencyType.TimesPerWeek
                 && StreakCalculator.CountInWeek(successDates, date) >= habit.TimesPerWeek;
@@ -166,7 +143,7 @@ namespace LifeManager.Application.Habits.Services
                 ? 0
                 : GameRules.CoinsWithStreakBonus(
                     GameRules.Reward(habit.Difficulty).Coins,
-                    StreakBonusDays(habit, habit.CurrentStreak + (done || weekly ? 0 : 1)));
+                    HabitRewards.StreakBonusDays(habit, habit.CurrentStreak + (done || weekly ? 0 : 1)));
 
             return new HabitTodayItemDto(
                 habit.Id!.Value,

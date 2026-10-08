@@ -20,6 +20,12 @@ namespace LifeManager.Domain.Habits
         /// <summary>Share of the coins lost when HP reaches 0 (rounded down, so the player never loses more).</summary>
         public const decimal KnockoutCoinLossRate = 0.2m;
 
+        /// <summary>
+        /// Knockouts one day-close run can cause per player. Damage left after it is forgiven, so coming back from a long
+        /// absence costs one knockout at most.
+        /// </summary>
+        public const int MaxKnockoutsPerClose = 1;
+
         /// <summary>A streak freeze is earned every this many streak days.</summary>
         public const int FreezeEvery = 7;
         public const int MaxStreakFreezes = 2;
@@ -38,6 +44,10 @@ namespace LifeManager.Domain.Habits
             [66] = 250,
             [100] = 500
         };
+
+        /// <summary>HP lost for each missed day, or each check-in a weekly habit fell short.</summary>
+        public static int Damage(HabitDifficulty difficulty)
+            => Reward(difficulty).Damage;
 
         public static HabitReward Reward(HabitDifficulty difficulty)
             => difficulty switch

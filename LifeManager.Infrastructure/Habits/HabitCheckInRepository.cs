@@ -80,11 +80,15 @@ namespace LifeManager.Infrastructure.Habits
             return effects;
         }
 
-        private async Task<HashSet<DateOnly>> GetSuccessDatesAsync(HabitId habitId, CancellationToken cancellationToken)
+        private Task<HashSet<DateOnly>> GetSuccessDatesAsync(HabitId habitId, CancellationToken cancellationToken)
+            => GetSuccessDatesAsync(_dbContext, habitId, cancellationToken);
+
+        /// <summary>The habit's days that count for the streak (<see cref="HabitCheckIn.SuccessStatuses"/>).</summary>
+        internal static async Task<HashSet<DateOnly>> GetSuccessDatesAsync(LifeManagerDbContext dbContext, HabitId habitId, CancellationToken cancellationToken)
         {
-            var dates = await _dbContext.HabitCheckIns
-                .Where(checkIn => checkIn.HabitId == habitId
-                    && (checkIn.Status == HabitCheckInStatus.Done || checkIn.Status == HabitCheckInStatus.Frozen))
+            var successStatuses = HabitCheckIn.SuccessStatuses.ToArray();
+            var dates = await dbContext.HabitCheckIns
+                .Where(checkIn => checkIn.HabitId == habitId && successStatuses.Contains(checkIn.Status))
                 .Select(checkIn => checkIn.Date)
                 .ToListAsync(cancellationToken);
 

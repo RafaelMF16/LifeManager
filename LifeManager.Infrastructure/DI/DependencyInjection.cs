@@ -42,6 +42,7 @@ namespace LifeManager.Infrastructure.DI
             services.AddScoped<IPlayerProfileRepository, PlayerProfileRepository>();
             services.AddScoped<IHabitRepository, HabitRepository>();
             services.AddScoped<IHabitCheckInRepository, HabitCheckInRepository>();
+            services.AddScoped<IHabitEvaluationRepository, HabitEvaluationRepository>();
 
             return services;
         }

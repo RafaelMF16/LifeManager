@@ -46,7 +46,12 @@ namespace LifeManager.Domain.Habits
 
         /// <param name="awarded">The delta <see cref="PlayerProfile.Apply"/> actually applied.</param>
         public static HabitCheckIn Done(Habit habit, DateOnly date, DateTimeOffset createdAt, GameDelta awarded)
-            => new(habit.Id!, habit.UserId, date, HabitCheckInStatus.Done, createdAt, awarded.Coins, awarded.Xp, awarded.Hp);
+            => Judged(habit, date, HabitCheckInStatus.Done, createdAt, awarded);
+
+        /// <summary>A day the day close judged: missed, protected by a freeze, or clean.</summary>
+        /// <param name="applied">What the judgement did to the profile (damage, a clean day's reward, or nothing).</param>
+        public static HabitCheckIn Judged(Habit habit, DateOnly date, HabitCheckInStatus status, DateTimeOffset createdAt, GameDelta applied)
+            => new(habit.Id!, habit.UserId, date, status, createdAt, applied.Coins, applied.Xp, applied.Hp);
 
         internal static HabitCheckIn FromPersistence(
             int id,
@@ -65,8 +70,12 @@ namespace LifeManager.Domain.Habits
             return checkIn;
         }
 
-        /// <summary>Whether the day counts for the streak.</summary>
-        public bool IsSuccess => Status is HabitCheckInStatus.Done or HabitCheckInStatus.Frozen;
+        /// <summary>The statuses that count for the streak: done, protected by a freeze, or clean (a habit to avoid).</summary>
+        public static readonly IReadOnlyList<HabitCheckInStatus> SuccessStatuses =
+            [HabitCheckInStatus.Done, HabitCheckInStatus.Frozen, HabitCheckInStatus.Clean];
+
+        /// <summary>Whether the day counts for the streak (<see cref="SuccessStatuses"/>).</summary>
+        public bool IsSuccess => SuccessStatuses.Contains(Status);
 
         public void AssignId(int id)
         {
