@@ -232,6 +232,15 @@ The codebase is mid-migration to a `Result`/`Result<T>` pattern (`LifeManager.Do
   - `Share` is the part of the breakdown total (0 when the total is 0).
   - `MonthlyAmounts` lines up with `Months`.
 
+### Habits
+
+- **Player:** `PlayerProfile` (one per user, created on its first change) holds level, XP, HP, coins and streak freezes; the rules (rewards per difficulty, levels, knockout) are in the static `Domain/Habits/GameRules.cs`. `PlayerWalletService` is the only way to change it: it locks the profile row and appends a `GameLedgerEntry` in the same transaction. `GET api/Habits/Profile` (`HabitProfileController`) returns it.
+- **Habits endpoints:** `api/Habits` (`HabitsController`, ids constrained to `{id:int}` so they don't clash with `Profile`): `GET` paged listing, `GET {id}`, `POST` → 201, `PUT {id}` (everything but the kind), `DELETE {id}` → 204 **archives** (`ArchivedAt`; history is kept), `POST {id}/Restore`.
+- **Model** (`Domain/Habits/Habit.cs`): `Name` (`HabitName`, ≤ 60, normalized copy in `NormalizedName`), optional `Description` (≤ 200) and `Trigger` (≤ 120, the "after X, I do Y" cue), `Kind` (`Positive`/`Negative`, fixed once created), `Difficulty`, and the frequency as three columns rebuilt into the `HabitFrequency` value object: `FrequencyType` (`Daily`/`WeekDays`/`TimesPerWeek`), `WeekDays` (the `[Flags] HabitWeekDays` bit mask, Monday = 1 … Sunday = 64; the API sends a `DayOfWeek` list, converted by `HabitWeekDaysMapper`) and `TimesPerWeek` (1–6). Each frequency only allows its own field (`InvalidFrequencyCombination`), and a `Negative` habit must be `Daily` (`NegativeMustBeDaily`).
+- **Game state on the habit:** `StartDate` (`AppClock.Today()` on create), `CurrentStreak`/`LongestStreak` and the day-close cursor `EvaluatedUntil` (starts at `StartDate - 1`). An archived habit can't be updated (`Habit.Archived`, 409); restoring zeroes the current streak and moves the cursor to yesterday, so the archived days are never judged.
+- **Names** are unique among the user's **active** habits only: unique partial index `(UserId, NormalizedName) WHERE "ArchivedAt" IS NULL`, checked by `ExistsActiveByNameAsync` on create, rename and restore (`Habit.NameAlreadyExists`).
+- **Listing:** `?page=&pageSize=&status=Active|Archived&search=&sortBy=Name|CreatedAt&sortDirection=` (default `Active`, `Name`, `Asc`); every sort ends with `NormalizedName`, `Id`.
+
 ### Paged listings (standard for every list endpoint)
 
 Every list endpoint is paginated, searched and sorted **in the database**; never return a whole collection for the client to slice. `GET /api/Categories` is the reference implementation:

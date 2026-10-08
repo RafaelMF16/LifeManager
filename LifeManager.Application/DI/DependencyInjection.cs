@@ -32,6 +32,7 @@ namespace LifeManager.Application.DI
             services.AddScoped<RecurringTransactionPostingService>();
             services.AddScoped<BudgetService>();
             services.AddScoped<PlayerWalletService>();
+            services.AddScoped<HabitService>();
 
             services.TryAddSingleton(TimeProvider.System);
             services.AddSingleton<AppClock>();

@@ -40,6 +40,7 @@ namespace LifeManager.Infrastructure.DI
             services.AddScoped<IRecurringTransactionRepository, RecurringTransactionRepository>();
             services.AddScoped<IBudgetRepository, BudgetRepository>();
             services.AddScoped<IPlayerProfileRepository, PlayerProfileRepository>();
+            services.AddScoped<IHabitRepository, HabitRepository>();
 
             return services;
         }
