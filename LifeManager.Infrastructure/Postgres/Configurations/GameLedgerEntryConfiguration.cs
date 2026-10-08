@@ -1,5 +1,7 @@
 using LifeManager.Domain.Habits;
 using LifeManager.Domain.Habits.ValueObjects;
+using LifeManager.Domain.Rewards;
+using LifeManager.Domain.Rewards.ValueObjects;
 using LifeManager.Domain.Users;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -41,6 +43,14 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
             builder.HasOne<Habit>()
                 .WithMany()
                 .HasForeignKey(entry => entry.HabitId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Property(entry => entry.RewardId)
+                .HasConversion(id => id!.Value, id => new RewardId(id));
+
+            builder.HasOne<Reward>()
+                .WithMany()
+                .HasForeignKey(entry => entry.RewardId)
                 .OnDelete(DeleteBehavior.SetNull);
         }
     }

@@ -2,6 +2,7 @@
 using LifeManager.Domain.Budgets;
 using LifeManager.Domain.Categories;
 using LifeManager.Domain.Habits;
+using LifeManager.Domain.Rewards;
 using LifeManager.Domain.MonthlySummaries;
 using LifeManager.Domain.RecurringTransactions;
 using LifeManager.Domain.Transactions;
@@ -25,6 +26,8 @@ namespace LifeManager.Infrastructure.Postgres
         public DbSet<GameLedgerEntry> GameLedgerEntries { get; set; }
         public DbSet<Habit> Habits { get; set; }
         public DbSet<HabitCheckIn> HabitCheckIns { get; set; }
+        public DbSet<Reward> Rewards { get; set; }
+        public DbSet<RewardRedemption> RewardRedemptions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

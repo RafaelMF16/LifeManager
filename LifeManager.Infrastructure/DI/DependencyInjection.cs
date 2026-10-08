@@ -13,6 +13,8 @@ using LifeManager.Domain.FinanceDashboard.Interfaces;
 using LifeManager.Infrastructure.FinanceDashboard;
 using LifeManager.Domain.Habits.Interfaces;
 using LifeManager.Infrastructure.Habits;
+using LifeManager.Domain.Rewards.Interfaces;
+using LifeManager.Infrastructure.Rewards;
 using LifeManager.Domain.Users.Interfaces;
 using LifeManager.Domain.UsersPreferences.Interfaces;
 using LifeManager.Infrastructure.Auth;
@@ -43,6 +45,9 @@ namespace LifeManager.Infrastructure.DI
             services.AddScoped<IHabitRepository, HabitRepository>();
             services.AddScoped<IHabitCheckInRepository, HabitCheckInRepository>();
             services.AddScoped<IHabitEvaluationRepository, HabitEvaluationRepository>();
+            services.AddScoped<IGameLedgerRepository, GameLedgerRepository>();
+            services.AddScoped<IRewardRepository, RewardRepository>();
+            services.AddScoped<IRewardRedemptionRepository, RewardRedemptionRepository>();
 
             return services;
         }

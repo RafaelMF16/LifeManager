@@ -7,6 +7,8 @@ using LifeManager.Application.Test.FinanceDashboard.Mocks;
 using LifeManager.Application.Test.RecurringTransactions.Mocks;
 using LifeManager.Application.Test.Budgets.Mocks;
 using LifeManager.Application.Test.Habits.Mocks;
+using LifeManager.Application.Test.Rewards.Mocks;
+using LifeManager.Domain.Rewards.Interfaces;
 using LifeManager.Domain.Budgets.Interfaces;
 using LifeManager.Domain.Habits.Interfaces;
 using LifeManager.Domain.RecurringTransactions.Interfaces;
@@ -45,6 +47,9 @@ namespace LifeManager.Application.Test.Configurations
             services.AddScoped<IHabitRepository, HabitRepositoryMock>();
             services.AddScoped<IHabitCheckInRepository, HabitCheckInRepositoryMock>();
             services.AddScoped<IHabitEvaluationRepository, HabitEvaluationRepositoryMock>();
+            services.AddScoped<IGameLedgerRepository, GameLedgerRepositoryMock>();
+            services.AddScoped<IRewardRepository, RewardRepositoryMock>();
+            services.AddScoped<IRewardRedemptionRepository, RewardRedemptionRepositoryMock>();
 
             services.AddSingleton<TimeProvider, FakeTimeProvider>();
 

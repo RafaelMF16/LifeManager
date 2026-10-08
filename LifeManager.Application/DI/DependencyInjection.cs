@@ -5,6 +5,7 @@ using LifeManager.Application.FinanceDashboard.Services;
 using LifeManager.Application.Habits.Services;
 using LifeManager.Application.MonthlySummaries.Services;
 using LifeManager.Application.RecurringTransactions.Services;
+using LifeManager.Application.Rewards.Services;
 using LifeManager.Application.Shared.Time;
 using LifeManager.Application.Transactions.Services;
 using LifeManager.Application.EnvironmentVariables.Services;
@@ -36,6 +37,8 @@ namespace LifeManager.Application.DI
             services.AddScoped<HabitCheckInService>();
             services.AddScoped<HabitRelapseService>();
             services.AddScoped<HabitEvaluationService>();
+            services.AddScoped<RewardService>();
+            services.AddScoped<RewardRedemptionService>();
 
             services.TryAddSingleton(TimeProvider.System);
             services.AddSingleton<AppClock>();

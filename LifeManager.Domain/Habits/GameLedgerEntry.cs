@@ -1,5 +1,6 @@
 using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.Habits.ValueObjects;
+using LifeManager.Domain.Rewards.ValueObjects;
 using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Domain.Habits
@@ -12,6 +13,17 @@ namespace LifeManager.Domain.Habits
     public class GameLedgerEntry
     {
         public const int DescriptionMaxLength = 80;
+
+        /// <summary>
+        /// The kinds that are coins earned with habits. An <see cref="GameLedgerEntryKind.Undo"/> with a habit takes one of
+        /// them back; an undo with a reward gives back a redemption, which isn't an earning.
+        /// </summary>
+        public static readonly IReadOnlySet<GameLedgerEntryKind> HabitEarningKinds = new HashSet<GameLedgerEntryKind>
+        {
+            GameLedgerEntryKind.HabitDone,
+            GameLedgerEntryKind.CleanDay,
+            GameLedgerEntryKind.StreakMilestone
+        };
 
         public GameLedgerEntryId? Id { get; private set; }
         public UserId UserId { get; }
@@ -33,6 +45,9 @@ namespace LifeManager.Domain.Habits
         /// <summary>The habit behind the change (check-in, miss, relapse...), when there is one.</summary>
         public HabitId? HabitId { get; }
 
+        /// <summary>The reward behind the change (a redemption or its undo), when there is one.</summary>
+        public RewardId? RewardId { get; }
+
         private GameLedgerEntry(
             UserId userId,
             GameLedgerEntryKind kind,
@@ -42,7 +57,8 @@ namespace LifeManager.Domain.Habits
             int xpDelta,
             int hpDelta,
             string? description,
-            HabitId? habitId)
+            HabitId? habitId,
+            RewardId? rewardId)
         {
             UserId = userId;
             Kind = kind;
@@ -53,13 +69,14 @@ namespace LifeManager.Domain.Habits
             HpDelta = hpDelta;
             Description = description;
             HabitId = habitId;
+            RewardId = rewardId;
         }
 
         /// <summary>
         /// The entries for one <see cref="PlayerProfile.Apply"/>: the <paramref name="kind"/> entry with the applied
         /// delta, then a <see cref="GameLedgerEntryKind.LevelUp"/> entry when the HP was refilled by a new level and a
         /// <see cref="GameLedgerEntryKind.Knockout"/> entry when the player was knocked out. Every entry carries
-        /// <paramref name="habitId"/>.
+        /// <paramref name="habitId"/> and <paramref name="rewardId"/>.
         /// </summary>
         public static IReadOnlyList<GameLedgerEntry> FromOutcome(
             UserId userId,
@@ -68,19 +85,20 @@ namespace LifeManager.Domain.Habits
             DateTimeOffset createdAt,
             string? description,
             GameOutcome outcome,
-            HabitId? habitId = null)
+            HabitId? habitId = null,
+            RewardId? rewardId = null)
         {
             var applied = outcome.Applied;
             var entries = new List<GameLedgerEntry>
             {
-                new(userId, kind, occurredOn, createdAt, applied.Coins, applied.Xp, applied.Hp, Truncate(description), habitId)
+                new(userId, kind, occurredOn, createdAt, applied.Coins, applied.Xp, applied.Hp, Truncate(description), habitId, rewardId)
             };
 
             if (outcome.LeveledUp)
-                entries.Add(new GameLedgerEntry(userId, GameLedgerEntryKind.LevelUp, occurredOn, createdAt, 0, 0, outcome.LevelUpHpRestored, null, habitId));
+                entries.Add(new GameLedgerEntry(userId, GameLedgerEntryKind.LevelUp, occurredOn, createdAt, 0, 0, outcome.LevelUpHpRestored, null, habitId, rewardId));
 
             if (outcome.KnockedOut)
-                entries.Add(new GameLedgerEntry(userId, GameLedgerEntryKind.Knockout, occurredOn, createdAt, -outcome.KnockoutCoinsLost, 0, outcome.KnockoutHpRestored, null, habitId));
+                entries.Add(new GameLedgerEntry(userId, GameLedgerEntryKind.Knockout, occurredOn, createdAt, -outcome.KnockoutCoinsLost, 0, outcome.KnockoutHpRestored, null, habitId, rewardId));
 
             return entries;
         }
