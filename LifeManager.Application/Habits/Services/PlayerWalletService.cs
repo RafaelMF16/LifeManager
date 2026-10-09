@@ -11,18 +11,26 @@ namespace LifeManager.Application.Habits.Services
     /// The door every habits feature goes through to read or change the player's coins, XP and HP. The rules live in
     /// <see cref="PlayerProfile.Apply"/>; this records each change in the ledger, under the profile's row lock.
     /// </summary>
-    public class PlayerWalletService(IPlayerProfileRepository playerProfileRepository, TimeProvider timeProvider)
+    public class PlayerWalletService(
+        IPlayerProfileRepository playerProfileRepository,
+        IGameLedgerRepository gameLedgerRepository,
+        TimeProvider timeProvider)
     {
         private readonly IPlayerProfileRepository _playerProfileRepository = playerProfileRepository;
+        private readonly IGameLedgerRepository _gameLedgerRepository = gameLedgerRepository;
         private readonly TimeProvider _timeProvider = timeProvider;
 
-        /// <summary>The stored profile, or a new player's one (not saved: the profile is created on its first change).</summary>
+        /// <summary>
+        /// The stored profile, or a new player's one (not saved: the profile is created on its first change), with the
+        /// latest knockout.
+        /// </summary>
         public async Task<PlayerProfileResponseDto> GetProfileAsync(UserId userId, CancellationToken cancellationToken)
         {
             var profile = await _playerProfileRepository.GetByUserIdAsync(userId, cancellationToken)
                 ?? PlayerProfile.CreateDefault(userId);
+            var lastKnockout = await _gameLedgerRepository.GetLatestAsync(userId, GameLedgerEntryKind.Knockout, cancellationToken);
 
-            return PlayerProfileResponseDto.From(profile);
+            return PlayerProfileResponseDto.From(profile, LastKnockoutDto.From(lastKnockout));
         }
 
         /// <param name="occurredOn">The game day the change belongs to (e.g. the check-in's date).</param>

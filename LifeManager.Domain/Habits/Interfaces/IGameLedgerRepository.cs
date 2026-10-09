@@ -1,3 +1,4 @@
+using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.Habits.ValueObjects;
 using LifeManager.Domain.Shared.Paging;
 using LifeManager.Domain.Users.ValueObjects;
@@ -13,6 +14,9 @@ namespace LifeManager.Domain.Habits.Interfaces
         /// </summary>
         /// <summary>The user's statement, newest first; only one habit's entries when <paramref name="habitId"/> is given.</summary>
         Task<PagedList<GameLedgerEntry>> GetPagedByUserIdAsync(UserId userId, PageRequest pageRequest, HabitId? habitId, CancellationToken cancellationToken);
+
+        /// <summary>The user's latest entry of that <paramref name="kind"/>; null when there is none.</summary>
+        Task<GameLedgerEntry?> GetLatestAsync(UserId userId, GameLedgerEntryKind kind, CancellationToken cancellationToken);
 
         Task<HabitEarnings> GetHabitEarningsAsync(UserId userId, DateOnly from, DateOnly to, CancellationToken cancellationToken);
     }

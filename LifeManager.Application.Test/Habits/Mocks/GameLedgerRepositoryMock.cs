@@ -24,6 +24,13 @@ namespace LifeManager.Application.Test.Habits.Mocks
             return Task.FromResult(new PagedList<GameLedgerEntry>(items, matching.Count, pageRequest.Page, pageRequest.PageSize));
         }
 
+        public Task<GameLedgerEntry?> GetLatestAsync(UserId userId, GameLedgerEntryKind kind, CancellationToken cancellationToken)
+            => Task.FromResult(_ledger
+                .Where(entry => entry.UserId == userId && entry.Kind == kind)
+                .OrderByDescending(entry => entry.CreatedAt)
+                .ThenByDescending(entry => entry.Id!.Value)
+                .FirstOrDefault());
+
         public Task<HabitEarnings> GetHabitEarningsAsync(UserId userId, DateOnly from, DateOnly to, CancellationToken cancellationToken)
         {
             var entries = _ledger

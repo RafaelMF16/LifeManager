@@ -29,6 +29,16 @@ namespace LifeManager.Infrastructure.Habits
                 .ToPagedListAsync(pageRequest, cancellationToken);
         }
 
+        public async Task<GameLedgerEntry?> GetLatestAsync(UserId userId, GameLedgerEntryKind kind, CancellationToken cancellationToken)
+        {
+            return await _dbContext.GameLedgerEntries
+                .AsNoTracking()
+                .Where(entry => entry.UserId == userId && entry.Kind == kind)
+                .OrderByDescending(entry => entry.CreatedAt)
+                .ThenByDescending(entry => entry.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
         public async Task<HabitEarnings> GetHabitEarningsAsync(UserId userId, DateOnly from, DateOnly to, CancellationToken cancellationToken)
         {
             var earningKinds = GameLedgerEntry.HabitEarningKinds.ToArray();

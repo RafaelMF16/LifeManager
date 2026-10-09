@@ -170,5 +170,42 @@ namespace LifeManager.Application.Test.Habits
 
             Assert.Equal(timeProvider.GetUtcNow(), Assert.Single(GameLedgerEntrySingleton.Instance).CreatedAt);
         }
+
+        [Fact]
+        public async Task GetProfileAsync_ShouldHaveNoLastKnockout_WhenThePlayerWasNeverKnockedOut()
+        {
+            SeedProfile(hp: 50);
+            await ApplyAsync(GameLedgerEntryKind.HabitMissed, new GameDelta(0, 0, -10));
+
+            var profile = await _playerWalletService.GetProfileAsync(UserId, CancellationToken.None);
+
+            Assert.Null(profile.LastKnockout);
+        }
+
+        [Fact]
+        public async Task GetProfileAsync_ShouldReturnTheLatestKnockout()
+        {
+            SeedProfile(hp: 5, coins: 100);
+            await ApplyAsync(GameLedgerEntryKind.HabitMissed, new GameDelta(0, 0, -10));
+            await ApplyAsync(GameLedgerEntryKind.HabitMissed, new GameDelta(0, 0, -GameRules.MaxHp));
+            var latest = GameLedgerEntrySingleton.Instance.Last(entry => entry.Kind == GameLedgerEntryKind.Knockout);
+
+            var profile = await _playerWalletService.GetProfileAsync(UserId, CancellationToken.None);
+
+            // 20% of 100, then 20% of the 80 left.
+            Assert.Equal(new LastKnockoutDto(latest.Id!.Value, Today, 16), profile.LastKnockout);
+        }
+
+        [Fact]
+        public async Task GetProfileAsync_ShouldIgnoreAnotherUsersKnockout()
+        {
+            var otherUserId = new UserId(2);
+            PlayerProfileSingleton.Instance.Add(PlayerProfile.FromPersistence(9, otherUserId.Value, 0, 1, GameRules.MaxHp, 50, 0));
+            await ApplyAsync(GameLedgerEntryKind.HabitMissed, new GameDelta(0, 0, -10), otherUserId);
+
+            var profile = await _playerWalletService.GetProfileAsync(UserId, CancellationToken.None);
+
+            Assert.Null(profile.LastKnockout);
+        }
     }
 }
