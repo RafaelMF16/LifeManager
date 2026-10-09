@@ -1,3 +1,5 @@
+using LifeManager.Domain.Habits.ValueObjects;
+using LifeManager.Domain.Shared.Paging;
 using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Domain.Habits.Interfaces
@@ -9,6 +11,9 @@ namespace LifeManager.Domain.Habits.Interfaces
         /// Coins earned with habits from <paramref name="from"/> to <paramref name="to"/> (game days, inclusive): check-ins,
         /// clean days and streak milestones, minus their undos. Redemptions, knockouts and their undos don't count.
         /// </summary>
+        /// <summary>The user's statement, newest first; only one habit's entries when <paramref name="habitId"/> is given.</summary>
+        Task<PagedList<GameLedgerEntry>> GetPagedByUserIdAsync(UserId userId, PageRequest pageRequest, HabitId? habitId, CancellationToken cancellationToken);
+
         Task<HabitEarnings> GetHabitEarningsAsync(UserId userId, DateOnly from, DateOnly to, CancellationToken cancellationToken);
     }
 }

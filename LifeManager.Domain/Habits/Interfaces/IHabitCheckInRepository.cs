@@ -1,4 +1,5 @@
 using LifeManager.Domain.Habits.Enums;
+using LifeManager.Domain.Habits.ValueObjects;
 using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Domain.Habits.Interfaces
@@ -28,6 +29,12 @@ namespace LifeManager.Domain.Habits.Interfaces
     {
         /// <summary>The user's check-ins (any status) from <paramref name="from"/> to <paramref name="to"/>, inclusive.</summary>
         Task<IReadOnlyList<HabitCheckIn>> GetByUserIdAsync(UserId userId, DateOnly from, DateOnly to, CancellationToken cancellationToken);
+
+        /// <summary>One habit's check-ins (any status) from <paramref name="from"/> to <paramref name="to"/>, inclusive.</summary>
+        Task<IReadOnlyList<HabitCheckIn>> GetByHabitAsync(HabitId habitId, DateOnly from, DateOnly to, CancellationToken cancellationToken);
+
+        /// <summary>How many days the habit was kept (done or clean) since it started.</summary>
+        Task<int> CountKeptAsync(HabitId habitId, CancellationToken cancellationToken);
 
         /// <summary>
         /// In one database transaction: locks the profile, checks the day is free, calls <paramref name="decide"/> and

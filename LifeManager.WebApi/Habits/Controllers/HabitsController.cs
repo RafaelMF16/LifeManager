@@ -12,11 +12,13 @@ namespace LifeManager.WebApi.Habits.Controllers
     public class HabitsController(
         HabitService habitService,
         HabitCheckInService habitCheckInService,
-        HabitRelapseService habitRelapseService) : Controller
+        HabitRelapseService habitRelapseService,
+        HabitStatsService habitStatsService) : Controller
     {
         private readonly HabitService _habitService = habitService;
         private readonly HabitCheckInService _habitCheckInService = habitCheckInService;
         private readonly HabitRelapseService _habitRelapseService = habitRelapseService;
+        private readonly HabitStatsService _habitStatsService = habitStatsService;
 
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] HabitListQueryDto query, CancellationToken cancellationToken)
@@ -39,6 +41,11 @@ namespace LifeManager.WebApi.Habits.Controllers
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken)
             => (await _habitService.GetByIdAsync(id, User.GetUserId(), cancellationToken)).Match(Ok);
+
+        /// <summary>The habit's history: the heatmap's days, the recent consistency and the days kept.</summary>
+        [HttpGet("{id:int}/Stats")]
+        public async Task<IActionResult> GetStats(int id, CancellationToken cancellationToken)
+            => (await _habitStatsService.GetAsync(id, User.GetUserId(), cancellationToken)).Match(Ok);
 
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] HabitDto habitDto, CancellationToken cancellationToken)

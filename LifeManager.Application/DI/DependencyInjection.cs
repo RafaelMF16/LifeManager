@@ -37,6 +37,8 @@ namespace LifeManager.Application.DI
             services.AddScoped<HabitCheckInService>();
             services.AddScoped<HabitRelapseService>();
             services.AddScoped<HabitEvaluationService>();
+            services.AddScoped<HabitStatsService>();
+            services.AddScoped<GameLedgerService>();
             services.AddScoped<RewardService>();
             services.AddScoped<RewardRedemptionService>();
 

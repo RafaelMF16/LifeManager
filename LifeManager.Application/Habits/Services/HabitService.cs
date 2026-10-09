@@ -138,19 +138,6 @@ namespace LifeManager.Application.Habits.Services
         }
 
         private static HabitResponseDto ToResponseDto(Habit habit)
-            => new(
-                habit.Id!.Value,
-                habit.Name.Value,
-                habit.Description?.Value,
-                habit.Trigger?.Value,
-                habit.Kind,
-                habit.Difficulty,
-                habit.FrequencyType,
-                HabitWeekDaysMapper.ToDays(habit.WeekDays),
-                habit.TimesPerWeek,
-                habit.StartDate,
-                habit.CurrentStreak,
-                habit.LongestStreak,
-                habit.ArchivedAt);
+            => HabitResponseDto.From(habit);
     }
 }

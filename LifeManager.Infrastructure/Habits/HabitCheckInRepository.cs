@@ -20,6 +20,21 @@ namespace LifeManager.Infrastructure.Habits
                 .ToListAsync(cancellationToken);
         }
 
+        public async Task<IReadOnlyList<HabitCheckIn>> GetByHabitAsync(HabitId habitId, DateOnly from, DateOnly to, CancellationToken cancellationToken)
+        {
+            return await _dbContext.HabitCheckIns
+                .AsNoTracking()
+                .Where(checkIn => checkIn.HabitId == habitId && checkIn.Date >= from && checkIn.Date <= to)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<int> CountKeptAsync(HabitId habitId, CancellationToken cancellationToken)
+        {
+            return await _dbContext.HabitCheckIns
+                .CountAsync(checkIn => checkIn.HabitId == habitId
+                    && (checkIn.Status == HabitCheckInStatus.Done || checkIn.Status == HabitCheckInStatus.Clean), cancellationToken);
+        }
+
         public async Task<HabitCheckInEffects?> RecordAsync(
             Habit habit,
             DateOnly date,

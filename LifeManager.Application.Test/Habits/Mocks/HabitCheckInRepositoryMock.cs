@@ -25,6 +25,19 @@ namespace LifeManager.Application.Test.Habits.Mocks
             return Task.FromResult(checkIns);
         }
 
+        public Task<IReadOnlyList<HabitCheckIn>> GetByHabitAsync(HabitId habitId, DateOnly from, DateOnly to, CancellationToken cancellationToken)
+        {
+            IReadOnlyList<HabitCheckIn> checkIns =
+            [
+                .. _checkIns.Where(checkIn => checkIn.HabitId == habitId && checkIn.Date >= from && checkIn.Date <= to)
+            ];
+
+            return Task.FromResult(checkIns);
+        }
+
+        public Task<int> CountKeptAsync(HabitId habitId, CancellationToken cancellationToken)
+            => Task.FromResult(_checkIns.Count(checkIn => checkIn.HabitId == habitId && HabitStats.IsKept(checkIn.Status)));
+
         public Task<HabitCheckInEffects?> RecordAsync(
             Habit habit,
             DateOnly date,
