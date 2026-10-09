@@ -8,11 +8,12 @@ LifeManager is a personal finance / life management API (.NET 10, C#, PostgreSQL
 
 Current state:
 - **Exposed over HTTP:** Auth (register/login/refresh/logout), Users (`GET /api/Users/Me` → `{ name }` of the authenticated user, shown in the frontend's Header menu), UserPreferences (get/save theme + language), Categories (full CRUD with a paged, searchable listing), MonthlySummaries (create a month, month details, and a paged listing filtered by year/balance and sortable by period, income, expenses, investment or balance), Transactions (full CRUD inside a month, which keeps the month's totals up to date; types Expense, Income and Investment), RecurringTransactions (monthly transactions posted automatically by a background job), Budgets (monthly spending limits and investment targets, per category or for the month total, versioned by month), FinanceDashboard (one aggregated read of a period of months for the frontend's dashboard, goals included), Habits (the gamified habits module: habits, check-ins, relapses, player profile, stats and ledger) and Rewards (the coin shop).
-- **Background work:** two hosted services, `RecurringTransactionsJob` (see RecurringTransactions) and `HabitsDayCloseJob` (see Habits).
+- **Background work:** two hourly jobs, recurring transactions posting (`RecurringTransactionsRunner`, see RecurringTransactions) and the habits' day close (`HabitsDayCloseRunner`, see Habits). Locally they run in-process as hosted services; in production a Cloud Run Job runs them (see "Background jobs and deploy").
 
 ## Documentation
 
 - `README.md`: the project summary and the step-by-step local setup (Postgres via the root `docker-compose.yml`, user-secrets, dev certificate, migrations), for people (in Portuguese).
+- `docs/deploy.md`: production on Google Cloud (architecture, costs, one-time setup, migrations, `deploy/deploy-api.ps1`), in Portuguese. **When a change adds a configuration key, a secret, a background job or anything the deploy depends on, update it in the same change.**
 - `docs/regras-de-negocio.md`: the business rules in product language, with no class names, plus an appendix of every error code (in Portuguese). **When a change adds or changes a business rule, a limit/number (e.g. `GameRules`) or an error code, update this file in the same change.**
 - The screen-by-screen user guide lives in the frontend repo (`../LifeManagerFront/docs/fluxo-de-telas.md`).
 - This file stays the technical reference; don't duplicate it in those docs.
@@ -43,6 +44,18 @@ Run the API:
 
 ```
 dotnet run --project LifeManager.WebApi
+```
+
+Run the background jobs once and exit (what the production Cloud Run Job does):
+
+```
+dotnet run --project LifeManager.WebApi -- --run-jobs
+```
+
+Build the production image (context = repo root):
+
+```
+docker build -f LifeManager.WebApi/Dockerfile -t lifemanager-api .
 ```
 
 Migrations (EF Core tools, `dotnet ef`): migrations live in `LifeManager.Infrastructure/Migrations`, and the startup project is the WebApi:
@@ -83,9 +96,17 @@ Layered/Clean Architecture split across four projects, referencing inward only. 
   - Registered in `DI/DependencyInjection.cs` (`AddInfrastructureServices(connectionString)`).
 - **LifeManager.WebApi**
   - ASP.NET Core host. Controllers live in feature folders (`Auth/Controllers`, `UsersPreferences/Controllers`, `Categories/Controllers`, `MonthlySummaries/Controllers`, `Transactions/Controllers`, `RecurringTransactions/Controllers`, `Budgets/Controllers`, `FinanceDashboard/Controllers`) under `[Route("api/[controller]")]`; `TransactionsController` is nested under its month (`api/MonthlySummaries/{monthlySummaryId}/[controller]`).
-  - Hosted services live next to their feature (`RecurringTransactions/Jobs/RecurringTransactionsJob.cs`) and are registered in `AddApiServices`.
-  - `Program.cs` wires controllers (enums serialized as strings via `JsonStringEnumConverter`), OpenAPI (Development only), Infrastructure, Application, and `DI/DependencyInjection.cs` (`AddApiServices`: JWT bearer auth + the `AllowFrontend` CORS policy for `https://localhost:5173` with credentials).
-  - Middleware order: `ExceptionHandlingMiddleware` → CORS → HTTPS redirection → authentication → authorization.
+  - Background jobs live next to their feature (`RecurringTransactions/Jobs/`, `Habits/Jobs/`) and are registered in `AddApiServices` — see "Background jobs and deploy".
+  - `Program.cs` wires controllers (enums serialized as strings via `JsonStringEnumConverter`), OpenAPI (Development only), Infrastructure, Application, and `DI/DependencyInjection.cs` (`AddApiServices`: JWT bearer auth, the `AllowFrontend` CORS policy for `https://localhost:5173` with credentials, forwarded headers and the jobs). With `--run-jobs` it runs the jobs once and exits before the middleware (`RunJobsMode.cs`).
+  - Middleware order: forwarded headers → `ExceptionHandlingMiddleware` → CORS → HTTPS redirection → authentication → authorization. Forwarded headers (`X-Forwarded-Proto`/`-For`, any proxy) come first because Cloud Run terminates TLS; without them `UseHttpsRedirection` would see plain HTTP.
+
+### Background jobs and deploy
+
+- **Runners** (`RecurringTransactionsRunner`, `HabitsDayCloseRunner`, singletons) hold one run: list the due work in one scope, then one scope per unit (recurrence / user), logging and skipping failures. The schedule is the cursor in the database, so a missed or interrupted run loses nothing.
+- **Locally**, the hosted services `RecurringTransactionsJob`/`HabitsDayCloseJob` call their runner at startup and every hour (`PeriodicTimer`). They're registered unless `backgroundJobs:enabled` is `false`.
+- **In production** (Google Cloud, `docs/deploy.md`), the API runs on Cloud Run scaled to zero with `backgroundJobs__enabled=false` (CPU only exists during requests). Cloud Scheduler triggers, every hour, a Cloud Run Job running the same image with `--run-jobs` (`RunJobsMode`: recurring transactions, then the day close, then exit 0).
+- **Same origin:** Firebase Hosting serves the frontend and rewrites `/api/**` to the Cloud Run service. That's why the refresh cookie is named `__session`, the only cookie Hosting forwards. CORS only matters for local dev.
+- **Image:** `LifeManager.WebApi/Dockerfile` (context = repo root; the `aspnet` image ships tzdata for `businessTimeZone`), built by Cloud Build (`cloudbuild.yaml`) from `deploy/deploy-api.ps1`, which also points the job at the new image. Migrations aren't part of the deploy: they run through the Cloud SQL Auth Proxy (`docs/deploy.md`).
 
 Test projects mirror the layer they test 1:1 (`LifeManager.Domain.Test` → Domain, `LifeManager.Application.Test` → Application) and reference only that layer (plus Domain, transitively). **There are no Infrastructure/WebApi tests and nothing runs against a real Postgres**, so repository queries, EF mappings and migrations are only verified by running the API.
 
@@ -104,9 +125,9 @@ Test projects mirror the layer they test 1:1 (`LifeManager.Domain.Test` → Doma
 - `POST /api/Auth/Register` → 201.
 - `POST /api/Auth/Login`:
   - Returns `{ accessToken }`.
-  - Sets the refresh token as an `HttpOnly`, `Secure` cookie `refreshToken` (path `/api/Auth`). The cookie expires together with the token (`LoginResponseDto.RefreshTokenExpiresAt`).
+  - Sets the refresh token as an `HttpOnly`, `Secure` cookie `__session` (path `/api/Auth`; the name is the one Firebase Hosting forwards, see "Background jobs and deploy"). The cookie expires together with the token (`LoginResponseDto.RefreshTokenExpiresAt`).
 - `POST /api/Auth/Refresh`:
-  - Returns 200 `{ accessToken }` and sets a new `refreshToken` cookie.
+  - Returns 200 `{ accessToken }` and sets a new `__session` cookie.
   - On failure it returns 401 `Auth.InvalidRefreshToken` and deletes the cookie.
   - **Anonymous on purpose**, like Logout: the cookie is the credential.
   - **Rotation:** every refresh consumes the presented token and issues a new pair (`TokenService.RefreshTokensAsync`). `IRefreshTokenRepository.TryConsumeAsync` is a conditional `ExecuteUpdateAsync` (`!IsRevoked && ExpiresAt > now`), so two concurrent refreshes with the same token can't both succeed.
@@ -193,7 +214,7 @@ The codebase is mid-migration to a `Result`/`Result<T>` pattern (`LifeManager.Do
 - **Posting** (`RecurringTransactionPostingService.PostDueOccurrencesAsync`): while the recurrence is due (`IsActive && NextOccurrenceDate <= AppClock.Today()`), get or open the occurrence's month (`MonthlySummary.OpenForRecurringPosting`, which skips the current-year rule so a catch-up across New Year works; `IMonthlySummaryRepository.AddIfMissingAsync` is an `INSERT … ON CONFLICT DO NOTHING`), build the transaction, advance the cursor and call `TryPostOccurrenceAsync`. That runs in one database transaction: a **compare-and-swap** on the cursor (`WHERE NextMonth = expected AND IsActive`, which also row-locks the recurrence), the insert, and the month's totals recalculation. If the CAS hits 0 rows (another run posted it, or it was paused/deleted) nothing is written and posting stops quietly. Missed months are caught up one by one.
 - **User edits use the same CAS** (`TryUpdateAsync(…, expectedNextMonth)`): if the job moved the cursor in between, the edit returns `RecurringTransaction.ChangedConcurrently` (409) instead of overwriting it.
 - **Saving posts right away:** create, update and resume call the posting service, so an occurrence whose day already passed this month shows up without waiting for the job.
-- **Job** (`WebApi/RecurringTransactions/Jobs/RecurringTransactionsJob.cs`, a `BackgroundService`): runs at startup and then every hour (`PeriodicTimer` on `TimeProvider`). It reads up to `DueBatchSize` (500) due ids in one scope, then posts each in its own scope (the `DbContext` is scoped, the job a singleton), logging and skipping failures; the next run retries them. The schedule is the cursor in the database, so the job holds no state and several API instances can run it safely.
+- **Job** (`WebApi/RecurringTransactions/Jobs/RecurringTransactionsRunner.cs`; run every hour by the `RecurringTransactionsJob` hosted service locally, or by the Cloud Run Job in production — see "Background jobs and deploy"): it reads up to `DueBatchSize` (500) due ids in one scope, then posts each in its own scope (the `DbContext` is scoped, the runner a singleton), logging and skipping failures; the next run retries them. The schedule is the cursor in the database, so the runner holds no state and several instances can run it safely.
 - **Listing:** `?page=&pageSize=&type=All|Expense|Income|Investment&status=All|Active|Paused|Finished&search=&sortBy=NextOccurrence|Description|Amount|Day&sortDirection=` (default `NextOccurrence`/`Asc`). Every sort ends with `NormalizedDescription`, `Id`; finished recurrences (null next occurrence) come last ascending and first descending (PostgreSQL's NULL order, mirrored in the mock).
 
 ### Budgets
@@ -252,7 +273,7 @@ The codebase is mid-migration to a `Result`/`Result<T>` pattern (`LifeManager.Do
 - **Reward:** `GameRules.Reward(difficulty)` coins with `CoinsWithStreakBonus` (the streak already counting this day; a weekly streak's week is worth 7 days), its XP and `HealPerCompletion` HP. A times-per-week habit past its week's target still checks in but earns nothing. The check-in stores what was actually applied (`CoinsAwarded`/`XpAwarded`/`HpAwarded`), so **undo** applies the exact inverse, except that HP is only taken back down to 1 (an undo never knocks out). Ledger entries carry `HabitId` (FK `SET NULL`).
 - **Streak** is recalculated from history on every check-in/undo (`StreakCalculator.Current`, pure): days (or Monday–Sunday weeks for times-per-week) going back from today that succeeded (`Done`/`Frozen`); an unscheduled day is skipped, and a day/week that can still be checked in neither counts nor breaks it. `Habit.SetStreak` raises `LongestStreak`.
 - **Transaction** (`HabitCheckInRepository`): `PlayerWallet.LockAsync` first (every game write of a user takes that lock, so check-ins never interleave), then the existence check, the success dates, the service's `decide` callback (rules), and the check-in + ledger + profile + habit streak, in one database transaction. The mock mirrors it.
-- **Day close** (`HabitEvaluationService`, run by `WebApi/Habits/Jobs/HabitsDayCloseJob.cs` at startup and every hour, one scope per user, failures logged and retried next run): judges every day up to `today - 2` (`LastClosedDay`; days still checkable are never touched), walking each user's habits **day by day in date order** from their cursor `EvaluatedUntil`. `HabitDayVerdict.Judge` (pure) decides per habit and day:
+- **Day close** (`HabitEvaluationService`, run every hour by `WebApi/Habits/Jobs/HabitsDayCloseRunner.cs` — through the `HabitsDayCloseJob` hosted service locally or the Cloud Run Job in production — one scope per user, failures logged and retried next run): judges every day up to `today - 2` (`LastClosedDay`; days still checkable are never touched), walking each user's habits **day by day in date order** from their cursor `EvaluatedUntil`. `HabitDayVerdict.Judge` (pure) decides per habit and day:
   - not due / before `StartDate` / a weekly habit's mid-week day → `Skip`;
   - weekly limit (habit to avoid, times per week), on its week's Sunday: relapses ≤ N → `WeekClean`, a `Clean` check-in on every relapse-free day and one reward per clean day (`ApplyCompletion(..., days)`, all on the latest clean day's check-in); over N → `Settled` (each relapse past N already cost HP);
   - already has a check-in (done, relapse) → `Settled`;

@@ -1,30 +1,31 @@
-# See https://aka.ms/customizecontainer to learn how to customize your debug container and how Visual Studio uses this Dockerfile to build your images for faster debugging.
+# Build context: the repository root (docker build -f LifeManager.WebApi/Dockerfile .).
 
-# This stage is used when running from VS in fast mode (Default for Debug configuration)
+# Runtime image. It ships tzdata, which AppClock needs to resolve businessTimeZone (America/Sao_Paulo).
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 USER $APP_UID
 WORKDIR /app
 EXPOSE 8080
-EXPOSE 8081
 
 
-# This stage is used to build the service project
+# Build stage. Every project file is copied before the restore, so the restore layer is only rebuilt when a .csproj changes.
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
+COPY ["LifeManager.Domain/LifeManager.Domain.csproj", "LifeManager.Domain/"]
+COPY ["LifeManager.Application/LifeManager.Application.csproj", "LifeManager.Application/"]
+COPY ["LifeManager.Infrastructure/LifeManager.Infrastructure.csproj", "LifeManager.Infrastructure/"]
 COPY ["LifeManager.WebApi/LifeManager.WebApi.csproj", "LifeManager.WebApi/"]
 RUN dotnet restore "./LifeManager.WebApi/LifeManager.WebApi.csproj"
 COPY . .
 WORKDIR "/src/LifeManager.WebApi"
-RUN dotnet build "./LifeManager.WebApi.csproj" -c $BUILD_CONFIGURATION -o /app/build
+RUN dotnet build "./LifeManager.WebApi.csproj" -c $BUILD_CONFIGURATION -o /app/build --no-restore
 
-# This stage is used to publish the service project to be copied to the final stage
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./LifeManager.WebApi.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "./LifeManager.WebApi.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false --no-restore
 
-# This stage is used in production or when running from VS in regular mode (Default when not using the Debug configuration)
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+# The API by default; the Cloud Run Job passes --run-jobs to run the background work once and exit.
 ENTRYPOINT ["dotnet", "LifeManager.WebApi.dll"]

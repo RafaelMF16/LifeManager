@@ -1,0 +1,9 @@
+# Files not uploaded to Cloud Build by "gcloud builds submit" (the image only needs the source).
+.git
+.gitignore
+.vs
+.claude
+**/bin
+**/obj
+**/*.user
+docs

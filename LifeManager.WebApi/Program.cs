@@ -22,6 +22,15 @@ builder.AddApiServices();
 
 var app = builder.Build();
 
+// Cloud Run Job mode (triggered hourly by Cloud Scheduler): run the background work once and exit without serving HTTP.
+if (args.Contains(RunJobsMode.Argument))
+{
+    await RunJobsMode.RunAsync(app);
+    return;
+}
+
+app.UseForwardedHeaders();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();

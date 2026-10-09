@@ -1,0 +1,9 @@
+# Builds the API image and pushes it to Artifact Registry. Used by deploy/deploy-api.ps1:
+#   gcloud builds submit --config cloudbuild.yaml --substitutions _IMAGE=<region>-docker.pkg.dev/<project>/lifemanager/api:<tag> .
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-f", "LifeManager.WebApi/Dockerfile", "-t", "${_IMAGE}", "."]
+images:
+  - "${_IMAGE}"
+options:
+  logging: CLOUD_LOGGING_ONLY

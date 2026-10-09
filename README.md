@@ -96,7 +96,16 @@ dotnet test LifeManager.slnx
 
 Os testes não usam banco: os repositórios são substituídos por mocks em memória.
 
+## Deploy
+
+Produção roda no Google Cloud: API no Cloud Run, banco no Cloud SQL, jobs de hora em hora num Cloud Run Job disparado pelo Cloud Scheduler, e o front no Firebase Hosting. Arquitetura, custos, setup único e deploys estão em [docs/deploy.md](docs/deploy.md). Depois do setup, cada nova versão da API é publicada com:
+
+```powershell
+./deploy/deploy-api.ps1 -ProjectId <PROJECT_ID>
+```
+
 ## Documentação
 
 - [docs/regras-de-negocio.md](docs/regras-de-negocio.md): as regras de negócio de cada área, em linguagem de produto.
+- [docs/deploy.md](docs/deploy.md): deploy no Google Cloud.
 - [CLAUDE.md](CLAUDE.md): referência técnica (arquitetura, convenções, endpoints e detalhes de implementação).
