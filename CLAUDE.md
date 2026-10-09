@@ -7,8 +7,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 LifeManager is a personal finance / life management API (.NET 10, C#, PostgreSQL via EF Core + Npgsql). It is consumed by the sibling React SPA `LifeManagerFront` (`../LifeManagerFront`, served at `https://localhost:5173`).
 
 Current state:
-- **Exposed over HTTP:** Auth (register/login/refresh/logout), Users (`GET /api/Users/Me` → `{ name }` of the authenticated user, shown in the frontend's Header menu), UserPreferences (get/save theme + language), Categories (full CRUD with a paged, searchable listing), MonthlySummaries (create a month, month details, and a paged listing filtered by year/balance and sortable by period, income, expenses, investment or balance), Transactions (full CRUD inside a month, which keeps the month's totals up to date; types Expense, Income and Investment), RecurringTransactions (monthly transactions posted automatically by a background job), Budgets (monthly spending limits and investment targets, per category or for the month total, versioned by month) and FinanceDashboard (one aggregated read of a period of months for the frontend's dashboard, goals included).
-- **Background work:** one hosted service, `RecurringTransactionsJob` (see RecurringTransactions).
+- **Exposed over HTTP:** Auth (register/login/refresh/logout), Users (`GET /api/Users/Me` → `{ name }` of the authenticated user, shown in the frontend's Header menu), UserPreferences (get/save theme + language), Categories (full CRUD with a paged, searchable listing), MonthlySummaries (create a month, month details, and a paged listing filtered by year/balance and sortable by period, income, expenses, investment or balance), Transactions (full CRUD inside a month, which keeps the month's totals up to date; types Expense, Income and Investment), RecurringTransactions (monthly transactions posted automatically by a background job), Budgets (monthly spending limits and investment targets, per category or for the month total, versioned by month), FinanceDashboard (one aggregated read of a period of months for the frontend's dashboard, goals included), Habits (the gamified habits module: habits, check-ins, relapses, player profile, stats and ledger) and Rewards (the coin shop).
+- **Background work:** two hosted services, `RecurringTransactionsJob` (see RecurringTransactions) and `HabitsDayCloseJob` (see Habits).
+
+## Documentation
+
+- `README.md`: the project summary and the step-by-step local setup (Postgres via the root `docker-compose.yml`, user-secrets, dev certificate, migrations), for people (in Portuguese).
+- `docs/regras-de-negocio.md`: the business rules in product language, with no class names, plus an appendix of every error code (in Portuguese). **When a change adds or changes a business rule, a limit/number (e.g. `GameRules`) or an error code, update this file in the same change.**
+- The screen-by-screen user guide lives in the frontend repo (`../LifeManagerFront/docs/fluxo-de-telas.md`).
+- This file stays the technical reference; don't duplicate it in those docs.
 
 ## Commands
 

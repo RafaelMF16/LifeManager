@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: lifemanager-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: lifemanager
+      POSTGRES_USER: lifemanager
+      POSTGRES_PASSWORD: lifemanager
+    ports:
+      - "5432:5432"
+    volumes:
+      - lifemanager-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  lifemanager-postgres-data:
