@@ -99,6 +99,45 @@ namespace LifeManager.Application.Test.Transactions.Mocks
             return Task.FromResult(exists);
         }
 
+        // Mirrors TransactionRepository.GetForDuplicateCheckAsync: the user's transactions in the period or with one of the ids.
+        public Task<IReadOnlyList<ExistingTransaction>> GetForDuplicateCheckAsync(
+            UserId userId,
+            DateOnly from,
+            DateOnly to,
+            IReadOnlyCollection<string> externalIds,
+            CancellationToken cancellationToken)
+        {
+            IReadOnlyList<ExistingTransaction> existing = [.. _instance
+                .Where(transaction => BelongsTo(transaction, userId)
+                    && ((transaction.TransactionDate >= from && transaction.TransactionDate <= to)
+                        || (transaction.ExternalId is not null && externalIds.Contains(transaction.ExternalId))))
+                .Select(transaction => new ExistingTransaction(
+                    transaction.Id!.Value,
+                    transaction.MonthlySummaryId.Value,
+                    transaction.TransactionDate,
+                    transaction.SignedAmount,
+                    transaction.NormalizedDescription,
+                    transaction.ExternalId))];
+
+            return Task.FromResult(existing);
+        }
+
+        // Mirrors TransactionRepository.GetCategoryHistoryAsync: grouped by normalized description, type and category.
+        public Task<IReadOnlyList<CategoryHistoryEntry>> GetCategoryHistoryAsync(UserId userId, CancellationToken cancellationToken)
+        {
+            IReadOnlyList<CategoryHistoryEntry> history = [.. _instance
+                .Where(transaction => BelongsTo(transaction, userId))
+                .GroupBy(transaction => (transaction.NormalizedDescription, transaction.Type, CategoryId: transaction.CategoryId.Value))
+                .Select(group => new CategoryHistoryEntry(
+                    group.Key.NormalizedDescription,
+                    group.Key.Type,
+                    new CategoryId(group.Key.CategoryId),
+                    group.Count(),
+                    group.Max(transaction => transaction.TransactionDate)))];
+
+            return Task.FromResult(history);
+        }
+
         public Task UpdateAsync(Transaction transaction, CancellationToken cancellationToken)
         {
             UpdateCallCount++;
@@ -121,14 +160,18 @@ namespace LifeManager.Application.Test.Transactions.Mocks
             return Task.FromResult(deletedRows > 0);
         }
 
+        private static bool BelongsTo(Transaction transaction, UserId userId)
+            => MonthlySummarySingleton.Instance.Any(monthlySummary => monthlySummary.Id == transaction.MonthlySummaryId && monthlySummary.UserId == userId);
+
         // Mirrors TransactionRepository.WriteAndRecalculateTotalsAsync: totals are always summed from the stored transactions.
-        private void RecalculateTotals(MonthlySummaryId monthlySummaryId)
+        // Also used by the statement import mock, which posts into months the same way.
+        internal static void RecalculateTotals(MonthlySummaryId monthlySummaryId)
         {
             var monthlySummary = MonthlySummarySingleton.Instance.SingleOrDefault(stored => stored.Id == monthlySummaryId);
             if (monthlySummary is null)
                 return;
 
-            var transactions = _instance.Where(transaction => transaction.MonthlySummaryId == monthlySummaryId).ToList();
+            var transactions = TransactionSingleton.Instance.Where(transaction => transaction.MonthlySummaryId == monthlySummaryId).ToList();
             var totalIncome = transactions.Where(transaction => transaction.Type == MoneyFlowType.Income).Sum(transaction => transaction.SignedAmount);
             var totalExpense = -transactions.Where(transaction => transaction.Type == MoneyFlowType.Expense).Sum(transaction => transaction.SignedAmount);
             var totalInvestment = -transactions.Where(transaction => transaction.Type == MoneyFlowType.Investment).Sum(transaction => transaction.SignedAmount);
@@ -173,7 +216,7 @@ namespace LifeManager.Application.Test.Transactions.Mocks
                 ToDetachedCopy(transaction),
                 CategorySingleton.Instance.Single(category => category.Id == transaction.CategoryId).Name.Value);
 
-        private static Transaction ToDetachedCopy(Transaction transaction)
+        internal static Transaction ToDetachedCopy(Transaction transaction)
             => Transaction.FromPersistence(
                 transaction.Id!.Value,
                 transaction.MonthlySummaryId.Value,
@@ -182,6 +225,8 @@ namespace LifeManager.Application.Test.Transactions.Mocks
                 transaction.Amount.Value,
                 transaction.Description.Value,
                 transaction.TransactionDate,
-                transaction.RecurringTransactionId?.Value);
+                transaction.RecurringTransactionId?.Value,
+                transaction.StatementImportId?.Value,
+                transaction.ExternalId);
     }
 }

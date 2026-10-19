@@ -101,6 +101,49 @@ namespace LifeManager.Infrastructure.Transactions
                     cancellationToken);
         }
 
+        public async Task<IReadOnlyList<ExistingTransaction>> GetForDuplicateCheckAsync(
+            UserId userId,
+            DateOnly from,
+            DateOnly to,
+            IReadOnlyCollection<string> externalIds,
+            CancellationToken cancellationToken)
+        {
+            var ids = externalIds.ToList();
+
+            return await _dbContext.Transactions
+                .AsNoTracking()
+                .Where(transaction => _dbContext.MonthlySummaries.Any(monthlySummary => monthlySummary.Id == transaction.MonthlySummaryId && monthlySummary.UserId == userId)
+                    && ((transaction.TransactionDate >= from && transaction.TransactionDate <= to)
+                        || (transaction.ExternalId != null && ids.Contains(transaction.ExternalId))))
+                .Select(transaction => new ExistingTransaction(
+                    transaction.Id!.Value,
+                    transaction.MonthlySummaryId.Value,
+                    transaction.TransactionDate,
+                    transaction.SignedAmount,
+                    transaction.NormalizedDescription,
+                    transaction.ExternalId))
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<IReadOnlyList<CategoryHistoryEntry>> GetCategoryHistoryAsync(UserId userId, CancellationToken cancellationToken)
+        {
+            var groups = await _dbContext.Transactions
+                .AsNoTracking()
+                .Where(transaction => _dbContext.MonthlySummaries.Any(monthlySummary => monthlySummary.Id == transaction.MonthlySummaryId && monthlySummary.UserId == userId))
+                .GroupBy(transaction => new { transaction.NormalizedDescription, transaction.Type, transaction.CategoryId })
+                .Select(group => new
+                {
+                    group.Key.NormalizedDescription,
+                    group.Key.Type,
+                    group.Key.CategoryId,
+                    Count = group.Count(),
+                    LastDate = group.Max(transaction => transaction.TransactionDate)
+                })
+                .ToListAsync(cancellationToken);
+
+            return [.. groups.Select(group => new CategoryHistoryEntry(group.NormalizedDescription, group.Type, group.CategoryId, group.Count, group.LastDate))];
+        }
+
         public async Task UpdateAsync(Transaction transaction, CancellationToken cancellationToken)
         {
             await WriteAndRecalculateTotalsAsync(transaction.MonthlySummaryId, async () =>

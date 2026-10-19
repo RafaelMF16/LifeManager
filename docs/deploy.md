@@ -12,7 +12,7 @@ Cloud Scheduler (a cada hora, :05) ──► Cloud Run Job "lifemanager-jobs" (-
 ```
 
 - **Uma origem só.** O Firebase Hosting repassa `/api/**` para o Cloud Run, então o navegador fala só com `web.app`. Não há CORS em produção, e o cookie do refresh token é de primeira parte. O Hosting só repassa o cookie chamado `__session`, por isso esse é o nome do cookie (`RefreshTokenCookie`).
-- **A API escala a zero.** Sem tráfego, nenhuma instância fica ligada. Por isso os jobs de hora em hora não rodam dentro da API (`backgroundJobs__enabled=false`): o Cloud Scheduler dispara um Cloud Run Job com a mesma imagem e o argumento `--run-jobs`, que roda recorrências e fechamento do dia uma vez e sai.
+- **A API escala a zero.** Sem tráfego, nenhuma instância fica ligada. Por isso os jobs de hora em hora não rodam dentro da API (`backgroundJobs__enabled=false`): o Cloud Scheduler dispara um Cloud Run Job com a mesma imagem e o argumento `--run-jobs`, que roda recorrências, fechamento do dia e a limpeza de importações de extrato abandonadas (rascunhos com mais de 30 dias) uma vez e sai.
 - **Segredos** ficam no Secret Manager e chegam como variáveis de ambiente com os mesmos nomes que a API já lê: `lifeManagerConnectionString`, `accessTokenSecretKey` e `refreshTokenSecretKey`.
 - **Região:** `southamerica-east1` (São Paulo) para tudo.
 

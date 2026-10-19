@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.HttpOverrides;
 using LifeManager.WebApi.Habits.Jobs;
 using LifeManager.WebApi.RecurringTransactions.Jobs;
+using LifeManager.WebApi.StatementImports.Jobs;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
@@ -34,12 +35,14 @@ namespace LifeManager.WebApi.DI
         {
             builder.Services.AddSingleton<RecurringTransactionsRunner>();
             builder.Services.AddSingleton<HabitsDayCloseRunner>();
+            builder.Services.AddSingleton<StatementImportsCleanupRunner>();
 
             if (!builder.Configuration.GetValue(BACKGROUND_JOBS_ENABLED_KEY, defaultValue: true))
                 return;
 
             builder.Services.AddHostedService<RecurringTransactionsJob>();
             builder.Services.AddHostedService<HabitsDayCloseJob>();
+            builder.Services.AddHostedService<StatementImportsCleanupJob>();
         }
 
         /// <summary>
