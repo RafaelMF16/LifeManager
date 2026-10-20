@@ -67,7 +67,7 @@ na linha.
 
 ---
 
-### Tarefa 3: precedência no `StatementImportService` para investimentos
+### ✅ Tarefa 3: precedência no `StatementImportService` para investimentos
 
 **Description:** `SuggestCategoriesAsync` passa a seguir os passos 1, 2 e 4 do CA7. O passo 3 entra na Tarefa 6.
 1. Uma sugestão com fonte `Rule` ou `History` é aplicada como hoje.
@@ -78,16 +78,16 @@ na linha.
 Os duplicados continuam sendo marcados depois.
 
 **Acceptance criteria:**
-- [ ] Sem histórico, `Aplicação RDB` (−) vira Investimento incluído e `Resgate RDB` (+) vai para fora. Os dois contam
+- [x] Sem histórico, `Aplicação RDB` (−) vira Investimento incluído e `Resgate RDB` (+) vai para fora. Os dois contam
       em `SuggestedCount`.
-- [ ] Uma regra `Rule` de gasto para `aplicacao rdb` vence a detecção (a linha continua gasto, com a fonte `Rule`).
-- [ ] Uma sugestão `Similar` de investimento com categoria empresta a categoria, e a fonte fica `InvestmentApplication`.
+- [x] Uma regra `Rule` de gasto para `aplicacao rdb` vence a detecção (a linha continua gasto, com a fonte `Rule`).
+- [x] Uma sugestão `Similar` de investimento com categoria empresta a categoria, e a fonte fica `InvestmentApplication`.
       Uma `Similar` de gasto não muda a detecção.
-- [ ] Os testes que já existem continuam verdes.
+- [x] Os testes que já existem continuam verdes.
 
 **Verification:**
-- [ ] `dotnet test LifeManager.Application.Test --filter "FullyQualifiedName~StatementImportServiceTest"`
-- [ ] `dotnet test LifeManager.slnx`
+- [x] `dotnet test LifeManager.Application.Test --filter "FullyQualifiedName~StatementImportServiceTest"`
+- [x] `dotnet test LifeManager.slnx`
 
 **Dependencies:** Tarefa 2
 

@@ -54,7 +54,7 @@ SuggestionSource (+3 valores)
 ### Phase 1: Investimentos de ponta a ponta
 - [x] Tarefa 1: `InvestmentDetector` (domínio, TDD)
 - [x] Tarefa 2: novas fontes de sugestão e `StatementImportRow.ApplyInvestmentDetection`
-- [ ] Tarefa 3: precedência no `StatementImportService` para investimentos
+- [x] Tarefa 3: precedência no `StatementImportService` para investimentos
 - [ ] Tarefa 4: selos das detecções na revisão (frontend)
 
 ### Checkpoint A: Investimentos

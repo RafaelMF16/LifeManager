@@ -555,6 +555,97 @@ namespace LifeManager.Application.Test.StatementImports
 
         // ---------- Helpers ----------
 
+        // ---------- Detections ----------
+
+        [Fact]
+        public async Task CreateAsync_ShouldFileInvestmentLines_WhenThereIsNoHistory()
+        {
+            var created = await CreateAsync(
+                Line(2024, 3, 5, -500m, "Aplicação RDB"),
+                Line(2024, 3, 6, 610m, "Resgate RDB"),
+                Line(2024, 3, 7, -42.90m, "COMPRA CARTAO IFOOD *RESTAURANTE"));
+
+            var application = SingleRow("aplicacao rdb");
+            Assert.Equal(MoneyFlowType.Investment, application.Type);
+            Assert.True(application.Included);
+            Assert.Null(application.CategoryId);
+            Assert.Equal(SuggestionSource.InvestmentApplication, application.SuggestionSource);
+
+            var redemption = SingleRow("resgate rdb");
+            Assert.Equal(MoneyFlowType.Income, redemption.Type);
+            Assert.False(redemption.Included);
+            Assert.Equal(SuggestionSource.InvestmentRedemption, redemption.SuggestionSource);
+
+            var purchase = SingleRow("ifood restaurante");
+            Assert.Equal(MoneyFlowType.Expense, purchase.Type);
+            Assert.True(purchase.Included);
+            Assert.Equal(SuggestionSource.None, purchase.SuggestionSource);
+
+            var details = (await _service.GetByIdAsync(created.Value!.Id, FirstUserId, CancellationToken.None)).Value!;
+            Assert.Equal(2, details.SuggestedCount);
+            Assert.Equal(2, details.IncludedCount);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldFollowTheUsersRule_OverTheInvestmentDetection()
+        {
+            SeedRule("aplicacao rdb", Market, hits: 2);
+
+            await CreateAsync(Line(2024, 3, 5, -500m, "Aplicação RDB"));
+
+            var row = SingleRow("aplicacao rdb");
+            Assert.Equal(MoneyFlowType.Expense, row.Type);
+            Assert.Equal(new CategoryId(Market), row.CategoryId);
+            Assert.Equal(SuggestionSource.Rule, row.SuggestionSource);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldFollowTheUsersHistory_OverTheInvestmentDetection()
+        {
+            SeedTransaction(March2024Id, MoneyFlowType.Income, Savings, 610m, "Resgate RDB", new DateOnly(2024, 3, 1));
+
+            await CreateAsync(Line(2024, 3, 6, 610m, "Resgate RDB"));
+
+            var row = SingleRow("resgate rdb");
+            Assert.True(row.Included);
+            Assert.Equal(new CategoryId(Savings), row.CategoryId);
+            Assert.Equal(SuggestionSource.History, row.SuggestionSource);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldBorrowTheCategoryOfASimilarInvestment_WhenAnApplicationIsDetected()
+        {
+            SeedRule("aplicacao cdb", Savings, hits: 2, type: MoneyFlowType.Investment);
+
+            await CreateAsync(Line(2024, 3, 5, -500m, "Aplicação RDB"));
+
+            var row = SingleRow("aplicacao rdb");
+            Assert.Equal(MoneyFlowType.Investment, row.Type);
+            Assert.Equal(new CategoryId(Savings), row.CategoryId);
+            Assert.Equal(SuggestionSource.InvestmentApplication, row.SuggestionSource);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldIgnoreASimilarSuggestionOfAnotherType_WhenAnInvestmentIsDetected()
+        {
+            SeedRule("aplicacao cdb", Market, hits: 2);
+            SeedRule("resgate cdb", Salary, hits: 2, type: MoneyFlowType.Income);
+
+            await CreateAsync(
+                Line(2024, 3, 5, -500m, "Aplicação RDB"),
+                Line(2024, 3, 6, 610m, "Resgate RDB"));
+
+            var application = SingleRow("aplicacao rdb");
+            Assert.Equal(MoneyFlowType.Investment, application.Type);
+            Assert.Null(application.CategoryId);
+            Assert.Equal(SuggestionSource.InvestmentApplication, application.SuggestionSource);
+
+            var redemption = SingleRow("resgate rdb");
+            Assert.False(redemption.Included);
+            Assert.Null(redemption.CategoryId);
+            Assert.Equal(SuggestionSource.InvestmentRedemption, redemption.SuggestionSource);
+        }
+
         private Task<Domain.Shared.Results.Result<StatementImportResponseDto>> CreateAsync(params StatementLineDto[] lines)
             => _service.CreateAsync(new StatementImportDto("extrato.ofx", StatementImportSource.Ofx, Account, lines), FirstUserId, CancellationToken.None);
 
