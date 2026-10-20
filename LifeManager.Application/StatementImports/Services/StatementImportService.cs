@@ -5,7 +5,6 @@ using LifeManager.Domain.Categories.Errors;
 using LifeManager.Domain.Categories.Interfaces;
 using LifeManager.Domain.Categories.ValueObjects;
 using LifeManager.Domain.Categorization;
-using LifeManager.Domain.Categorization.Enums;
 using LifeManager.Domain.Categorization.Interfaces;
 using LifeManager.Domain.MonthlySummaries;
 using LifeManager.Domain.MonthlySummaries.Interfaces;
@@ -14,7 +13,6 @@ using LifeManager.Domain.Shared.Paging;
 using LifeManager.Domain.Shared.Results;
 using LifeManager.Domain.Shared.ValueObjects;
 using LifeManager.Domain.StatementImports;
-using LifeManager.Domain.StatementImports.Enums;
 using LifeManager.Domain.StatementImports.Errors;
 using LifeManager.Domain.StatementImports.Interfaces;
 using LifeManager.Domain.StatementImports.ValueObjects;
@@ -247,40 +245,7 @@ namespace LifeManager.Application.StatementImports.Services
             var ownTransfers = OwnTransferDetector.For(user?.Name.Value);
 
             foreach (var row in rows)
-                FileRow(row, suggester.Suggest(row.MerchantKey, row.Type == MoneyFlowType.Income), ownTransfers);
-        }
-
-        /// <summary>
-        /// What the user did with this same merchant comes first; then what the bank's own wording says (an investment
-        /// movement, then a transfer in the user's own name); then a merchant with a similar name. A detected application
-        /// keeps the category of a similar investment, if there is one.
-        /// </summary>
-        private static void FileRow(StatementImportRow row, CategorySuggestion? suggestion, OwnTransferDetector ownTransfers)
-        {
-            if (suggestion?.Source is SuggestionSource.Rule or SuggestionSource.History)
-            {
-                row.ApplySuggestion(suggestion);
-                return;
-            }
-
-            var movement = InvestmentDetector.Detect(row.OriginalDescription, row.SignedAmount);
-            if (movement is not null)
-            {
-                var similarInvestment = movement == InvestmentMovement.Application
-                    && suggestion is { Type: MoneyFlowType.Investment, Action: RuleAction.Categorize };
-
-                row.ApplyInvestmentDetection(movement.Value, similarInvestment ? suggestion!.CategoryId : null);
-                return;
-            }
-
-            if (ownTransfers.IsOwnTransfer(row.OriginalDescription))
-            {
-                row.ApplyOwnTransferDetection();
-                return;
-            }
-
-            if (suggestion is not null)
-                row.ApplySuggestion(suggestion);
+                ImportRowFiler.File(row, suggester.Suggest(row.MerchantKey, row.Type == MoneyFlowType.Income), ownTransfers);
         }
 
         private async Task MarkDuplicatesAsync(IReadOnlyList<StatementImportRow> rows, StatementImport statementImport, UserId userId, CancellationToken cancellationToken)
