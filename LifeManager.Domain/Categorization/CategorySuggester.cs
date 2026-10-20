@@ -33,8 +33,10 @@ namespace LifeManager.Domain.Categorization
         public CategorySuggester(IEnumerable<CategoryEvidence> evidence, DateOnly today)
         {
             _today = today;
+
+            // What was learned about the month (next month / same month) says nothing about the category.
             _byKey = evidence
-                .Where(item => item.MerchantKey.Length > 0 && item.Count > 0)
+                .Where(item => item.MerchantKey.Length > 0 && item.Count > 0 && item.Action is RuleAction.Categorize or RuleAction.Ignore)
                 .GroupBy(item => item.MerchantKey, StringComparer.Ordinal)
                 .ToDictionary(group => group.Key, group => group.ToList(), StringComparer.Ordinal);
             _keys = [.. _byKey.Keys.Select(key => (key, TrigramSimilarity.Trigrams(key)))];

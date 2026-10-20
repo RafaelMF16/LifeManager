@@ -815,6 +815,22 @@ namespace LifeManager.Application.Test.StatementImports
             Assert.Equal(new DateOnly(2025, 1, 1), Assert.Single(TransactionSingleton.Instance).TransactionDate);
         }
 
+        [Fact]
+        public async Task CommitAsync_ShouldLearnThatTheMerchantCountsInTheNextMonth()
+        {
+            var created = await CreateAsync(Line(2024, 3, 29, 5000m, "SALARIO EMPRESA XPTO"));
+            ShiftRow(SingleRow("salario empresa xpto"), Salary);
+
+            await _service.CommitAsync(created.Value!.Id, FirstUserId, CancellationToken.None);
+
+            Assert.Equal(
+                [(RuleAction.Categorize, (CategoryId?)new CategoryId(Salary), 1), (RuleAction.NextMonth, null, 1)],
+                CategorizationRuleSingleton.Instance
+                    .Where(rule => rule.MerchantKey == "salario empresa xpto" && rule.Type == MoneyFlowType.Income)
+                    .OrderBy(rule => rule.Action)
+                    .Select(rule => (rule.Action, rule.CategoryId, rule.Hits)));
+        }
+
         private Task<Domain.Shared.Results.Result<StatementImportResponseDto>> CreateAsync(params StatementLineDto[] lines)
             => _service.CreateAsync(new StatementImportDto("extrato.ofx", StatementImportSource.Ofx, Account, lines), FirstUserId, CancellationToken.None);
 

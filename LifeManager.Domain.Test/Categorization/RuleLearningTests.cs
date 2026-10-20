@@ -11,11 +11,40 @@ namespace LifeManager.Domain.Test.Categorization
     {
         private static readonly DateOnly Today = new(2026, 10, 19);
 
-        private static StatementImportRow Row(string description, int? categoryId, bool included = true, MoneyFlowType type = MoneyFlowType.Expense)
+        private static StatementImportRow Row(
+            string description, int? categoryId, bool included = true, MoneyFlowType type = MoneyFlowType.Expense, DateOnly? date = null, bool shiftToNextMonth = false)
         {
-            var row = StatementImportRow.Create(new StatementLine(new DateOnly(2025, 1, 10), description, -10m, null), null, Today).Value!;
-            row.Edit(type, categoryId, 10m, "Editada", row.Date, included, Today);
+            var row = StatementImportRow.Create(new StatementLine(date ?? new DateOnly(2025, 1, 10), description, -10m, null), null, Today).Value!;
+            row.Edit(type, categoryId, 10m, "Editada", row.Date, included, Today, shiftToNextMonth);
             return row;
+        }
+
+        [Fact]
+        public void From_ShouldCountWhetherALineAtTheEndOfItsMonthWasShifted()
+        {
+            var learnings = RuleLearning.From([
+                Row("SALARIO EMPRESA XPTO", 3, type: MoneyFlowType.Income, date: new DateOnly(2025, 8, 29), shiftToNextMonth: true),
+                Row("SALARIO EMPRESA XPTO", 3, type: MoneyFlowType.Income, date: new DateOnly(2025, 9, 30), shiftToNextMonth: true),
+                Row("FATURA CARTAO", 2, date: new DateOnly(2025, 8, 28))]);
+
+            Assert.Equal(
+                [
+                    new RuleLearning("fatura cartao", MoneyFlowType.Expense, RuleAction.Categorize, new CategoryId(2), 1),
+                    new RuleLearning("fatura cartao", MoneyFlowType.Expense, RuleAction.SameMonth, null, 1),
+                    new RuleLearning("salario empresa xpto", MoneyFlowType.Income, RuleAction.Categorize, new CategoryId(3), 2),
+                    new RuleLearning("salario empresa xpto", MoneyFlowType.Income, RuleAction.NextMonth, null, 2)
+                ],
+                learnings);
+        }
+
+        [Fact]
+        public void From_ShouldLearnNoShiftFromLinesOutsideTheWindowOrLeftOut()
+        {
+            var learnings = RuleLearning.From([
+                Row("SALARIO EMPRESA XPTO", 3, type: MoneyFlowType.Income, date: new DateOnly(2025, 8, 15), shiftToNextMonth: true),
+                Row("PIX ENVIADO JOAO", null, included: false, date: new DateOnly(2025, 8, 30))]);
+
+            Assert.DoesNotContain(learnings, learning => learning.Action is RuleAction.NextMonth or RuleAction.SameMonth);
         }
 
         [Fact]

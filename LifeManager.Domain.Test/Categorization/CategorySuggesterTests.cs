@@ -34,6 +34,19 @@ namespace LifeManager.Domain.Test.Categorization
         }
 
         [Fact]
+        public void Suggest_ShouldIgnoreWhatWasLearnedAboutTheMonth()
+        {
+            var suggestion = Suggest(
+                "salario empresa xpto",
+                true,
+                Rule("salario empresa xpto", Salary, hits: 2, type: MoneyFlowType.Income),
+                new CategoryEvidence("salario empresa xpto", MoneyFlowType.Income, RuleAction.NextMonth, null, 9, Today, IsRule: true),
+                new CategoryEvidence("salario empresa xpto", MoneyFlowType.Income, RuleAction.SameMonth, null, 9, Today, IsRule: true));
+
+            Assert.Equal((RuleAction.Categorize, new CategoryId(Salary), SuggestionConfidence.High), (suggestion!.Action, suggestion.CategoryId, suggestion.Confidence));
+        }
+
+        [Fact]
         public void Suggest_ShouldBeHighConfidence_WhenTheSameMerchantWentToOneCategoryMoreThanOnce()
         {
             var suggestion = Suggest("ifood restaurante", false, Rule("ifood restaurante", Restaurants, hits: 2));
