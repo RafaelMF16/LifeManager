@@ -73,7 +73,7 @@ SuggestionSource (+3 valores)
       e a transferência de terceiro sem mudança
 
 ### Phase 3: Validação com os arquivos reais e documentação
-- [ ] Tarefa 7: teste do CA12 com amostras anonimizadas dos três arquivos
+- [x] Tarefa 7: teste do CA12 com amostras anonimizadas dos três arquivos
 - [ ] Tarefa 8: documentação (regras de negócio, CLAUDE.md, fluxo de telas)
 
 ### Checkpoint: Completo

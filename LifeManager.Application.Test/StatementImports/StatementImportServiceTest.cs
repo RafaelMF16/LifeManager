@@ -701,6 +701,74 @@ namespace LifeManager.Application.Test.StatementImports
             Assert.Equal(SuggestionSource.Rule, row.SuggestionSource);
         }
 
+        /// <summary>
+        /// Every investment and own-transfer line of three real statements (Inter 2025, Nubank Jan and Sep 2026), as the
+        /// frontend describes them, with the holder's name, CPF and account replaced; plus each format of the other lines.
+        /// </summary>
+        private static readonly (string Description, decimal Amount, int Count)[] RealStatementSample =
+        [
+            ("Aplicacao: \"CDB PORQUINHO BANCO INTER S A\"", -21m, 8),
+            ("Aplicacao: \"CDB POS DI LIQ. BANCO INTER S A\"", -100m, 2),
+            ("Aplicacao: \"CDB POS DI LIQ. BANCO INTER SA\"", -100m, 8),
+            ("Aplicação RDB", -500m, 4),
+            ("Dinheiro guardado com resgate planejado", -500m, 1),
+            ("Resgate: \"CDB POS DI LIQ. BANCO INTER S A\"", 868.29m, 13),
+            ("Resgate: \"CDB PORQUINHO BANCO INTER S A\"", 50m, 3),
+            ("Resgate RDB", 610m, 2),
+            ("Aplicação - Estorno: \"CDB PORQUINHO FULANO CICLANO\"", 21m, 1),
+            ("Credito Tesouro Direto: \"* PROV * VENDA TD NTN-B1\"", 300m, 1),
+            ("Pix enviado: \"Cp :18236120-Fulano Beltrano Ciclano\"", -28m, 7),
+            ("Pix recebido: \"Cp :18236120-Fulano Beltrano Ciclano\"", 1000m, 19),
+            ("Pix recebido: \"Cp :90400888-FULANO BELTRANO CICLANO\"", 3167.36m, 10),
+            ("Transferência enviada pelo Pix - Fulano Beltrano Ciclano - •••.000.000-•• - BANCO INTER (0077) Agência: 1 Conta: 1234-5", -96m, 3),
+            ("Transferência recebida pelo Pix - FULANO BELTRANO CICLANO - •••.000.000-•• - BANCO INTER (0077) Agência: 1 Conta: 1234-5", 331.6m, 6),
+            ("Compra no debito: \"No estabelecimento LOJA EXEMPLO GOIANIA BRA\"", -70.58m, 1),
+            ("Loja Exemplo Goiania Bra - Compra no debito: \"No estabelecimento LOJA EXEMPLO GOIANIA BRA\"", -12m, 1),
+            ("Pix enviado: \"Cp :00360305-Outra Pessoa\"", -40m, 1),
+            ("Pix recebido: \"Cp :00000000-OUTRA PESSOA\"", 50m, 1),
+            ("Pix enviado devolvido: \"Cp :00000000-Outra Pessoa\"", 40m, 1),
+            ("Pagamento efetuado: \"Debito Automatico Fatura Cartao Inter\"", -349.14m, 1),
+            ("Fatura cartão Inter - Pagamento efetuado: \"Pagamento fatura cartao Inter\"", -385.5m, 1),
+            ("Pagamento de fatura", -331.6m, 1),
+            ("Transferência Recebida - Outra Pessoa Qualquer - •••.000.000-•• - NU PAGAMENTOS - IP (0260) Agência: 1 Conta: 9999-9", 28m, 1)
+        ];
+
+        [Fact]
+        public async Task CreateAsync_ShouldFileTheRealStatementsInvestmentsAndOwnTransfers_WhenThereIsNoHistory()
+        {
+            SeedUser(FirstUserId, "Fulano Beltrano Ciclano");
+            var start = new DateOnly(2024, 1, 1);
+            var lines = RealStatementSample
+                .SelectMany(sample => Enumerable.Repeat(sample, sample.Count))
+                .Select((sample, index) => new StatementLineDto(start.AddDays(index), sample.Description, sample.Amount, null))
+                .ToArray();
+
+            await CreateAsync(lines);
+
+            var rows = StatementImportRowSingleton.Instance;
+            Assert.Equal(lines.Length, rows.Count);
+
+            var applications = rows.Where(row => row.SuggestionSource == SuggestionSource.InvestmentApplication).ToList();
+            Assert.Equal(23, applications.Count);
+            Assert.All(applications, row => Assert.True(row.Included && row.Type == MoneyFlowType.Investment));
+
+            var redemptions = rows.Where(row => row.SuggestionSource == SuggestionSource.InvestmentRedemption).ToList();
+            Assert.Equal(20, redemptions.Count);
+            Assert.All(redemptions, row => Assert.False(row.Included));
+
+            var ownTransfers = rows.Where(row => row.SuggestionSource == SuggestionSource.OwnTransfer).ToList();
+            Assert.Equal(45, ownTransfers.Count);
+            Assert.All(ownTransfers, row => Assert.False(row.Included));
+
+            var others = rows.Where(row => row.SuggestionSource == SuggestionSource.None).ToList();
+            Assert.Equal(lines.Length - 88, others.Count);
+            Assert.All(others, row =>
+            {
+                Assert.True(row.Included);
+                Assert.Equal(row.SignedAmount > 0 ? MoneyFlowType.Income : MoneyFlowType.Expense, row.Type);
+            });
+        }
+
         private Task<Domain.Shared.Results.Result<StatementImportResponseDto>> CreateAsync(params StatementLineDto[] lines)
             => _service.CreateAsync(new StatementImportDto("extrato.ofx", StatementImportSource.Ofx, Account, lines), FirstUserId, CancellationToken.None);
 

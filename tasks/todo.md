@@ -213,7 +213,7 @@ passo 3 do CA7: depois do investimento e antes de `Similar`.
 
 ## Phase 3: Validação com os arquivos reais e documentação
 
-### Tarefa 7: teste do CA12 com amostras anonimizadas dos três arquivos
+### ✅ Tarefa 7: teste do CA12 com amostras anonimizadas dos três arquivos
 
 **Description:** um teste de aplicação monta uma importação com as descrições e os sinais dos três arquivos, depois de
 passar pelo `describe(NAME, MEMO)` do frontend. A amostra inclui todas as linhas de investimento e de transferência
@@ -222,14 +222,14 @@ conta também foram trocados. O teste confere as contagens por destino e que as 
 receita, incluídas.
 
 **Acceptance criteria:**
-- [ ] Contagens: 23 Investimento, 20 resgates fora, 45 transferências próprias fora (é possível usar uma linha por
+- [x] Contagens: 23 Investimento, 20 resgates fora, 45 transferências próprias fora (é possível usar uma linha por
       formato com multiplicidade, desde que o total bata).
-- [ ] As linhas comuns da amostra (compras, Pix de terceiros, pagamentos, transferência de terceiro) ficam sem mudança.
-- [ ] Nenhum dado pessoal real no diff: não aparecem o nome do usuário, o CPF parcial nem o número da conta.
+- [x] As linhas comuns da amostra (compras, Pix de terceiros, pagamentos, transferência de terceiro) ficam sem mudança.
+- [x] Nenhum dado pessoal real no diff: não aparecem o nome do usuário, o CPF parcial nem o número da conta.
 
 **Verification:**
-- [ ] `dotnet test LifeManager.Application.Test --filter "FullyQualifiedName~StatementImportServiceTest"`
-- [ ] `git diff` revisado procurando nome, CPF e conta reais
+- [x] `dotnet test LifeManager.Application.Test --filter "FullyQualifiedName~StatementImportServiceTest"`
+- [x] `git diff` revisado procurando nome, CPF e conta reais
 
 **Dependencies:** Tarefa 6
 
