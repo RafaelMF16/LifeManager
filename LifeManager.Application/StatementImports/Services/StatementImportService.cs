@@ -263,7 +263,7 @@ namespace LifeManager.Application.StatementImports.Services
             var existing = await _transactionRepository.GetForDuplicateCheckAsync(
                 userId,
                 statementImport.FirstDate.AddDays(-DuplicateDetector.NearbyDays),
-                statementImport.LastDate.AddDays(DuplicateDetector.NearbyDays),
+                rows.Max(row => row.EffectiveDate).AddDays(DuplicateDetector.NearbyDays),
                 externalIds,
                 cancellationToken);
 

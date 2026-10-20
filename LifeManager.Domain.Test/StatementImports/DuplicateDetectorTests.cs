@@ -30,6 +30,27 @@ namespace LifeManager.Domain.Test.StatementImports
         }
 
         [Fact]
+        public void MarkDuplicates_ShouldMatchAShiftedRowOnTheFirstDayOfTheNextMonth()
+        {
+            var row = Row(new DateOnly(2024, 8, 30), 5000m, "PIX RECEBIDO EMPRESA XPTO");
+            row.ApplyLearnedShift();
+
+            DuplicateDetector.MarkDuplicates([row], [Existing(1, new DateOnly(2024, 9, 1), 5000m, "salario")]);
+
+            Assert.Equal(1, row.DuplicateOfTransactionId);
+        }
+
+        [Fact]
+        public void MarkDuplicates_ShouldNotMatchTheNextMonthsFirstDay_WhenTheRowIsNotShifted()
+        {
+            var row = Row(new DateOnly(2024, 8, 30), 5000m, "PIX RECEBIDO EMPRESA XPTO");
+
+            DuplicateDetector.MarkDuplicates([row], [Existing(1, new DateOnly(2024, 9, 1), 5000m, "salario")]);
+
+            Assert.False(row.IsDuplicate);
+        }
+
+        [Fact]
         public void MarkDuplicates_ShouldMatchATransactionTypedByHand_OnTheSameDateAndAmount()
         {
             var row = Row(May3, -150m, "PIX ENVIADO JOAO DA SILVA");

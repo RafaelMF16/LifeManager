@@ -860,6 +860,20 @@ namespace LifeManager.Application.Test.StatementImports
             Assert.True(SingleRow("fatura cartao").ShiftLearned);
         }
 
+        [Fact]
+        public async Task CreateAsync_ShouldLeaveOutAShiftedLineTheRecurrenceAlreadyPosted()
+        {
+            // The salary recurrence posted on the 1st; the bank paid it on the 27th, the last business day.
+            SeedRule("empresa xpto", categoryId: null, hits: 1, type: MoneyFlowType.Income, action: RuleAction.NextMonth);
+            MonthlySummarySingleton.Instance.Add(MonthlySummary.FromPersistence(9, FirstUserId.Value, 4, 2024, 0, 0, 0));
+            var recurrence = SeedTransaction(9, MoneyFlowType.Income, Salary, 5000m, "Salário", new DateOnly(2024, 4, 1));
+
+            await CreateAsync(Line(2024, 3, 22, -10m, "PADARIA"), Line(2024, 3, 27, 5000m, "PIX RECEBIDO EMPRESA XPTO"));
+
+            var row = SingleRow("empresa xpto");
+            Assert.Equal((recurrence.Id!.Value, false), (row.DuplicateOfTransactionId, row.Included));
+        }
+
         private Task<Domain.Shared.Results.Result<StatementImportResponseDto>> CreateAsync(params StatementLineDto[] lines)
             => _service.CreateAsync(new StatementImportDto("extrato.ofx", StatementImportSource.Ofx, Account, lines), FirstUserId, CancellationToken.None);
 
