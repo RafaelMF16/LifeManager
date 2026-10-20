@@ -99,7 +99,7 @@ Os duplicados continuam sendo marcados depois.
 
 ---
 
-### Tarefa 4: selos das detecções na revisão (frontend)
+### ✅ Tarefa 4: selos das detecções na revisão (frontend)
 
 **Description:** `SuggestionSource` no frontend passa a incluir as três fontes novas, com textos em pt-BR e en-US (CA11).
 Em `ImportRowList.tsx`, uma linha com fonte detectada mostra o próprio selo, em vez de "Você deixou de fora antes"
@@ -107,15 +107,15 @@ quando está fora e sem categoria, e sem "usado N vezes". As linhas detectadas e
 genérico de "Fora".
 
 **Acceptance criteria:**
-- [ ] Os selos mostram "Investimento", "Resgate" e "Entre contas" (en-US: "Investment", "Redemption",
+- [x] Os selos mostram "Investimento", "Resgate" e "Entre contas" (en-US: "Investment", "Redemption",
       "Between accounts").
-- [ ] Um resgate ou transferência detectado nunca mostra "Você deixou de fora antes". Uma linha com regra `Ignore`
+- [x] Um resgate ou transferência detectado nunca mostra "Você deixou de fora antes". Uma linha com regra `Ignore`
       aprendida continua mostrando esse texto.
-- [ ] As chaves existem nos dois locales (o build falha se o tipo de locale exigir paridade).
+- [x] As chaves existem nos dois locales (o build falha se o tipo de locale exigir paridade).
 
 **Verification:**
-- [ ] `Front/`: `npm run build`, `npm run lint`, `npm test`
-- [ ] Manual: importar o OFX do Inter e conferir os selos nas abas Todas, Sugeridas e Excluídas
+- [x] `Front/`: `npm run build`, `npm run lint`, `npm test`
+- [ ] Manual: importar o OFX do Inter e conferir os selos nas abas Todas, Sugeridas e Excluídas (pendente: Checkpoint A)
 
 **Dependencies:** Tarefa 2 (o contrato dos nomes); para a verificação manual, a Tarefa 3
 
