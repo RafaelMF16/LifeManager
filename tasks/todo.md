@@ -8,7 +8,7 @@ Caminhos relativos a `LifeManager/`, salvo os marcados com `Front/` (`../LifeMan
 
 ## Phase 1: Investimentos de ponta a ponta
 
-### Tarefa 1: `InvestmentDetector` (domínio, TDD)
+### ✅ Tarefa 1: `InvestmentDetector` (domínio, TDD)
 
 **Description:** classe estática pura que recebe a descrição e o valor com sinal da linha e diz se ela é uma aplicação,
 um resgate ou nenhum dos dois. Usa os prefixos da tabela "Padrões" do spec, sobre `SearchText.Normalize`. O prefixo só
@@ -16,14 +16,14 @@ vale no começo do texto, seguido de um separador ou do fim. O sentido do valor 
 resgate, e isso inclui o estorno de aplicação.
 
 **Acceptance criteria:**
-- [ ] Todas as descrições de investimento da tabela de evidência dão o movimento esperado (CA1, CA2 e CA3).
-- [ ] Os casos negativos dos arquivos não são detectados: compras, Pix de terceiros, `Pagamento efetuado…`,
+- [x] Todas as descrições de investimento da tabela de evidência dão o movimento esperado (CA1, CA2 e CA3).
+- [x] Os casos negativos dos arquivos não são detectados: compras, Pix de terceiros, `Pagamento efetuado…`,
       `Pagamento de fatura`, `Transferência…`, `Pix enviado: Aplicacao…` (prefixo no meio), texto vazio e nulo.
-- [ ] `Dinheiro guardado com resgate planejado` (−) dá aplicação; `Aplicação - Estorno: "CDB…"` (+) dá resgate.
+- [x] `Dinheiro guardado com resgate planejado` (−) dá aplicação; `Aplicação - Estorno: "CDB…"` (+) dá resgate.
 
 **Verification:**
-- [ ] `dotnet test LifeManager.Domain.Test --filter "FullyQualifiedName~InvestmentDetectorTests"` (os testes são escritos antes e falham primeiro)
-- [ ] `dotnet build LifeManager.slnx`
+- [x] `dotnet test LifeManager.Domain.Test --filter "FullyQualifiedName~InvestmentDetectorTests"` (os testes são escritos antes e falham primeiro)
+- [x] `dotnet build LifeManager.slnx`
 
 **Dependencies:** nenhuma
 
