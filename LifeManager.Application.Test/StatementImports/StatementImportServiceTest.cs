@@ -769,6 +769,52 @@ namespace LifeManager.Application.Test.StatementImports
             });
         }
 
+        [Fact]
+        public async Task GetByIdAsync_ShouldCountAShiftedRowInTheNextMonth()
+        {
+            var created = await CreateAsync(
+                Line(2024, 3, 5, -40m, "LOJA"),
+                Line(2024, 3, 29, 5000m, "SALARIO EMPRESA XPTO"));
+            ShiftRow(SingleRow("salario empresa xpto"), Salary);
+
+            var details = (await _service.GetByIdAsync(created.Value!.Id, FirstUserId, CancellationToken.None)).Value!;
+
+            Assert.Equal(["2024-03", "2024-04"], details.Months.Select(month => month.Month));
+            var march = details.Months[0];
+            Assert.Equal((1, 0m, 40m, (int?)March2024Id), (march.RowCount, march.TotalIncome, march.TotalExpense, march.MonthlySummaryId));
+            var april = details.Months[1];
+            Assert.Equal((1, 5000m, (int?)null), (april.RowCount, april.TotalIncome, april.MonthlySummaryId));
+        }
+
+        [Fact]
+        public async Task CommitAsync_ShouldPostAShiftedRowOnTheFirstDayOfTheNextMonth()
+        {
+            var created = await CreateAsync(Line(2024, 3, 29, 5000m, "SALARIO EMPRESA XPTO"));
+            ShiftRow(SingleRow("salario empresa xpto"), Salary);
+
+            var result = await _service.CommitAsync(created.Value!.Id, FirstUserId, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            var april = Assert.Single(result.Value.Months);
+            Assert.Equal(("2024-04", true), (april.Month, april.Created));
+            var transaction = Assert.Single(TransactionSingleton.Instance);
+            Assert.Equal(new DateOnly(2024, 4, 1), transaction.TransactionDate);
+            Assert.Equal(april.MonthlySummaryId, transaction.MonthlySummaryId.Value);
+            Assert.Equal(0m, MonthlySummarySingleton.Instance.Single(month => month.Id!.Value == March2024Id).TotalIncome.Value);
+        }
+
+        [Fact]
+        public async Task CommitAsync_ShouldOpenJanuaryOfTheNextYear_WhenADecemberRowIsShifted()
+        {
+            var created = await CreateAsync(Line(2024, 12, 31, 5000m, "SALARIO EMPRESA XPTO"));
+            ShiftRow(SingleRow("salario empresa xpto"), Salary);
+
+            var result = await _service.CommitAsync(created.Value!.Id, FirstUserId, CancellationToken.None);
+
+            Assert.Equal("2025-01", Assert.Single(result.Value!.Months).Month);
+            Assert.Equal(new DateOnly(2025, 1, 1), Assert.Single(TransactionSingleton.Instance).TransactionDate);
+        }
+
         private Task<Domain.Shared.Results.Result<StatementImportResponseDto>> CreateAsync(params StatementLineDto[] lines)
             => _service.CreateAsync(new StatementImportDto("extrato.ofx", StatementImportSource.Ofx, Account, lines), FirstUserId, CancellationToken.None);
 
@@ -794,6 +840,10 @@ namespace LifeManager.Application.Test.StatementImports
 
             return Task.CompletedTask;
         }
+
+        /// <summary>Counts the row in the month after its date, as the user would on the review screen.</summary>
+        private static void ShiftRow(StatementImportRow row, int categoryId)
+            => ReplaceRow(row, edited => edited.Edit(edited.Type, categoryId, edited.Amount.Value, edited.Description.Value, edited.Date, included: true, Today, shiftToNextMonth: true));
 
         private static void ReplaceRow(StatementImportRow row, Func<StatementImportRow, Domain.Shared.Results.Result<StatementImportRow>> edit)
         {

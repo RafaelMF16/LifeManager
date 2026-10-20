@@ -58,6 +58,11 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
             builder.Property(row => row.SuggestionConfidence);
             builder.Property(row => row.SuggestionUses).IsRequired();
             builder.Property(row => row.EditedByUser).IsRequired();
+            builder.Property(row => row.ShiftToNextMonth).IsRequired();
+            builder.Property(row => row.ShiftLearned).IsRequired();
+
+            // Derived from Date and ShiftToNextMonth; persisted so the draft's months are grouped and filtered in SQL.
+            builder.Property(row => row.EffectiveDate).IsRequired();
 
             builder.Ignore(row => row.IsDuplicate);
             builder.Ignore(row => row.Month);

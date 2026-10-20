@@ -364,6 +364,8 @@ namespace LifeManager.Application.Test.StatementImports.Mocks
                 row.SuggestionSource,
                 row.SuggestionConfidence,
                 row.SuggestionUses,
-                row.EditedByUser);
+                row.EditedByUser,
+                row.ShiftToNextMonth,
+                row.ShiftLearned);
     }
 }

@@ -672,6 +672,9 @@ namespace LifeManager.Infrastructure.Migrations
                     b.Property<bool>("EditedByUser")
                         .HasColumnType("boolean");
 
+                    b.Property<DateOnly>("EffectiveDate")
+                        .HasColumnType("date");
+
                     b.Property<string>("ExternalId")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
@@ -693,6 +696,12 @@ namespace LifeManager.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
+
+                    b.Property<bool>("ShiftLearned")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("ShiftToNextMonth")
+                        .HasColumnType("boolean");
 
                     b.Property<decimal>("SignedAmount")
                         .HasPrecision(14, 2)
