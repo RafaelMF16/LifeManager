@@ -227,6 +227,131 @@ namespace LifeManager.Domain.Test.StatementImports
         }
 
         [Fact]
+        public void Create_ShouldKeepTheRowInTheMonthOfItsDate()
+        {
+            var row = Row(date: new DateOnly(2026, 8, 30));
+
+            Assert.False(row.ShiftToNextMonth);
+            Assert.False(row.ShiftLearned);
+            Assert.Equal(new DateOnly(2026, 8, 30), row.EffectiveDate);
+            Assert.Equal("2026-08", row.Month.ToString());
+        }
+
+        [Fact]
+        public void Edit_ShouldMoveTheRowToTheFirstDayOfTheNextMonth_WhenShifted()
+        {
+            var row = Row(amount: 5000m, description: "SALARIO EMPRESA XPTO", date: new DateOnly(2026, 8, 30));
+
+            row.Edit(MoneyFlowType.Income, 3, 5000m, "Salário", row.Date, included: true, Today, shiftToNextMonth: true);
+
+            Assert.True(row.ShiftToNextMonth);
+            Assert.Equal(new DateOnly(2026, 8, 30), row.Date);
+            Assert.Equal(new DateOnly(2026, 9, 1), row.EffectiveDate);
+            Assert.Equal("2026-09", row.Month.ToString());
+        }
+
+        [Fact]
+        public void Edit_ShouldMoveADecemberRowToJanuaryOfTheNextYear_WhenShifted()
+        {
+            var row = Row(date: new DateOnly(2025, 12, 31));
+
+            row.Edit(MoneyFlowType.Expense, 3, 42.9m, "Fatura", row.Date, included: true, Today, shiftToNextMonth: true);
+
+            Assert.Equal(new DateOnly(2026, 1, 1), row.EffectiveDate);
+        }
+
+        [Fact]
+        public void Edit_ShouldFollowTheNewDate_WhenTheShiftedRowGetsAnotherDate()
+        {
+            var row = Row(date: new DateOnly(2026, 8, 30));
+            row.Edit(MoneyFlowType.Expense, 3, 42.9m, "Fatura", row.Date, included: true, Today, shiftToNextMonth: true);
+
+            row.Edit(MoneyFlowType.Expense, 3, 42.9m, "Fatura", new DateOnly(2026, 9, 29), included: true, Today, shiftToNextMonth: true);
+
+            Assert.Equal(new DateOnly(2026, 10, 1), row.EffectiveDate);
+        }
+
+        [Fact]
+        public void Edit_ShouldBringTheRowBackToTheMonthOfItsDate_WhenNotShifted()
+        {
+            var row = Row(date: new DateOnly(2026, 8, 30));
+            row.ApplyLearnedShift();
+
+            row.Edit(MoneyFlowType.Expense, 3, 42.9m, "Fatura", row.Date, included: true, Today);
+
+            Assert.False(row.ShiftToNextMonth);
+            Assert.False(row.ShiftLearned);
+            Assert.Equal(new DateOnly(2026, 8, 30), row.EffectiveDate);
+        }
+
+        [Fact]
+        public void EditInBulk_ShouldShiftAndUnshiftTheRow()
+        {
+            var row = Row(date: new DateOnly(2026, 8, 30));
+
+            row.EditInBulk(type: null, idCategory: null, included: null, shiftToNextMonth: true);
+            Assert.Equal(new DateOnly(2026, 9, 1), row.EffectiveDate);
+
+            row.EditInBulk(type: null, idCategory: null, included: null, shiftToNextMonth: false);
+            Assert.Equal(new DateOnly(2026, 8, 30), row.EffectiveDate);
+        }
+
+        [Fact]
+        public void EditInBulk_ShouldKeepTheShiftAndForgetThatItWasLearned_WhenTheShiftIsNotGiven()
+        {
+            var row = Row(date: new DateOnly(2026, 8, 30));
+            row.ApplyLearnedShift();
+
+            row.EditInBulk(type: null, idCategory: 5, included: null);
+
+            Assert.True(row.ShiftToNextMonth);
+            Assert.False(row.ShiftLearned);
+            Assert.Equal(new DateOnly(2026, 9, 1), row.EffectiveDate);
+        }
+
+        [Fact]
+        public void ApplyLearnedShift_ShouldShiftTheRowAndRememberWhy()
+        {
+            var row = Row(date: new DateOnly(2026, 8, 30));
+
+            row.ApplyLearnedShift();
+
+            Assert.True(row.ShiftToNextMonth);
+            Assert.True(row.ShiftLearned);
+            Assert.Equal(new DateOnly(2026, 9, 1), row.EffectiveDate);
+            Assert.False(row.EditedByUser);
+        }
+
+        [Fact]
+        public void CopyDecisionFrom_ShouldCopyTheShift()
+        {
+            var source = Row(date: new DateOnly(2026, 8, 30));
+            source.Edit(MoneyFlowType.Income, 3, 42.9m, "Salário", source.Date, included: true, Today, shiftToNextMonth: true);
+            var row = Row(date: new DateOnly(2026, 7, 31));
+            row.ApplyLearnedShift();
+
+            row.CopyDecisionFrom(source);
+
+            Assert.True(row.ShiftToNextMonth);
+            Assert.False(row.ShiftLearned);
+            Assert.Equal(new DateOnly(2026, 8, 1), row.EffectiveDate);
+        }
+
+        [Theory]
+        [InlineData(2026, 8, 31, true)]
+        [InlineData(2026, 8, 27, true)]
+        [InlineData(2026, 8, 26, false)]
+        [InlineData(2026, 9, 1, false)]
+        [InlineData(2026, 2, 24, true)]
+        [InlineData(2026, 2, 23, false)]
+        [InlineData(2028, 2, 25, true)]
+        [InlineData(2028, 2, 24, false)]
+        public void IsInShiftWindow_ShouldCoverTheLastFiveDaysOfTheMonth(int year, int month, int day, bool expected)
+        {
+            Assert.Equal(expected, StatementImportRow.IsInShiftWindow(new DateOnly(year, month, day)));
+        }
+
+        [Fact]
         public void ApplyInvestmentDetection_ShouldFileAnApplicationAsAnIncludedInvestment()
         {
             var row = Row(amount: -500m, description: "Aplicação RDB");
