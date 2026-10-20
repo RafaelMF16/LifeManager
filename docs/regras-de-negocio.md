@@ -103,6 +103,7 @@ Uma recorrência lança a mesma transação **todo mês, no dia escolhido** (sal
 - **Lançamento imediato:** ao criar, editar ou retomar uma recorrência, o que já venceu é lançado na hora. Exemplo: criar hoje uma recorrência no dia 5, com hoje sendo dia 10, já lança a deste mês.
 - Se o mês da ocorrência ainda não existir, ele é **criado automaticamente**, mesmo na virada de ano.
 - **Pausar e retomar:** ao retomar, os meses em que ela esteve pausada **são pulados** (não são lançados depois).
+- **Salário pago no fim do mês anterior** (o salário de setembro cai no último dia útil de agosto): use o **dia 1**. A recorrência lança em 01/09, dentro de setembro, e a linha do extrato marcada como "conta no mês seguinte" (veja [Importação de extrato](#importação-de-extrato)) é reconhecida como duplicata desse lançamento.
 - **Editar** muda apenas os próximos lançamentos; os que já foram feitos ficam como estão. Se a recorrência acabou de ser lançada pelo processo automático no momento da edição, a edição é recusada e precisa ser repetida.
 - **Excluir** não apaga as transações já lançadas.
 
@@ -120,8 +121,15 @@ Traz o extrato do banco (OFX ou CSV) para o app. O arquivo é lido no navegador;
 **Revisão**
 - Cada linha pode ser editada como um lançamento (tipo, categoria, valor, descrição, data) e **incluída ou deixada de fora**. A categoria pode ficar vazia durante a revisão; a data pode mudar para qualquer mês.
 - Várias linhas selecionadas (até 100 de uma vez) podem receber a mesma categoria, o mesmo tipo ou ser incluídas/deixadas de fora juntas.
-- **Aplicar às parecidas:** a decisão de uma linha (tipo, categoria, incluída ou não) pode ser copiada para as outras linhas do mesmo estabelecimento. Linhas que o usuário editou uma a uma não mudam, e uma possível duplicata continua de fora.
+- **Aplicar às parecidas:** a decisão de uma linha (tipo, categoria, incluída ou não, mês seguinte ou não) pode ser copiada para as outras linhas do mesmo estabelecimento. Linhas que o usuário editou uma a uma não mudam, e uma possível duplicata continua de fora.
 - Depois de confirmada, uma importação não muda mais.
+
+**Conta no mês seguinte** (salário ou conta paga no fim do mês que pertence ao mês seguinte)
+- Qualquer linha (receita, gasto ou investimento) pode ser marcada como **"conta no mês seguinte"**. Ela guarda a data do banco, mas conta e é lançada no **dia 1º do mês seguinte**: o salário de 30/08 vira um lançamento de 01/09, em setembro. Uma linha de 31/12 vai para 01/01 do ano seguinte.
+- A linha marcada aparece no mês seguinte na revisão (contagem, totais e filtro por mês). Cabe ao usuário decidir se a linha é do mês seguinte ou do mês da data.
+- A marcação pode ser feita linha a linha, em várias linhas selecionadas ou por "aplicar às parecidas". Ao trocar a data de uma linha no formulário, a marcação é desfeita, e o usuário marca de novo se quiser.
+- **Aprendizado:** na confirmação, cada linha incluída com data nos **últimos 5 dias do mês** ensina, para o seu estabelecimento e tipo, "mês seguinte" (se estava marcada) ou "mesmo mês" (se não estava). Linhas fora desses dias, ou deixadas de fora, não ensinam nada sobre o mês.
+- Numa próxima importação, uma linha incluída do mesmo estabelecimento e tipo, com data nos últimos 5 dias do mês, **já vem marcada** quando "mês seguinte" pesa mais que "mesmo mês" (decisões recentes pesam mais, como nas sugestões de categoria; empate não marca). Ela vem com o selo "pelo histórico". Fora desses dias nada é marcado sozinho: um salário atrasado para o dia 2, ou outro pagamento do mesmo estabelecimento no meio do mês, fica no mês da data.
 
 **Sugestão de categoria**
 - Cada linha é associada a um **estabelecimento**: a descrição do banco sem datas, números, cartões, parcelas e prefixos de meio de pagamento ("COMPRA CARTAO 12/03 IFOOD *RESTAURANTE 1234" → "ifood restaurante").
@@ -146,13 +154,14 @@ Traz o extrato do banco (OFX ou CSV) para o app. O arquivo é lido no navegador;
 - um lançamento do usuário com a **mesma data e o mesmo valor** (com o mesmo sentido);
 - um lançamento com o mesmo valor **até 3 dias de distância** e um estabelecimento parecido.
 - Cada lançamento existente corresponde a no máximo uma linha, então duas compras iguais no mesmo dia não somem as duas.
+- Para uma linha que **já vem marcada** como "conta no mês seguinte", a data comparada é o dia 1º do mês seguinte: o salário de 30/08 é reconhecido no lançamento de 01/09 feito pela recorrência. As duplicatas são procuradas só ao enviar o extrato, então marcar uma linha à mão na revisão não procura de novo.
 
 **Confirmação**
 - Só é possível confirmar com **ao menos uma linha incluída** e **todas as incluídas com categoria** (de outro usuário não vale).
 - Os meses que faltam são **criados, de qualquer ano** (exceção à regra do ano corrente), e os totais de cada mês são recalculados uma vez.
 - Uma linha do banco já lançada naquele mês (por outra importação confirmada no meio tempo) é **pulada**; o resultado informa quantas.
 - Duas confirmações da mesma importação ao mesmo tempo lançam uma vez só.
-- A confirmação **ensina as sugestões:** cada linha incluída conta um uso da sua categoria para o estabelecimento, e cada linha deixada de fora (que não seja duplicata) conta como "deixar de fora".
+- A confirmação **ensina as sugestões:** cada linha incluída conta um uso da sua categoria para o estabelecimento, e cada linha deixada de fora (que não seja duplicata) conta como "deixar de fora". Também ensina o mês das linhas do fim do mês (veja "Conta no mês seguinte").
 - Confirmada, a importação vira histórico (quantas transações e quantos meses novos); as linhas da revisão são apagadas.
 - **Remover do histórico** uma importação confirmada não apaga as transações que ela lançou. Descartar uma em revisão apaga só a revisão.
 
