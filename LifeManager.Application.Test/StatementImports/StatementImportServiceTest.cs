@@ -17,6 +17,7 @@ using LifeManager.Domain.StatementImports.Errors;
 using LifeManager.Domain.StatementImports.Interfaces;
 using LifeManager.Domain.Transactions;
 using LifeManager.Domain.Transactions.Errors;
+using LifeManager.Domain.Users;
 using LifeManager.Domain.Users.ValueObjects;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -56,6 +57,7 @@ namespace LifeManager.Application.Test.StatementImports
             TransactionSingleton.Instance.Clear();
             MonthlySummarySingleton.Instance.Clear();
             CategorySingleton.Instance.Clear();
+            UserSingleton.Instance.Clear();
 
             SeedCategory(Restaurants, FirstUserId, "Restaurantes");
             SeedCategory(Market, FirstUserId, "Mercado");
@@ -646,6 +648,59 @@ namespace LifeManager.Application.Test.StatementImports
             Assert.Equal(SuggestionSource.InvestmentRedemption, redemption.SuggestionSource);
         }
 
+        [Fact]
+        public async Task CreateAsync_ShouldLeaveOutTransfersBetweenTheUsersOwnAccounts()
+        {
+            SeedUser(FirstUserId, "Fulano Beltrano Ciclano");
+
+            await CreateAsync(
+                Line(2024, 3, 5, 1000m, "Pix recebido: \"Cp :90400888-FULANO BELTRANO CICLANO\""),
+                Line(2024, 3, 6, -28m, "Transferência enviada pelo Pix - Fulano Beltrano Ciclano - •••.000.000-•• - BANCO INTER (0077)"),
+                Line(2024, 3, 7, 28m, "Transferência Recebida - Outra Pessoa Qualquer - •••.000.000-•• - NU PAGAMENTOS - IP (0260)"));
+
+            var received = SingleRow(MerchantKey.From("Pix recebido: \"Cp :90400888-FULANO BELTRANO CICLANO\""));
+            Assert.False(received.Included);
+            Assert.Equal(MoneyFlowType.Income, received.Type);
+            Assert.Equal(SuggestionSource.OwnTransfer, received.SuggestionSource);
+
+            var sent = SingleRow(MerchantKey.From("Transferência enviada pelo Pix - Fulano Beltrano Ciclano"));
+            Assert.False(sent.Included);
+            Assert.Equal(MoneyFlowType.Expense, sent.Type);
+            Assert.Equal(SuggestionSource.OwnTransfer, sent.SuggestionSource);
+
+            var stranger = SingleRow(MerchantKey.From("Transferência Recebida - Outra Pessoa Qualquer"));
+            Assert.True(stranger.Included);
+            Assert.Equal(MoneyFlowType.Income, stranger.Type);
+            Assert.Equal(SuggestionSource.None, stranger.SuggestionSource);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldNotLookForOwnTransfers_WhenTheUsersNameHasOneWord()
+        {
+            SeedUser(FirstUserId, "Fulano");
+
+            await CreateAsync(Line(2024, 3, 5, 1000m, "Pix recebido: \"Cp :90400888-FULANO BELTRANO CICLANO\""));
+
+            var row = StatementImportRowSingleton.Instance.Single();
+            Assert.True(row.Included);
+            Assert.Equal(SuggestionSource.None, row.SuggestionSource);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldFollowTheUsersRule_OverTheOwnTransferDetection()
+        {
+            const string description = "Pix recebido: \"Cp :90400888-FULANO BELTRANO CICLANO\"";
+            SeedUser(FirstUserId, "Fulano Beltrano Ciclano");
+            SeedRule(MerchantKey.From(description), Salary, hits: 2, type: MoneyFlowType.Income);
+
+            await CreateAsync(Line(2024, 3, 5, 1000m, description));
+
+            var row = StatementImportRowSingleton.Instance.Single();
+            Assert.True(row.Included);
+            Assert.Equal(new CategoryId(Salary), row.CategoryId);
+            Assert.Equal(SuggestionSource.Rule, row.SuggestionSource);
+        }
+
         private Task<Domain.Shared.Results.Result<StatementImportResponseDto>> CreateAsync(params StatementLineDto[] lines)
             => _service.CreateAsync(new StatementImportDto("extrato.ofx", StatementImportSource.Ofx, Account, lines), FirstUserId, CancellationToken.None);
 
@@ -680,6 +735,13 @@ namespace LifeManager.Application.Test.StatementImports
 
             var rows = StatementImportRowSingleton.Instance;
             rows[rows.FindIndex(stored => stored.Id == row.Id)] = copy;
+        }
+
+        private static void SeedUser(UserId userId, string name)
+        {
+            var user = User.Create(name, $"user{userId.Value}@example.com", "hash").Value!;
+            user.AssignId(userId.Value);
+            UserSingleton.Instance.Add(user);
         }
 
         private static void SeedCategory(int id, UserId userId, string name)

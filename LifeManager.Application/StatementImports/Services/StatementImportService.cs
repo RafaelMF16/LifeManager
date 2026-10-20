@@ -20,13 +20,15 @@ using LifeManager.Domain.StatementImports.Interfaces;
 using LifeManager.Domain.StatementImports.ValueObjects;
 using LifeManager.Domain.Transactions;
 using LifeManager.Domain.Transactions.Interfaces;
+using LifeManager.Domain.Users.Interfaces;
 using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Application.StatementImports.Services
 {
     /// <summary>
     /// A bank statement import from upload to confirmation: the draft is created already filed (categories suggested
-    /// from what the user did before, lines they already have left out), reviewed row by row
+    /// from what the user did before, investment movements and transfers between the user's own accounts recognized,
+    /// lines they already have left out), reviewed row by row
     /// (<see cref="StatementImportRowService"/>), then confirmed into transactions across as many months and years as
     /// the statement covers.
     /// </summary>
@@ -36,6 +38,7 @@ namespace LifeManager.Application.StatementImports.Services
         ICategorizationRuleRepository categorizationRuleRepository,
         IMonthlySummaryRepository monthlySummaryRepository,
         ICategoryRepository categoryRepository,
+        IUserRepository userRepository,
         AppClock appClock,
         TimeProvider timeProvider)
     {
@@ -46,6 +49,7 @@ namespace LifeManager.Application.StatementImports.Services
         private readonly ICategorizationRuleRepository _categorizationRuleRepository = categorizationRuleRepository;
         private readonly IMonthlySummaryRepository _monthlySummaryRepository = monthlySummaryRepository;
         private readonly ICategoryRepository _categoryRepository = categoryRepository;
+        private readonly IUserRepository _userRepository = userRepository;
         private readonly AppClock _appClock = appClock;
         private readonly TimeProvider _timeProvider = timeProvider;
 
@@ -237,18 +241,21 @@ namespace LifeManager.Application.StatementImports.Services
             var rules = await _categorizationRuleRepository.GetByUserIdAsync(userId, cancellationToken);
             var history = await _transactionRepository.GetCategoryHistoryAsync(userId, cancellationToken);
 
+            var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
+
             var suggester = new CategorySuggester(rules.Select(rule => rule.ToEvidence()).Concat(CategoryEvidence.FromHistory(history)), today);
+            var ownTransfers = OwnTransferDetector.For(user?.Name.Value);
 
             foreach (var row in rows)
-                FileRow(row, suggester.Suggest(row.MerchantKey, row.Type == MoneyFlowType.Income));
+                FileRow(row, suggester.Suggest(row.MerchantKey, row.Type == MoneyFlowType.Income), ownTransfers);
         }
 
         /// <summary>
         /// What the user did with this same merchant comes first; then what the bank's own wording says (an investment
-        /// movement); then a merchant with a similar name. A detected application keeps the category of a similar
-        /// investment, if there is one.
+        /// movement, then a transfer in the user's own name); then a merchant with a similar name. A detected application
+        /// keeps the category of a similar investment, if there is one.
         /// </summary>
-        private static void FileRow(StatementImportRow row, CategorySuggestion? suggestion)
+        private static void FileRow(StatementImportRow row, CategorySuggestion? suggestion, OwnTransferDetector ownTransfers)
         {
             if (suggestion?.Source is SuggestionSource.Rule or SuggestionSource.History)
             {
@@ -263,6 +270,12 @@ namespace LifeManager.Application.StatementImports.Services
                     && suggestion is { Type: MoneyFlowType.Investment, Action: RuleAction.Categorize };
 
                 row.ApplyInvestmentDetection(movement.Value, similarInvestment ? suggestion!.CategoryId : null);
+                return;
+            }
+
+            if (ownTransfers.IsOwnTransfer(row.OriginalDescription))
+            {
+                row.ApplyOwnTransferDetection();
                 return;
             }
 

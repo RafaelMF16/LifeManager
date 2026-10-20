@@ -268,5 +268,23 @@ namespace LifeManager.Domain.Test.StatementImports
             Assert.Equal(SuggestionConfidence.High, row.SuggestionConfidence);
             Assert.Equal(0, row.SuggestionUses);
         }
+
+        [Theory]
+        [InlineData(-28, MoneyFlowType.Expense)]
+        [InlineData(1000, MoneyFlowType.Income)]
+        public void ApplyOwnTransferDetection_ShouldLeaveTheRowOutWithItsType(decimal amount, MoneyFlowType type)
+        {
+            var row = Row(amount: amount, description: "Transferência enviada pelo Pix - Fulano Beltrano Ciclano");
+
+            row.ApplyOwnTransferDetection();
+
+            Assert.Equal(type, row.Type);
+            Assert.Equal(amount, row.SignedAmount);
+            Assert.False(row.Included);
+            Assert.Null(row.CategoryId);
+            Assert.Equal(SuggestionSource.OwnTransfer, row.SuggestionSource);
+            Assert.Equal(SuggestionConfidence.High, row.SuggestionConfidence);
+            Assert.Equal(0, row.SuggestionUses);
+        }
     }
 }

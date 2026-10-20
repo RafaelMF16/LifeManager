@@ -210,6 +210,18 @@ namespace LifeManager.Domain.StatementImports
             SuggestionUses = 0;
         }
 
+        /// <summary>
+        /// A transfer between the user's own accounts (<see cref="OwnTransferDetector"/>) is left out: the money only
+        /// moves, so it is neither income nor spending.
+        /// </summary>
+        public void ApplyOwnTransferDetection()
+        {
+            Included = false;
+            SuggestionSource = SuggestionSource.OwnTransfer;
+            SuggestionConfidence = Categorization.Enums.SuggestionConfidence.High;
+            SuggestionUses = 0;
+        }
+
         /// <summary>The line is already among the user's transactions (or likely so): it is left out unless the user includes it.</summary>
         public void MarkDuplicateOf(int transactionId, int monthlySummaryId)
         {

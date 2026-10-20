@@ -169,7 +169,7 @@ detecta. `IsOwnTransfer(string? description)` exige as duas condições:
 
 ---
 
-### Tarefa 6: `ApplyOwnTransferDetection` e o titular no `StatementImportService`
+### ✅ Tarefa 6: `ApplyOwnTransferDetection` e o titular no `StatementImportService`
 
 **Description:** cria `StatementImportRow.ApplyOwnTransferDetection()`, que deixa a linha fora com a fonte
 `OwnTransfer`, `High` e `Uses = 0`, sem mudar o tipo. O `StatementImportService` passa a receber `IUserRepository`.
@@ -177,18 +177,19 @@ Em `CreateAsync`, ele lê `User.Name` uma vez e monta o `OwnTransferDetector`. E
 passo 3 do CA7: depois do investimento e antes de `Similar`.
 
 **Acceptance criteria:**
-- [ ] Com o usuário "Fulano Beltrano Ciclano" e sem histórico, `Pix recebido: "Cp :123-FULANO BELTRANO CICLANO"` (+) e
+- [x] Com o usuário "Fulano Beltrano Ciclano" e sem histórico, `Pix recebido: "Cp :123-FULANO BELTRANO CICLANO"` (+) e
       `Transferência enviada pelo Pix - Fulano Beltrano Ciclano - …` (−) saem da importação com a fonte `OwnTransfer`.
-- [ ] Com o usuário "Fulano" (1 palavra), nada é detectado como transferência própria.
-- [ ] Uma regra `Rule` de receita incluída para a chave da transferência vence a detecção (CA9); a investimento vence a
-      transferência quando as duas se aplicam.
-- [ ] O teste da linha cobre `ApplyOwnTransferDetection`.
+- [x] Com o usuário "Fulano" (1 palavra), nada é detectado como transferência própria.
+- [x] Uma regra `Rule` de receita incluída para a chave da transferência vence a detecção (CA9); a investimento vence a
+      transferência quando as duas se aplicam. (Na prática as duas nunca se aplicam juntas: os prefixos de
+      investimento e de transferência são disjuntos; a ordem no código segue o CA7.)
+- [x] O teste da linha cobre `ApplyOwnTransferDetection`.
 
 **Verification:**
-- [ ] `dotnet test LifeManager.Domain.Test --filter "FullyQualifiedName~StatementImportRowTests"`
-- [ ] `dotnet test LifeManager.Application.Test --filter "FullyQualifiedName~StatementImportServiceTest"` (com o usuário
+- [x] `dotnet test LifeManager.Domain.Test --filter "FullyQualifiedName~StatementImportRowTests"`
+- [x] `dotnet test LifeManager.Application.Test --filter "FullyQualifiedName~StatementImportServiceTest"` (com o usuário
       semeado em `UserSingleton` e o `Clear()` no construtor)
-- [ ] `dotnet test LifeManager.slnx`
+- [x] `dotnet test LifeManager.slnx`
 
 **Dependencies:** Tarefas 3 e 5
 
