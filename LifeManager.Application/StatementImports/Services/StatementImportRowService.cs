@@ -81,7 +81,7 @@ namespace LifeManager.Application.StatementImports.Services
 
             var row = item.Row;
 
-            var editResult = row.Edit(rowDto.Type, rowDto.CategoryId, rowDto.Amount, rowDto.Description, rowDto.Date, rowDto.Included, _appClock.Today());
+            var editResult = row.Edit(rowDto.Type, rowDto.CategoryId, rowDto.Amount, rowDto.Description, rowDto.Date, rowDto.Included, _appClock.Today(), rowDto.ShiftToNextMonth);
             if (!editResult.IsSuccess)
                 return editResult.Error;
 
@@ -106,7 +106,7 @@ namespace LifeManager.Application.StatementImports.Services
         public async Task<Result<StatementImportRowsChangedDto>> BulkUpdateAsync(int statementImportId, StatementImportBulkUpdateDto bulkDto, UserId userId, CancellationToken cancellationToken)
         {
             var rowIds = (bulkDto.RowIds ?? []).Distinct().ToList();
-            if (rowIds.Count == 0 || (bulkDto.Type is null && bulkDto.CategoryId is null && bulkDto.Included is null))
+            if (rowIds.Count == 0 || (bulkDto.Type is null && bulkDto.CategoryId is null && bulkDto.Included is null && bulkDto.ShiftToNextMonth is null))
                 return StatementImportErrors.NothingToChange;
 
             if (rowIds.Count > MaxBulkRows)
@@ -125,7 +125,7 @@ namespace LifeManager.Application.StatementImports.Services
 
             foreach (var row in rows)
             {
-                var editResult = row.EditInBulk(bulkDto.Type, bulkDto.CategoryId, bulkDto.Included);
+                var editResult = row.EditInBulk(bulkDto.Type, bulkDto.CategoryId, bulkDto.Included, bulkDto.ShiftToNextMonth);
                 if (!editResult.IsSuccess)
                     return editResult.Error;
             }
@@ -136,8 +136,8 @@ namespace LifeManager.Application.StatementImports.Services
         }
 
         /// <summary>
-        /// Files the rows of the same merchant like the given one: type, category and whether it is included (a
-        /// duplicate stays out). Rows the user edited directly keep their own decision.
+        /// Files the rows of the same merchant like the given one: type, category, whether it is included (a
+        /// duplicate stays out) and whether it counts in the next month. Rows the user edited directly keep their own decision.
         /// </summary>
         public async Task<Result<StatementImportRowsChangedDto>> ApplyToSimilarAsync(int statementImportId, int rowId, UserId userId, CancellationToken cancellationToken)
         {
@@ -181,7 +181,8 @@ namespace LifeManager.Application.StatementImports.Services
         private static bool FiledDifferently(StatementImportRow row, StatementImportRow source)
             => row.Type != source.Type
                 || row.CategoryId != source.CategoryId
-                || row.Included != (source.Included && !row.IsDuplicate);
+                || row.Included != (source.Included && !row.IsDuplicate)
+                || row.ShiftToNextMonth != source.ShiftToNextMonth;
 
         private static StatementImportRowResponseDto ToResponseDto(StatementImportRowListItem item)
             => ToResponseDto(item.Row, item.CategoryName);
@@ -202,6 +203,9 @@ namespace LifeManager.Application.StatementImports.Services
                 row.SuggestionSource,
                 row.SuggestionConfidence,
                 row.SuggestionUses,
-                row.EditedByUser);
+                row.EditedByUser,
+                row.EffectiveDate,
+                row.ShiftToNextMonth,
+                row.ShiftLearned);
     }
 }

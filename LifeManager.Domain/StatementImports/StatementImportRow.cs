@@ -317,8 +317,9 @@ namespace LifeManager.Domain.StatementImports
         }
 
         /// <summary>
-        /// Files this row like <paramref name="source"/>, a row of the same merchant the user just decided on. A duplicate
-        /// stays out even when the source is included. It now follows the user's decision rather than a suggestion.
+        /// Files this row like <paramref name="source"/>, a row of the same merchant the user just decided on, its month
+        /// shift included. A duplicate stays out even when the source is included. It now follows the user's decision
+        /// rather than a suggestion.
         /// </summary>
         public void CopyDecisionFrom(StatementImportRow source)
         {
