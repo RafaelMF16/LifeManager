@@ -26,7 +26,8 @@ namespace LifeManager.Application.StatementImports.Services
     /// <summary>
     /// A bank statement import from upload to confirmation: the draft is created already filed (categories suggested
     /// from what the user did before, investment movements and transfers between the user's own accounts recognized,
-    /// lines they already have left out), reviewed row by row
+    /// month-end lines the user counted in the next month before shifted again, lines they already have left out),
+    /// reviewed row by row
     /// (<see cref="StatementImportRowService"/>), then confirmed into transactions across as many months and years as
     /// the statement covers.
     /// </summary>
@@ -243,9 +244,16 @@ namespace LifeManager.Application.StatementImports.Services
 
             var suggester = new CategorySuggester(rules.Select(rule => rule.ToEvidence()).Concat(CategoryEvidence.FromHistory(history)), today);
             var ownTransfers = OwnTransferDetector.For(user?.Name.Value);
+            var monthShifts = new MonthShiftAdvisor(rules, today);
 
             foreach (var row in rows)
+            {
                 ImportRowFiler.File(row, suggester.Suggest(row.MerchantKey, row.Type == MoneyFlowType.Income), ownTransfers);
+
+                // After filing: the final type (an income may have become an investment) is part of what was learned.
+                if (monthShifts.ShouldShift(row))
+                    row.ApplyLearnedShift();
+            }
         }
 
         private async Task MarkDuplicatesAsync(IReadOnlyList<StatementImportRow> rows, StatementImport statementImport, UserId userId, CancellationToken cancellationToken)
@@ -255,7 +263,7 @@ namespace LifeManager.Application.StatementImports.Services
             var existing = await _transactionRepository.GetForDuplicateCheckAsync(
                 userId,
                 statementImport.FirstDate.AddDays(-DuplicateDetector.NearbyDays),
-                statementImport.LastDate.AddDays(DuplicateDetector.NearbyDays),
+                rows.Max(row => row.EffectiveDate).AddDays(DuplicateDetector.NearbyDays),
                 externalIds,
                 cancellationToken);
 

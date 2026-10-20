@@ -63,7 +63,7 @@ namespace LifeManager.Infrastructure.StatementImports
             var groups = await _dbContext.StatementImportRows
                 .AsNoTracking()
                 .Where(row => row.StatementImportId == statementImportId)
-                .GroupBy(row => new { row.Date.Year, row.Date.Month })
+                .GroupBy(row => new { row.EffectiveDate.Year, row.EffectiveDate.Month })
                 .Select(group => new
                 {
                     group.Key.Year,
@@ -122,7 +122,7 @@ namespace LifeManager.Infrastructure.StatementImports
             {
                 var firstDay = month.FirstDay;
                 var lastDay = month.LastDay;
-                rows = rows.Where(row => row.Date >= firstDay && row.Date <= lastDay);
+                rows = rows.Where(row => row.EffectiveDate >= firstDay && row.EffectiveDate <= lastDay);
             }
 
             rows = filter switch

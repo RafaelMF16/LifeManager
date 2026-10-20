@@ -33,8 +33,10 @@ namespace LifeManager.Domain.Categorization
         public CategorySuggester(IEnumerable<CategoryEvidence> evidence, DateOnly today)
         {
             _today = today;
+
+            // What was learned about the month (next month / same month) says nothing about the category.
             _byKey = evidence
-                .Where(item => item.MerchantKey.Length > 0 && item.Count > 0)
+                .Where(item => item.MerchantKey.Length > 0 && item.Count > 0 && item.Action is RuleAction.Categorize or RuleAction.Ignore)
                 .GroupBy(item => item.MerchantKey, StringComparer.Ordinal)
                 .ToDictionary(group => group.Key, group => group.ToList(), StringComparer.Ordinal);
             _keys = [.. _byKey.Keys.Select(key => (key, TrigramSimilarity.Trigrams(key)))];
@@ -123,11 +125,14 @@ namespace LifeManager.Domain.Categorization
         }
 
         private double Score(CategoryEvidence item)
-        {
-            var ageInMonths = Math.Max(0, _today.DayNumber - item.LastUsedOn.DayNumber) / 30.0;
-            var recency = 1 / (1 + ageInMonths / 12);
+            => item.Count * (item.IsRule ? RuleWeight : 1) * Recency(item.LastUsedOn, _today);
 
-            return item.Count * (item.IsRule ? RuleWeight : 1) * recency;
+        /// <summary>How much a decision last used on <paramref name="lastUsedOn"/> still counts: half after a year.</summary>
+        internal static double Recency(DateOnly lastUsedOn, DateOnly today)
+        {
+            var ageInMonths = Math.Max(0, today.DayNumber - lastUsedOn.DayNumber) / 30.0;
+
+            return 1 / (1 + ageInMonths / 12);
         }
 
         private static bool InDirection(CategoryEvidence item, bool isIncome)

@@ -11,7 +11,9 @@ namespace LifeManager.Domain.StatementImports
     /// <item>the same signed amount up to <see cref="NearbyDays"/> days apart, with a similar merchant
     /// (<see cref="TrigramSimilarity"/> ≥ <see cref="MinSimilarity"/>): banks often post a card purchase a day or two later.</item>
     /// </list>
-    /// Two equal lines in the statement (two coffees on the same day) stay apart: only one of them can match.
+    /// Two equal lines in the statement (two coffees on the same day) stay apart: only one of them can match. Dates are
+    /// the rows' <see cref="StatementImportRow.EffectiveDate"/>, so a salary counted in the next month matches what
+    /// was posted on the 1st.
     /// </summary>
     public static class DuplicateDetector
     {
@@ -36,7 +38,7 @@ namespace LifeManager.Domain.StatementImports
                 available.Remove(match);
             }
 
-            var pending = rows.Where(row => !row.IsDuplicate).OrderBy(row => row.Date).ToList();
+            var pending = rows.Where(row => !row.IsDuplicate).OrderBy(row => row.EffectiveDate).ToList();
             var keys = available.ToDictionary(transaction => transaction, transaction => MerchantKey.From(transaction.NormalizedDescription));
             var byAmount = available
                 .GroupBy(transaction => transaction.SignedAmount)
@@ -48,14 +50,14 @@ namespace LifeManager.Domain.StatementImports
                     continue;
 
                 var match = sameAmount
-                    .Where(transaction => transaction.Date == row.Date)
+                    .Where(transaction => transaction.Date == row.EffectiveDate)
                     .OrderByDescending(transaction => TrigramSimilarity.Similarity(keys[transaction], row.MerchantKey))
                     .FirstOrDefault()
                     ?? sameAmount
                         .Select(transaction => (Transaction: transaction, Similarity: TrigramSimilarity.Similarity(keys[transaction], row.MerchantKey)))
-                        .Where(candidate => Math.Abs(candidate.Transaction.Date.DayNumber - row.Date.DayNumber) <= NearbyDays && candidate.Similarity >= MinSimilarity)
+                        .Where(candidate => Math.Abs(candidate.Transaction.Date.DayNumber - row.EffectiveDate.DayNumber) <= NearbyDays && candidate.Similarity >= MinSimilarity)
                         .OrderByDescending(candidate => candidate.Similarity)
-                        .ThenBy(candidate => Math.Abs(candidate.Transaction.Date.DayNumber - row.Date.DayNumber))
+                        .ThenBy(candidate => Math.Abs(candidate.Transaction.Date.DayNumber - row.EffectiveDate.DayNumber))
                         .Select(candidate => candidate.Transaction)
                         .FirstOrDefault();
 

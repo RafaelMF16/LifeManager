@@ -21,6 +21,9 @@ namespace LifeManager.Domain.StatementImports
     {
         public const int OriginalDescriptionMaxLength = 255;
 
+        /// <summary>The last days of a month in which a learned "next month" decision files a row on its own (<see cref="IsInShiftWindow"/>).</summary>
+        public const int ShiftWindowDays = 5;
+
         public StatementImportRowId? Id { get; private set; }
         public StatementImportId StatementImportId { get; private set; }
         public DateOnly Date { get; private set; }
@@ -64,8 +67,23 @@ namespace LifeManager.Domain.StatementImports
         /// </summary>
         public bool EditedByUser { get; private set; }
 
+        /// <summary>
+        /// The row counts in the month after its date: a salary paid on the last business day of August is September's.
+        /// It is posted on <see cref="EffectiveDate"/>, while <see cref="Date"/> keeps the bank's date.
+        /// </summary>
+        public bool ShiftToNextMonth { get; private set; }
+
+        /// <summary>The shift came from what the user decided for this merchant before, not from the user on this row.</summary>
+        public bool ShiftLearned { get; private set; }
+
+        /// <summary>
+        /// The date the row is posted on: <see cref="Date"/>, or the first day of the next month when shifted. Persisted
+        /// so the draft's months are grouped and filtered by it in SQL.
+        /// </summary>
+        public DateOnly EffectiveDate { get; private set; }
+
         public bool IsDuplicate => DuplicateOfTransactionId is not null;
-        public YearMonth Month => YearMonth.From(Date);
+        public YearMonth Month => YearMonth.From(EffectiveDate);
 
         private StatementImportRow(
             DateOnly date,
@@ -78,6 +96,7 @@ namespace LifeManager.Domain.StatementImports
         {
             StatementImportId = null!;
             Date = date;
+            EffectiveDate = date;
             OriginalDescription = originalDescription;
             MerchantKey = merchantKey;
             Description = description;
@@ -147,7 +166,9 @@ namespace LifeManager.Domain.StatementImports
             SuggestionSource suggestionSource = SuggestionSource.None,
             SuggestionConfidence? suggestionConfidence = null,
             int suggestionUses = 0,
-            bool editedByUser = false)
+            bool editedByUser = false,
+            bool shiftToNextMonth = false,
+            bool shiftLearned = false)
         {
             var row = new StatementImportRow(
                 date,
@@ -166,8 +187,10 @@ namespace LifeManager.Domain.StatementImports
                 SuggestionSource = suggestionSource,
                 SuggestionConfidence = suggestionConfidence,
                 SuggestionUses = suggestionUses,
-                EditedByUser = editedByUser
+                EditedByUser = editedByUser,
+                ShiftLearned = shiftLearned
             };
+            row.SetShift(shiftToNextMonth);
             row.AssignId(id);
 
             return row;
@@ -238,7 +261,8 @@ namespace LifeManager.Domain.StatementImports
             string description,
             DateOnly date,
             bool included,
-            DateOnly today)
+            DateOnly today,
+            bool shiftToNextMonth = false)
         {
             if (!Enum.IsDefined(type))
                 return TransactionErrors.InvalidType;
@@ -262,13 +286,15 @@ namespace LifeManager.Domain.StatementImports
             CategoryId = idCategory is null ? null : new CategoryId(idCategory.Value);
             Date = date;
             Included = included;
+            SetShift(shiftToNextMonth);
+            ShiftLearned = false;
             EditedByUser = true;
 
             return this;
         }
 
         /// <summary>Changes selected rows at once; only the given values change.</summary>
-        public Result<StatementImportRow> EditInBulk(MoneyFlowType? type, int? idCategory, bool? included)
+        public Result<StatementImportRow> EditInBulk(MoneyFlowType? type, int? idCategory, bool? included, bool? shiftToNextMonth = null)
         {
             if (type is not null && !Enum.IsDefined(type.Value))
                 return TransactionErrors.InvalidType;
@@ -282,23 +308,41 @@ namespace LifeManager.Domain.StatementImports
             if (included is not null)
                 Included = included.Value;
 
+            if (shiftToNextMonth is not null)
+                SetShift(shiftToNextMonth.Value);
+
+            ShiftLearned = false;
             EditedByUser = true;
             return this;
         }
 
         /// <summary>
-        /// Files this row like <paramref name="source"/>, a row of the same merchant the user just decided on. A duplicate
-        /// stays out even when the source is included. It now follows the user's decision rather than a suggestion.
+        /// Files this row like <paramref name="source"/>, a row of the same merchant the user just decided on, its month
+        /// shift included. A duplicate stays out even when the source is included. It now follows the user's decision
+        /// rather than a suggestion.
         /// </summary>
         public void CopyDecisionFrom(StatementImportRow source)
         {
             SetType(source.Type);
             CategoryId = source.CategoryId;
             Included = source.Included && !IsDuplicate;
+            SetShift(source.ShiftToNextMonth);
+            ShiftLearned = false;
             SuggestionSource = SuggestionSource.None;
             SuggestionConfidence = null;
             SuggestionUses = 0;
         }
+
+        /// <summary>The user counted this merchant's lines in the next month before, and this one is at the end of its month.</summary>
+        public void ApplyLearnedShift()
+        {
+            SetShift(true);
+            ShiftLearned = true;
+        }
+
+        /// <summary>Whether <paramref name="date"/> is among the last <see cref="ShiftWindowDays"/> days of its month.</summary>
+        public static bool IsInShiftWindow(DateOnly date)
+            => date.Day > DateTime.DaysInMonth(date.Year, date.Month) - ShiftWindowDays;
 
         public void AssignImport(StatementImportId statementImportId)
         {
@@ -308,6 +352,12 @@ namespace LifeManager.Domain.StatementImports
         public void AssignId(int id)
         {
             Id = new StatementImportRowId(id);
+        }
+
+        private void SetShift(bool shiftToNextMonth)
+        {
+            ShiftToNextMonth = shiftToNextMonth;
+            EffectiveDate = shiftToNextMonth ? YearMonth.From(Date).AddMonths(1).FirstDay : Date;
         }
 
         private void SetType(MoneyFlowType type)

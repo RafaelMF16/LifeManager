@@ -180,6 +180,32 @@ namespace LifeManager.Application.Test.StatementImports
         }
 
         [Fact]
+        public async Task UpdateAsync_ShouldCountTheRowInTheNextMonth_WhenShifted()
+        {
+            var importId = await CreateDraftAsync(Line(2024, 3, 29, -40m, "LOJA"), Line(2024, 3, 5, -10m, "PADARIA"));
+
+            var result = await _service.UpdateAsync(
+                importId, RowId("loja"), RowDto(Market, "Loja", date: new DateOnly(2024, 3, 29), shiftToNextMonth: true), FirstUserId, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            var row = result.Value.Row;
+            Assert.Equal((new DateOnly(2024, 3, 29), new DateOnly(2024, 4, 1), true, false), (row.Date, row.EffectiveDate, row.ShiftToNextMonth, row.ShiftLearned));
+            Assert.Equal(["LOJA"], await DescriptionsAsync(importId, new() { Month = "2024-04" }));
+            Assert.Equal(["PADARIA"], await DescriptionsAsync(importId, new() { Month = "2024-03" }));
+        }
+
+        [Fact]
+        public async Task UpdateAsync_ShouldUnshiftTheRow_WhenTheShiftIsNotSent()
+        {
+            var importId = await CreateDraftAsync(Line(2024, 3, 29, -40m, "LOJA"));
+            await _service.UpdateAsync(importId, RowId("loja"), RowDto(Market, "Loja", shiftToNextMonth: true), FirstUserId, CancellationToken.None);
+
+            await _service.UpdateAsync(importId, RowId("loja"), RowDto(Market, "Loja"), FirstUserId, CancellationToken.None);
+
+            Assert.False(SingleRow("loja").ShiftToNextMonth);
+        }
+
+        [Fact]
         public async Task UpdateAsync_ShouldFail_WhenTheCategoryIsNotTheUsers()
         {
             var importId = await CreateDraftAsync(Line(2024, 3, 5, -40m, "LOJA"));
@@ -252,6 +278,22 @@ namespace LifeManager.Application.Test.StatementImports
             Assert.Equal(new CategoryId(Market), SingleRow("b").CategoryId);
             Assert.Null(SingleRow("c").CategoryId);
             Assert.All(StatementImportRowSingleton.Instance, row => Assert.True(row.Included));
+        }
+
+        [Fact]
+        public async Task BulkUpdateAsync_ShouldShiftAndUnshiftTheSelectedRows()
+        {
+            var importId = await CreateDraftAsync(Line(2024, 3, 28, -40m, "A"), Line(2024, 3, 29, -10m, "B"), Line(2024, 3, 30, -12m, "C"));
+            var selected = new[] { RowId("a"), RowId("b") };
+
+            var shifted = await _service.BulkUpdateAsync(importId, new StatementImportBulkUpdateDto(selected, null, null, null, ShiftToNextMonth: true), FirstUserId, CancellationToken.None);
+
+            Assert.Equal(2, shifted.Value!.UpdatedCount);
+            Assert.Equal(["A", "B"], await DescriptionsAsync(importId, new() { Month = "2024-04" }));
+
+            await _service.BulkUpdateAsync(importId, new StatementImportBulkUpdateDto([RowId("a")], null, null, null, ShiftToNextMonth: false), FirstUserId, CancellationToken.None);
+
+            Assert.Equal(["B"], await DescriptionsAsync(importId, new() { Month = "2024-04" }));
         }
 
         [Fact]
@@ -340,6 +382,28 @@ namespace LifeManager.Application.Test.StatementImports
         }
 
         [Fact]
+        public async Task ApplyToSimilarAsync_ShouldCopyTheShift()
+        {
+            var importId = await CreateDraftAsync(Line(2024, 2, 28, 5000m, "SALARIO EMPRESA XPTO"), Line(2024, 3, 29, 5000m, "SALARIO EMPRESA XPTO"));
+            var rowIds = RowIds("salario empresa xpto");
+            await UpdateAsync(importId, rowIds[0], Market);
+            await _service.ApplyToSimilarAsync(importId, rowIds[0], FirstUserId, CancellationToken.None);
+            var source = Row(rowIds[0]);
+
+            var update = await _service.UpdateAsync(
+                importId,
+                rowIds[0],
+                new StatementImportRowDto(source.Type, Market, source.Amount.Value, source.Description.Value, source.Date, Included: true, ShiftToNextMonth: true),
+                FirstUserId,
+                CancellationToken.None);
+            var result = await _service.ApplyToSimilarAsync(importId, rowIds[0], FirstUserId, CancellationToken.None);
+
+            Assert.Equal(1, update.Value!.SimilarCount);
+            Assert.Equal(1, result.Value!.UpdatedCount);
+            Assert.Equal(new DateOnly(2024, 4, 1), Row(rowIds[1]).EffectiveDate);
+        }
+
+        [Fact]
         public async Task ApplyToSimilarAsync_ShouldReturnRowNotFound_WhenTheRowDoesNotExist()
         {
             var importId = await CreateDraftAsync(Line(2024, 3, 5, -40m, "A"));
@@ -375,8 +439,8 @@ namespace LifeManager.Application.Test.StatementImports
             return [.. result.Value.Items.Select(row => row.OriginalDescription)];
         }
 
-        private static StatementImportRowDto RowDto(int? categoryId, string description, DateOnly? date = null)
-            => new(MoneyFlowType.Expense, categoryId, 40m, description, date ?? new DateOnly(2024, 3, 5), Included: true);
+        private static StatementImportRowDto RowDto(int? categoryId, string description, DateOnly? date = null, bool shiftToNextMonth = false)
+            => new(MoneyFlowType.Expense, categoryId, 40m, description, date ?? new DateOnly(2024, 3, 5), Included: true, shiftToNextMonth);
 
         private static StatementLineDto Line(int year, int month, int day, decimal amount, string description)
             => new(new DateOnly(year, month, day), description, amount, Fitid: null);

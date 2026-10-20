@@ -23,7 +23,7 @@ namespace LifeManager.Domain.Categorization
         public MoneyFlowType Type { get; }
         public RuleAction Action { get; }
 
-        /// <summary>Null for <see cref="RuleAction.Ignore"/>.</summary>
+        /// <summary>Null for <see cref="RuleAction.Ignore"/>, <see cref="RuleAction.NextMonth"/> and <see cref="RuleAction.SameMonth"/>.</summary>
         public CategoryId? CategoryId { get; }
 
         public int Hits { get; private set; }

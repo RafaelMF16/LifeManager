@@ -44,6 +44,18 @@ namespace LifeManager.Domain.Test.StatementImports
         }
 
         [Fact]
+        public void CreateFromImport_ShouldPostAShiftedRowOnTheFirstDayOfTheNextMonth()
+        {
+            var row = Row(new DateOnly(2019, 1, 30), categoryId: 6);
+            row.Edit(MoneyFlowType.Expense, 6, 80.5m, "Mercado", row.Date, included: true, Today, shiftToNextMonth: true);
+
+            var result = Transaction.CreateFromImport(row, PastMonth(2019, 2));
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(new DateOnly(2019, 2, 1), result.Value.TransactionDate);
+        }
+
+        [Fact]
         public void CreateFromImport_ShouldPostTheRowAndRememberItsImportAndBankLine()
         {
             var row = Row(new DateOnly(2019, 2, 14), categoryId: 6);

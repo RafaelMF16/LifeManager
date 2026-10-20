@@ -110,7 +110,7 @@ namespace LifeManager.Domain.Transactions
             if (row.CategoryId is null)
                 return StatementImportErrors.UncategorizedRows;
 
-            return Create(row.Type, row.CategoryId.Value, row.Amount.Value, row.Description.Value, row.Date, monthlySummary)
+            return Create(row.Type, row.CategoryId.Value, row.Amount.Value, row.Description.Value, row.EffectiveDate, monthlySummary)
                 .Tap(transaction =>
                 {
                     transaction.StatementImportId = row.StatementImportId;
