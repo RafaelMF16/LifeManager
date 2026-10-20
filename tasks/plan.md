@@ -64,7 +64,7 @@ SuggestionSource (+3 valores)
 - [ ] Revisão com o usuário
 
 ### Phase 2: Transferências entre contas próprias
-- [ ] Tarefa 5: `OwnTransferDetector` (domínio, TDD)
+- [x] Tarefa 5: `OwnTransferDetector` (domínio, TDD)
 - [ ] Tarefa 6: `ApplyOwnTransferDetection` e o titular no `StatementImportService`
 
 ### Checkpoint B: Transferências

@@ -140,7 +140,7 @@ genérico de "Fora".
 
 ## Phase 2: Transferências entre contas próprias
 
-### Tarefa 5: `OwnTransferDetector` (domínio, TDD)
+### ✅ Tarefa 5: `OwnTransferDetector` (domínio, TDD)
 
 **Description:** `OwnTransferDetector.For(string? holderName)` normaliza o nome do titular e descarta palavras com 2
 letras ou menos e as partículas `de`, `da`, `do`, `das`, `dos`, `e`. Com menos de 2 palavras, o detector nunca
@@ -149,15 +149,15 @@ detecta. `IsOwnTransfer(string? description)` exige as duas condições:
 - todas as palavras do titular aparecem como palavras inteiras, na mesma ordem, podendo ter palavras no meio (CA4, CA5, CA6).
 
 **Acceptance criteria:**
-- [ ] Os formatos do Inter (`Pix enviado/recebido: "Cp :<n>-<TITULAR>"`) e do Nubank
+- [x] Os formatos do Inter (`Pix enviado/recebido: "Cp :<n>-<TITULAR>"`) e do Nubank
       (`Transferência recebida/enviada pelo Pix - <TITULAR> - …`) são detectados com o titular de 3 palavras, e também
       com o titular "Nome Sobrenome" de 2 palavras.
-- [ ] Não são detectados: o nome de terceiro, as palavras fora de ordem, uma linha sem palavra de transferência no começo
+- [x] Não são detectados: o nome de terceiro, as palavras fora de ordem, uma linha sem palavra de transferência no começo
       (ex.: `Estorno: "CDB PORQUINHO <TITULAR>"`), um titular de 1 palavra, um titular vazio ou nulo.
-- [ ] Acento e caixa não importam, e as partículas do nome são ignoradas.
+- [x] Acento e caixa não importam, e as partículas do nome são ignoradas.
 
 **Verification:**
-- [ ] `dotnet test LifeManager.Domain.Test --filter "FullyQualifiedName~OwnTransferDetectorTests"` (os testes são escritos antes)
+- [x] `dotnet test LifeManager.Domain.Test --filter "FullyQualifiedName~OwnTransferDetectorTests"` (os testes são escritos antes)
 
 **Dependencies:** nenhuma (pode rodar em paralelo à Phase 1)
 
