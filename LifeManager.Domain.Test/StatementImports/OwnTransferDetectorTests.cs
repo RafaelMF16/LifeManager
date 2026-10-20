@@ -18,9 +18,29 @@ namespace LifeManager.Domain.Test.StatementImports
         }
 
         [Fact]
-        public void IsOwnTransfer_ShouldFindTheHolder_WhenTheBankWritesMoreNamesThanTheAccount()
+        public void IsOwnTransfer_ShouldFindTheHolder_WhenTheBankWritesMoreNamesThanAThreeWordName()
         {
-            Assert.True(OwnTransferDetector.For("Fulano Ciclano").IsOwnTransfer("Pix recebido: \"Cp :90400888-FULANO BELTRANO CICLANO\""));
+            Assert.True(OwnTransferDetector.For(Holder).IsOwnTransfer("Pix recebido: \"Cp :90400888-FULANO BELTRANO SOUZA CICLANO\""));
+        }
+
+        [Fact]
+        public void IsOwnTransfer_ShouldFindATwoWordName_OnlyWhenTheWordsAreTogether()
+        {
+            var detector = OwnTransferDetector.For("Fulano Ciclano");
+
+            Assert.True(detector.IsOwnTransfer("Pix enviado: \"Cp :18236120-Fulano Ciclano\""));
+            Assert.True(detector.IsOwnTransfer("PIX RECEBIDO FULANO DE CICLANO"));
+            Assert.False(detector.IsOwnTransfer("Pix enviado: \"Cp :18236120-Fulano Beltrano Ciclano\""));
+        }
+
+        [Theory]
+        [InlineData("Fulano Ciclano")]
+        [InlineData(Holder)]
+        public void IsOwnTransfer_ShouldFindNothing_WhenTheTransferNamesFewerWordsThanTheHolder(string holder)
+        {
+            Assert.False(OwnTransferDetector.For(holder).IsOwnTransfer("Pix"));
+            Assert.False(OwnTransferDetector.For(holder).IsOwnTransfer("TED 12"));
+            Assert.False(OwnTransferDetector.For(holder).IsOwnTransfer("PIX ENVIADO FULANO"));
         }
 
         [Fact]

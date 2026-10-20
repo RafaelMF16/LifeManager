@@ -64,8 +64,10 @@ importação, quando o usuário ainda não tem histórico nem regras aprendidas:
 - **CA5.** Uma linha é transferência entre contas próprias quando as duas condições abaixo valem:
   - a descrição normalizada **começa** com uma palavra de transferência: `pix`, `transferencia`, `transf`, `ted`, `doc`
     ou `tev`;
-  - **todas** as palavras do titular aparecem como palavras inteiras na descrição, **na mesma ordem**, podendo ter
-    palavras no meio. Assim, "Fulano Ciclano" encontra "FULANO BELTRANO CICLANO".
+  - **todas** as palavras do titular aparecem como palavras inteiras na descrição, **na mesma ordem**. Com 3 palavras
+    ou mais, o banco pode ter nomes a mais no meio ("Fulano Beltrano Ciclano" encontra "FULANO BELTRANO SOUZA
+    CICLANO"). Com 2 palavras, elas precisam estar juntas: "Maria Silva" não encontra "Maria Aparecida Silva", que é
+    outra pessoa. *(Revisado depois da revisão de código: antes, nomes a mais valiam também com 2 palavras.)*
 
   A linha então recebe `Included = false`, o tipo sem mudança, `SuggestionSource = OwnTransfer` e
   `SuggestionConfidence = High`.
@@ -209,7 +211,7 @@ namespace LifeManager.Domain.StatementImports
   - Casos de borda: texto vazio ou nulo, e prefixo no meio da frase (`Pix enviado: Aplicacao…` não é detectado).
 - `OwnTransferDetectorTests`:
   - os formatos do Inter e do Nubank, nos dois sentidos, com o titular de 3 palavras;
-  - um titular cadastrado com 2 palavras ("Fulano Ciclano") também detecta;
+  - um titular cadastrado com 2 palavras ("Fulano Ciclano") detecta só com as duas juntas, e um de 3 aceita nomes a mais no meio;
   - um titular de 1 palavra ou vazio não detecta nada;
   - um nome de terceiro não é detectado;
   - palavras fora de ordem não são detectadas;
