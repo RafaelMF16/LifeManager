@@ -13,6 +13,7 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
   - [Meses](#meses)
   - [Lançamentos](#lançamentos)
   - [Transações recorrentes](#transações-recorrentes)
+  - [Importação de extrato](#importação-de-extrato)
   - [Metas](#metas)
   - [Painel](#painel)
 - [Hábitos](#hábitos)
@@ -72,10 +73,10 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
 ### Meses
 
 - Os lançamentos ficam dentro de um mês. Cada usuário tem **no máximo um registro por mês**.
-- Pelo app, **só é possível criar meses do ano corrente**. Meses de anos passados só aparecem quando já existiam ou quando uma recorrência os abre (veja abaixo).
+- Pelo app, **só é possível criar meses do ano corrente**. Meses de anos passados só aparecem quando já existiam, quando uma recorrência os abre ou quando uma [importação de extrato](#importação-de-extrato) é confirmada.
 - Um mês novo começa com os totais zerados.
 - **Totais:** receitas, gastos e investido nunca são negativos e só mudam pelos lançamentos.
-- **Saldo = receitas − gastos − investido.** Investir é dinheiro guardado: ele sai da conta como um gasto, mas fica separado dos gastos. Um resgate de investimento é registrado pelo usuário como receita.
+- **Saldo = receitas − gastos − investido.** Investir é dinheiro guardado: ele sai da conta como um gasto, mas fica separado dos gastos. Um resgate de investimento não é receita: na [importação de extrato](#importação-de-extrato) ele já vem fora da importação (o usuário pode incluí-lo, como receita, se quiser).
 - A lista de meses filtra por ano e por saldo (positivo = saldo ≥ 0; negativo = saldo < 0). A ordenação padrão é do mais recente para o mais antigo.
 - O detalhe do mês mostra a quantidade de lançamentos de cada tipo e o mês anterior e o próximo do usuário (os meses cadastrados mais próximos, não necessariamente consecutivos).
 
@@ -104,6 +105,56 @@ Uma recorrência lança a mesma transação **todo mês, no dia escolhido** (sal
 - **Pausar e retomar:** ao retomar, os meses em que ela esteve pausada **são pulados** (não são lançados depois).
 - **Editar** muda apenas os próximos lançamentos; os que já foram feitos ficam como estão. Se a recorrência acabou de ser lançada pelo processo automático no momento da edição, a edição é recusada e precisa ser repetida.
 - **Excluir** não apaga as transações já lançadas.
+
+### Importação de extrato
+
+Traz o extrato do banco (OFX ou CSV) para o app. O arquivo é lido no navegador; o servidor recebe as linhas.
+
+**Rascunho**
+- Enviar um extrato cria uma **importação em revisão**: nada é lançado até o usuário confirmar. A revisão fica salva e pode ser retomada depois, em qualquer dispositivo.
+- Cada importação tem **de 1 a 5.000 linhas**. Cada linha precisa de descrição, de um valor diferente de zero (com no máximo 2 casas decimais) e de uma data **entre 01/01/2000 e hoje**; uma linha inválida recusa o envio inteiro.
+- Valor negativo vira **gasto** e positivo vira **receita**; a descrição do banco é cortada em 80 caracteres (o texto original, até 255, fica guardado para consulta).
+- A mesma linha do banco repetida no arquivo (mesmo identificador da linha e da conta, no OFX) é considerada uma vez só.
+- Uma importação em revisão há mais de **30 dias** é apagada automaticamente.
+
+**Revisão**
+- Cada linha pode ser editada como um lançamento (tipo, categoria, valor, descrição, data) e **incluída ou deixada de fora**. A categoria pode ficar vazia durante a revisão; a data pode mudar para qualquer mês.
+- Várias linhas selecionadas (até 100 de uma vez) podem receber a mesma categoria, o mesmo tipo ou ser incluídas/deixadas de fora juntas.
+- **Aplicar às parecidas:** a decisão de uma linha (tipo, categoria, incluída ou não) pode ser copiada para as outras linhas do mesmo estabelecimento. Linhas que o usuário editou uma a uma não mudam, e uma possível duplicata continua de fora.
+- Depois de confirmada, uma importação não muda mais.
+
+**Sugestão de categoria**
+- Cada linha é associada a um **estabelecimento**: a descrição do banco sem datas, números, cartões, parcelas e prefixos de meio de pagamento ("COMPRA CARTAO 12/03 IFOOD *RESTAURANTE 1234" → "ifood restaurante").
+- A sugestão vem, nesta ordem:
+  1. do que o usuário **decidiu em importações confirmadas** para o mesmo estabelecimento (regras aprendidas, que valem o dobro);
+  2. dos **lançamentos do usuário** com a mesma descrição (feitos à mão, por recorrência ou importados);
+  3. do **texto do próprio banco** (veja "Reconhecidos pelo texto do banco" abaixo);
+  4. de um estabelecimento com **nome parecido** (nunca para deixar de fora).
+- Decisões recentes pesam mais (metade do peso depois de um ano). Só contam decisões no mesmo sentido do dinheiro: saída pode virar gasto ou investimento; entrada, receita.
+- **Confiança:** alta quando a mesma escolha foi feita ao menos 2 vezes e soma pelo menos 80% das decisões daquele estabelecimento; média ou baixa nos outros casos (parecidos nunca passam de média).
+- Se o usuário deixou um estabelecimento de fora antes (ex.: transferência entre contas próprias), a linha já vem **fora da importação**.
+
+**Reconhecidos pelo texto do banco** (valem desde a primeira importação, sem histórico; o que o usuário já decidiu para o mesmo estabelecimento vem antes)
+- **Aplicação** (saída que começa com "Aplicação", "Aplic", "Dinheiro guardado", "Compra/Débito Tesouro Direto"): vem como **investimento**. A categoria fica vazia, a menos que um investimento de nome parecido já tenha uma.
+- **Resgate** (entrada que começa com "Resgate", "Dinheiro resgatado", "Crédito/Venda Tesouro Direto", ou uma aplicação estornada): vem **fora da importação**, porque não é receita nem dinheiro novo investido.
+- **Transferência entre contas próprias** (Pix, TED ou transferência, nos dois sentidos, com o **nome do cadastro** do usuário na linha): vem **fora da importação**. Todas as palavras do nome do cadastro precisam aparecer, na mesma ordem. Com 3 palavras ou mais, o banco pode ter nomes a mais no meio; com 2, elas precisam estar juntas ("Maria Silva" não reconhece "Maria Aparecida Silva", que é outra pessoa). Palavras de até 2 letras e "de", "da", "do", "das", "dos", "e" não contam. Com um nome de uma palavra só, nada é reconhecido, para não pegar outras pessoas com o mesmo nome.
+- Só vale o **começo** do texto: "Pix enviado: Aplicação…" não é uma aplicação. O sentido do dinheiro decide: uma aplicação com valor de entrada é um estorno, logo um resgate.
+- Incluir uma dessas linhas (por exemplo, o salário que chega de uma conta própria que não é importada) ensina a regra, e as próximas importações seguem essa decisão.
+
+**Possíveis duplicatas** (linhas que vêm de fora, para o usuário decidir)
+- a mesma linha de um extrato já importado (mesmo identificador da linha e da conta);
+- um lançamento do usuário com a **mesma data e o mesmo valor** (com o mesmo sentido);
+- um lançamento com o mesmo valor **até 3 dias de distância** e um estabelecimento parecido.
+- Cada lançamento existente corresponde a no máximo uma linha, então duas compras iguais no mesmo dia não somem as duas.
+
+**Confirmação**
+- Só é possível confirmar com **ao menos uma linha incluída** e **todas as incluídas com categoria** (de outro usuário não vale).
+- Os meses que faltam são **criados, de qualquer ano** (exceção à regra do ano corrente), e os totais de cada mês são recalculados uma vez.
+- Uma linha do banco já lançada naquele mês (por outra importação confirmada no meio tempo) é **pulada**; o resultado informa quantas.
+- Duas confirmações da mesma importação ao mesmo tempo lançam uma vez só.
+- A confirmação **ensina as sugestões:** cada linha incluída conta um uso da sua categoria para o estabelecimento, e cada linha deixada de fora (que não seja duplicata) conta como "deixar de fora".
+- Confirmada, a importação vira histórico (quantas transações e quantos meses novos); as linhas da revisão são apagadas.
+- **Remover do histórico** uma importação confirmada não apaga as transações que ela lançou. Descartar uma em revisão apaga só a revisão.
 
 ### Metas
 
@@ -339,6 +390,18 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 | `RecurringTransaction.AlreadyPaused` / `NotPaused` | Conflict | Pausar uma recorrência já pausada, ou retomar uma que não está pausada |
 | `RecurringTransaction.ChangedConcurrently` | Conflict | A recorrência foi lançada durante a edição; é preciso tentar de novo |
 | `RecurringTransaction.NotFound` | NotFound | Recorrência não existe |
+| `StatementImport.FileNameIsNullOrWhiteSpace` / `FileNameTooLong` | Validation | Nome do arquivo vazio ou com mais de 255 caracteres |
+| `StatementImport.AccountKeyTooLong` | Validation | Identificador da conta com mais de 100 caracteres |
+| `StatementImport.InvalidSource` | Validation | Formato diferente de OFX ou CSV |
+| `StatementImport.Empty` / `TooManyLines` | Validation | Extrato sem linhas ou com mais de 5.000 |
+| `StatementImport.AmountZero` | Validation | Linha com valor zero |
+| `StatementImport.DateOutOfRange` | Validation | Linha com data antes de 2000 ou depois de hoje |
+| `StatementImport.InvalidMonth` | Validation | Filtro de mês em formato inválido |
+| `StatementImport.NothingToChange` / `TooManyRowsSelected` | Validation | Alteração em lote sem linhas ou sem mudança, ou com mais de 100 linhas |
+| `StatementImport.NothingToImport` | Validation | Confirmação sem nenhuma linha incluída |
+| `StatementImport.UncategorizedRows` | Validation | Confirmação com linhas incluídas sem categoria |
+| `StatementImport.AlreadyCommitted` | Conflict | Mudança ou confirmação de uma importação já confirmada |
+| `StatementImport.NotFound` / `RowNotFound` | NotFound | Importação (ou linha dela) não existe ou é de outro usuário |
 | `Budget.InvalidType` | Validation | Meta que não é de gasto nem de investimento |
 | `Budget.InvalidMonth` | Validation | Mês em formato inválido |
 | `Budget.AmountNotPositive` / `AmountTooManyDecimals` / `AmountTooLarge` | Validation | Valor da meta inválido (mesmas regras dos lançamentos) |

@@ -19,6 +19,9 @@ param(
 $ErrorActionPreference = 'Stop'
 
 function Invoke-Checked([scriptblock] $Command) {
+    # gcloud writes its progress to stderr, which Windows PowerShell 5.1 turns into a terminating error under 'Stop'.
+    # Native commands are checked by their exit code instead.
+    $ErrorActionPreference = 'Continue'
     & $Command
     if ($LASTEXITCODE -ne 0) { throw "Command failed with exit code $LASTEXITCODE" }
 }

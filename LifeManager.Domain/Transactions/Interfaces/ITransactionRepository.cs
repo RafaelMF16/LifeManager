@@ -34,6 +34,23 @@ namespace LifeManager.Domain.Transactions.Interfaces
         /// <summary>Whether any of the user's transactions uses the category.</summary>
         Task<bool> ExistsByCategoryAsync(CategoryId categoryId, UserId userId, CancellationToken cancellationToken);
 
+        /// <summary>
+        /// The user's transactions a statement import could repeat: dated from <paramref name="from"/> to
+        /// <paramref name="to"/> (a few days wider than the statement), or carrying one of <paramref name="externalIds"/>.
+        /// </summary>
+        Task<IReadOnlyList<ExistingTransaction>> GetForDuplicateCheckAsync(
+            UserId userId,
+            DateOnly from,
+            DateOnly to,
+            IReadOnlyCollection<string> externalIds,
+            CancellationToken cancellationToken);
+
+        /// <summary>
+        /// The user's transactions grouped by normalized description, type and category (one row per group, with its
+        /// count and latest date): what category suggestions learn from.
+        /// </summary>
+        Task<IReadOnlyList<CategoryHistoryEntry>> GetCategoryHistoryAsync(UserId userId, CancellationToken cancellationToken);
+
         Task UpdateAsync(Transaction transaction, CancellationToken cancellationToken);
         Task<bool> DeleteAsync(TransactionId transactionId, MonthlySummaryId monthlySummaryId, CancellationToken cancellationToken);
     }
