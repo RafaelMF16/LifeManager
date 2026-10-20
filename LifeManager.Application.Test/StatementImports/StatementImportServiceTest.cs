@@ -831,6 +831,35 @@ namespace LifeManager.Application.Test.StatementImports
                     .Select(rule => (rule.Action, rule.CategoryId, rule.Hits)));
         }
 
+        [Fact]
+        public async Task CreateAsync_ShouldShiftAMerchantsMonthEndLine_WhenTheUserShiftedItBefore()
+        {
+            var first = await CreateAsync(Line(2024, 2, 29, 5000m, "SALARIO EMPRESA XPTO"));
+            ShiftRow(SingleRow("salario empresa xpto"), Salary);
+            await _service.CommitAsync(first.Value!.Id, FirstUserId, CancellationToken.None);
+
+            var second = await CreateAsync(
+                Line(2024, 3, 15, 1200m, "SALARIO EMPRESA XPTO"),
+                Line(2024, 3, 29, 5000m, "SALARIO EMPRESA XPTO"));
+
+            var monthEnd = StatementImportRowSingleton.Instance.Single(row => row.Date == new DateOnly(2024, 3, 29));
+            Assert.Equal((true, true, new DateOnly(2024, 4, 1)), (monthEnd.ShiftToNextMonth, monthEnd.ShiftLearned, monthEnd.EffectiveDate));
+            Assert.False(StatementImportRowSingleton.Instance.Single(row => row.Date == new DateOnly(2024, 3, 15)).ShiftToNextMonth);
+
+            var months = (await _service.GetByIdAsync(second.Value!.Id, FirstUserId, CancellationToken.None)).Value!.Months;
+            Assert.Equal(["2024-03", "2024-04"], months.Select(month => month.Month));
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldShiftAnExpense_WhenTheUserShiftedTheMerchantsExpensesBefore()
+        {
+            SeedRule("fatura cartao", categoryId: null, hits: 1, action: RuleAction.NextMonth);
+
+            await CreateAsync(Line(2024, 3, 28, -900m, "FATURA CARTAO"));
+
+            Assert.True(SingleRow("fatura cartao").ShiftLearned);
+        }
+
         private Task<Domain.Shared.Results.Result<StatementImportResponseDto>> CreateAsync(params StatementLineDto[] lines)
             => _service.CreateAsync(new StatementImportDto("extrato.ofx", StatementImportSource.Ofx, Account, lines), FirstUserId, CancellationToken.None);
 

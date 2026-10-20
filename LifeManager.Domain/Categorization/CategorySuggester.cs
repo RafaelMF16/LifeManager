@@ -125,11 +125,14 @@ namespace LifeManager.Domain.Categorization
         }
 
         private double Score(CategoryEvidence item)
-        {
-            var ageInMonths = Math.Max(0, _today.DayNumber - item.LastUsedOn.DayNumber) / 30.0;
-            var recency = 1 / (1 + ageInMonths / 12);
+            => item.Count * (item.IsRule ? RuleWeight : 1) * Recency(item.LastUsedOn, _today);
 
-            return item.Count * (item.IsRule ? RuleWeight : 1) * recency;
+        /// <summary>How much a decision last used on <paramref name="lastUsedOn"/> still counts: half after a year.</summary>
+        internal static double Recency(DateOnly lastUsedOn, DateOnly today)
+        {
+            var ageInMonths = Math.Max(0, today.DayNumber - lastUsedOn.DayNumber) / 30.0;
+
+            return 1 / (1 + ageInMonths / 12);
         }
 
         private static bool InDirection(CategoryEvidence item, bool isIncome)
