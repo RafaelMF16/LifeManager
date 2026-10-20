@@ -76,7 +76,7 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
 - Pelo app, **só é possível criar meses do ano corrente**. Meses de anos passados só aparecem quando já existiam, quando uma recorrência os abre ou quando uma [importação de extrato](#importação-de-extrato) é confirmada.
 - Um mês novo começa com os totais zerados.
 - **Totais:** receitas, gastos e investido nunca são negativos e só mudam pelos lançamentos.
-- **Saldo = receitas − gastos − investido.** Investir é dinheiro guardado: ele sai da conta como um gasto, mas fica separado dos gastos. Um resgate de investimento é registrado pelo usuário como receita.
+- **Saldo = receitas − gastos − investido.** Investir é dinheiro guardado: ele sai da conta como um gasto, mas fica separado dos gastos. Um resgate de investimento não é receita: na [importação de extrato](#importação-de-extrato) ele já vem fora da importação (o usuário pode incluí-lo, como receita, se quiser).
 - A lista de meses filtra por ano e por saldo (positivo = saldo ≥ 0; negativo = saldo < 0). A ordenação padrão é do mais recente para o mais antigo.
 - O detalhe do mês mostra a quantidade de lançamentos de cada tipo e o mês anterior e o próximo do usuário (os meses cadastrados mais próximos, não necessariamente consecutivos).
 
@@ -128,10 +128,18 @@ Traz o extrato do banco (OFX ou CSV) para o app. O arquivo é lido no navegador;
 - A sugestão vem, nesta ordem:
   1. do que o usuário **decidiu em importações confirmadas** para o mesmo estabelecimento (regras aprendidas, que valem o dobro);
   2. dos **lançamentos do usuário** com a mesma descrição (feitos à mão, por recorrência ou importados);
-  3. de um estabelecimento com **nome parecido** (nunca para deixar de fora).
+  3. do **texto do próprio banco** (veja "Reconhecidos pelo texto do banco" abaixo);
+  4. de um estabelecimento com **nome parecido** (nunca para deixar de fora).
 - Decisões recentes pesam mais (metade do peso depois de um ano). Só contam decisões no mesmo sentido do dinheiro: saída pode virar gasto ou investimento; entrada, receita.
 - **Confiança:** alta quando a mesma escolha foi feita ao menos 2 vezes e soma pelo menos 80% das decisões daquele estabelecimento; média ou baixa nos outros casos (parecidos nunca passam de média).
 - Se o usuário deixou um estabelecimento de fora antes (ex.: transferência entre contas próprias), a linha já vem **fora da importação**.
+
+**Reconhecidos pelo texto do banco** (valem desde a primeira importação, sem histórico; o que o usuário já decidiu para o mesmo estabelecimento vem antes)
+- **Aplicação** (saída que começa com "Aplicação", "Aplic", "Dinheiro guardado", "Compra/Débito Tesouro Direto"): vem como **investimento**. A categoria fica vazia, a menos que um investimento de nome parecido já tenha uma.
+- **Resgate** (entrada que começa com "Resgate", "Dinheiro resgatado", "Crédito/Venda Tesouro Direto", ou uma aplicação estornada): vem **fora da importação**, porque não é receita nem dinheiro novo investido.
+- **Transferência entre contas próprias** (Pix, TED ou transferência, nos dois sentidos, com o **nome do cadastro** do usuário na linha): vem **fora da importação**. Todas as palavras do nome do cadastro precisam aparecer, na mesma ordem (o banco pode ter nomes a mais); palavras de até 2 letras e "de", "da", "do", "das", "dos", "e" não contam. Com um nome de uma palavra só, nada é reconhecido, para não pegar outras pessoas com o mesmo nome.
+- Só vale o **começo** do texto: "Pix enviado: Aplicação…" não é uma aplicação. O sentido do dinheiro decide: uma aplicação com valor de entrada é um estorno, logo um resgate.
+- Incluir uma dessas linhas (por exemplo, o salário que chega de uma conta própria que não é importada) ensina a regra, e as próximas importações seguem essa decisão.
 
 **Possíveis duplicatas** (linhas que vêm de fora, para o usuário decidir)
 - a mesma linha de um extrato já importado (mesmo identificador da linha e da conta);

@@ -74,7 +74,7 @@ SuggestionSource (+3 valores)
 
 ### Phase 3: Validação com os arquivos reais e documentação
 - [x] Tarefa 7: teste do CA12 com amostras anonimizadas dos três arquivos
-- [ ] Tarefa 8: documentação (regras de negócio, CLAUDE.md, fluxo de telas)
+- [x] Tarefa 8: documentação (regras de negócio, CLAUDE.md, fluxo de telas)
 
 ### Checkpoint: Completo
 - [ ] Todas as suítes, o build e o lint verdes

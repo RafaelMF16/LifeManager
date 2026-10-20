@@ -240,22 +240,22 @@ receita, incluídas.
 
 ---
 
-### Tarefa 8: documentação
+### ✅ Tarefa 8: documentação
 
 **Description:** atualizar as regras e a referência técnica junto com o comportamento.
 
 **Acceptance criteria:**
-- [ ] `docs/regras-de-negocio.md`:
+- [x] `docs/regras-de-negocio.md`:
   - a regra "um resgate é registrado pelo usuário como receita" passa a dizer que um resgate detectado no extrato chega
     fora da importação;
   - a seção "Sugestão de categoria" descreve as duas detecções, o titular pelo nome do cadastro (mínimo 2 palavras) e a
     precedência.
-- [ ] `CLAUDE.md`: as seções MonthlySummaries (a mesma frase) e StatementImports (rows, suggestions e tests)
+- [x] `CLAUDE.md`: as seções MonthlySummaries (a mesma frase) e StatementImports (rows, suggestions e tests)
       descrevem os detectores, as fontes novas, o `IUserRepository` no service e a precedência.
-- [ ] `Front/docs/fluxo-de-telas.md` (≈ linha 312): os novos selos da revisão.
+- [x] `Front/docs/fluxo-de-telas.md` (≈ linha 312): os novos selos da revisão.
 
 **Verification:**
-- [ ] Ler os três trechos e compará-los com o comportamento implementado
+- [x] Ler os três trechos e compará-los com o comportamento implementado
 
 **Dependencies:** Tarefas 4 e 6
 
