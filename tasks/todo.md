@@ -36,7 +36,7 @@ resgate, e isso inclui o estorno de aplicação.
 
 ---
 
-### Tarefa 2: novas fontes de sugestão e `StatementImportRow.ApplyInvestmentDetection`
+### ✅ Tarefa 2: novas fontes de sugestão e `StatementImportRow.ApplyInvestmentDetection`
 
 **Description:** adiciona `InvestmentApplication = 5`, `InvestmentRedemption = 6` e `OwnTransfer = 7` a
 `SuggestionSource`, com os comentários `<summary>`. Cria `ApplyInvestmentDetection(InvestmentMovement, CategoryId?)`
@@ -46,14 +46,14 @@ na linha.
 - Nos dois casos: a fonte correspondente, `Confidence = High` e `Uses = 0`.
 
 **Acceptance criteria:**
-- [ ] A aplicação deixa a linha como Investimento, com `SignedAmount` negativo, incluída, com a fonte
+- [x] A aplicação deixa a linha como Investimento, com `SignedAmount` negativo, incluída, com a fonte
       `InvestmentApplication` e `High`; a categoria passada é aplicada.
-- [ ] O resgate deixa a linha fora, como `Income`, sem categoria, com a fonte `InvestmentRedemption` e `High`.
-- [ ] `RuleLearning.From` continua gerando `Ignore` para um resgate excluído e `Categorize`/`Investment` para uma
+- [x] O resgate deixa a linha fora, como `Income`, sem categoria, com a fonte `InvestmentRedemption` e `High`.
+- [x] `RuleLearning.From` continua gerando `Ignore` para um resgate excluído e `Categorize`/`Investment` para uma
       aplicação confirmada (CA9).
 
 **Verification:**
-- [ ] `dotnet test LifeManager.Domain.Test --filter "FullyQualifiedName~StatementImportRowTests|FullyQualifiedName~RuleLearningTests"`
+- [x] `dotnet test LifeManager.Domain.Test --filter "FullyQualifiedName~StatementImportRowTests|FullyQualifiedName~RuleLearningTests"`
 
 **Dependencies:** Tarefa 1
 

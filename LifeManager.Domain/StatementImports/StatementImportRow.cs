@@ -4,6 +4,7 @@ using LifeManager.Domain.Categorization.Enums;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.Results;
 using LifeManager.Domain.Shared.ValueObjects;
+using LifeManager.Domain.StatementImports.Enums;
 using LifeManager.Domain.StatementImports.Errors;
 using LifeManager.Domain.StatementImports.ValueObjects;
 using LifeManager.Domain.Transactions.Errors;
@@ -184,6 +185,29 @@ namespace LifeManager.Domain.StatementImports
                 Included = false;
             else
                 CategoryId = suggestion.CategoryId;
+        }
+
+        /// <summary>
+        /// Files a line the bank wrote as an investment movement (<see cref="InvestmentDetector"/>): an application
+        /// becomes an investment, in <paramref name="categoryId"/> when one is known, and a redemption is left out, since
+        /// it is neither income nor new money invested.
+        /// </summary>
+        public void ApplyInvestmentDetection(InvestmentMovement movement, CategoryId? categoryId)
+        {
+            if (movement == InvestmentMovement.Application)
+            {
+                SetType(MoneyFlowType.Investment);
+                CategoryId = categoryId;
+                SuggestionSource = SuggestionSource.InvestmentApplication;
+            }
+            else
+            {
+                Included = false;
+                SuggestionSource = SuggestionSource.InvestmentRedemption;
+            }
+
+            SuggestionConfidence = Categorization.Enums.SuggestionConfidence.High;
+            SuggestionUses = 0;
         }
 
         /// <summary>The line is already among the user's transactions (or likely so): it is left out unless the user includes it.</summary>

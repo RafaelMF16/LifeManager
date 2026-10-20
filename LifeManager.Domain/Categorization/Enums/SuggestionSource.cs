@@ -13,6 +13,15 @@ namespace LifeManager.Domain.Categorization.Enums
         History = 3,
 
         /// <summary>A merchant with a similar name.</summary>
-        Similar = 4
+        Similar = 4,
+
+        /// <summary>The bank's line for money put into an investment (<see cref="StatementImports.InvestmentDetector"/>).</summary>
+        InvestmentApplication = 5,
+
+        /// <summary>The bank's line for money taken out of an investment, left out (<see cref="StatementImports.InvestmentDetector"/>).</summary>
+        InvestmentRedemption = 6,
+
+        /// <summary>A transfer between the user's own accounts, left out.</summary>
+        OwnTransfer = 7
     }
 }

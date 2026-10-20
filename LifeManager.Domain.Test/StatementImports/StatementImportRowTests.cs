@@ -3,6 +3,7 @@ using LifeManager.Domain.Categorization;
 using LifeManager.Domain.Categorization.Enums;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.StatementImports;
+using LifeManager.Domain.StatementImports.Enums;
 using LifeManager.Domain.StatementImports.Errors;
 using LifeManager.Domain.Transactions.Errors;
 
@@ -223,6 +224,49 @@ namespace LifeManager.Domain.Test.StatementImports
 
             Assert.False(duplicate.Included);
             Assert.Equal(new CategoryId(1), duplicate.CategoryId);
+        }
+
+        [Fact]
+        public void ApplyInvestmentDetection_ShouldFileAnApplicationAsAnIncludedInvestment()
+        {
+            var row = Row(amount: -500m, description: "Aplicação RDB");
+
+            row.ApplyInvestmentDetection(InvestmentMovement.Application, null);
+
+            Assert.Equal(MoneyFlowType.Investment, row.Type);
+            Assert.Equal(-500m, row.SignedAmount);
+            Assert.True(row.Included);
+            Assert.Null(row.CategoryId);
+            Assert.Equal(SuggestionSource.InvestmentApplication, row.SuggestionSource);
+            Assert.Equal(SuggestionConfidence.High, row.SuggestionConfidence);
+            Assert.Equal(0, row.SuggestionUses);
+            Assert.False(row.EditedByUser);
+        }
+
+        [Fact]
+        public void ApplyInvestmentDetection_ShouldKeepTheCategory_WhenOneIsGiven()
+        {
+            var row = Row(amount: -500m, description: "Aplicação RDB");
+
+            row.ApplyInvestmentDetection(InvestmentMovement.Application, new CategoryId(7));
+
+            Assert.Equal(new CategoryId(7), row.CategoryId);
+        }
+
+        [Fact]
+        public void ApplyInvestmentDetection_ShouldLeaveARedemptionOut()
+        {
+            var row = Row(amount: 610m, description: "Resgate RDB");
+
+            row.ApplyInvestmentDetection(InvestmentMovement.Redemption, null);
+
+            Assert.Equal(MoneyFlowType.Income, row.Type);
+            Assert.Equal(610m, row.SignedAmount);
+            Assert.False(row.Included);
+            Assert.Null(row.CategoryId);
+            Assert.Equal(SuggestionSource.InvestmentRedemption, row.SuggestionSource);
+            Assert.Equal(SuggestionConfidence.High, row.SuggestionConfidence);
+            Assert.Equal(0, row.SuggestionUses);
         }
     }
 }

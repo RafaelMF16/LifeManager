@@ -3,6 +3,7 @@ using LifeManager.Domain.Categorization;
 using LifeManager.Domain.Categorization.Enums;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.StatementImports;
+using LifeManager.Domain.StatementImports.Enums;
 
 namespace LifeManager.Domain.Test.Categorization
 {
@@ -41,6 +42,17 @@ namespace LifeManager.Domain.Test.Categorization
             var learnings = RuleLearning.From([Row("PIX ENVIADO JOAO", null, included: false)]);
 
             Assert.Equal([new RuleLearning("joao", MoneyFlowType.Expense, RuleAction.Ignore, null, 1)], learnings);
+        }
+
+        [Fact]
+        public void From_ShouldLearnToIgnoreARedemptionLeftOutByTheDetection()
+        {
+            var row = StatementImportRow.Create(new StatementLine(new DateOnly(2025, 1, 10), "Resgate RDB", 610m, null), null, Today).Value!;
+            row.ApplyInvestmentDetection(InvestmentMovement.Redemption, null);
+
+            var learnings = RuleLearning.From([row]);
+
+            Assert.Equal([new RuleLearning("resgate rdb", MoneyFlowType.Income, RuleAction.Ignore, null, 1)], learnings);
         }
 
         [Fact]
