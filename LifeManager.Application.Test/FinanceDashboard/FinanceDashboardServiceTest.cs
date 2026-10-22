@@ -59,7 +59,7 @@ namespace LifeManager.Application.Test.FinanceDashboard
             Assert.True(result.IsSuccess);
             Assert.Equal(new DashboardPeriodDto("2026-04", "2026-06", 3), result.Value.Period);
             Assert.Equal(
-                [new DashboardMonthDto(2026, 4, 0, 0, 0, 0), new DashboardMonthDto(2026, 5, 0, 0, 0, 0), new DashboardMonthDto(2026, 6, 0, 0, 0, 0)],
+                [new DashboardMonthDto(2026, 4, 0, 0, 0, 0, 0), new DashboardMonthDto(2026, 5, 0, 0, 0, 0, 0), new DashboardMonthDto(2026, 6, 0, 0, 0, 0, 0)],
                 result.Value.Months);
             Assert.Equal(new DashboardAmountDto(0, 0, 0, null), result.Value.Totals.Income);
             Assert.Empty(result.Value.Expenses.Items);
@@ -86,7 +86,7 @@ namespace LifeManager.Application.Test.FinanceDashboard
             Assert.Equal(2500m, totals.Balance.Current);
             Assert.Equal(3500m, totals.Saved.Current);
             Assert.Equal(0.7m, totals.SavingsRate);
-            Assert.Equal([new DashboardMonthDto(2026, 4, 5000m, 1500m, 1000m, 2500m)], result.Value.Months);
+            Assert.Equal([new DashboardMonthDto(2026, 4, 5000m, 1500m, 1000m, 2500m, 3500m)], result.Value.Months);
             Assert.Equal(1500m, result.Value.Expenses.Total);
             Assert.Equal(1000m, result.Value.Investments.Total);
             Assert.Equal("Tesouro", Assert.Single(result.Value.Investments.Items).Name);
@@ -184,6 +184,7 @@ namespace LifeManager.Application.Test.FinanceDashboard
             Assert.Equal(new DashboardAmountDto(2000m, 1000m, 1000m, 1m), totals.Saved);
             Assert.Equal(0.4m, totals.SavingsRate);
             Assert.Equal(-500m, totals.Balance.Current);
+            Assert.Equal([new DashboardMonthDto(2026, 4, 5000m, 3000m, 2500m, -500m, 2000m)], result.Value.Months);
         }
 
         [Fact]

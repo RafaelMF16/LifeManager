@@ -183,7 +183,7 @@ namespace LifeManager.Application.FinanceDashboard.Services
         {
             var totals = SumByType([.. current.Where(row => row.Year == month.Year && row.Month == month.Month)]);
 
-            return new DashboardMonthDto(month.Year, month.Month, totals.Income, totals.Expense, totals.Investment, totals.Balance);
+            return new DashboardMonthDto(month.Year, month.Month, totals.Income, totals.Expense, totals.Investment, totals.Balance, totals.Saved);
         }
 
         /// <summary>
