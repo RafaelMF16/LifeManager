@@ -14,7 +14,7 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
   - [Lançamentos](#lançamentos)
   - [Transações recorrentes](#transações-recorrentes)
   - [Importação de extrato](#importação-de-extrato)
-  - [Metas](#metas)
+  - [Orçamento do mês](#orçamento-do-mês)
   - [Painel](#painel)
 - [Hábitos](#hábitos)
   - [Personagem](#personagem)
@@ -68,7 +68,7 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
 - O nome é **único por usuário, ignorando acentos e maiúsculas**: "Mercado", "mercado" e "Mercadó" são o mesmo nome. Renomear para outra grafia do mesmo nome é permitido.
 - A categoria não tem tipo: a mesma categoria serve para gastos, receitas e investimentos.
 - **Não é possível excluir uma categoria em uso** por lançamentos ou transações recorrentes. Antes, troque a categoria deles.
-- Excluir uma categoria **apaga as metas** dela, porque uma meta não faz sentido sem a categoria.
+- Excluir uma categoria **apaga as fatias de orçamento** dela, em todos os meses, porque uma fatia não faz sentido sem a categoria. O % delas volta para o Livre.
 
 ### Meses
 
@@ -165,21 +165,25 @@ Traz o extrato do banco (OFX ou CSV) para o app. O arquivo é lido no navegador;
 - Confirmada, a importação vira histórico (quantas transações e quantos meses novos); as linhas da revisão são apagadas.
 - **Remover do histórico** uma importação confirmada não apaga as transações que ela lançou. Descartar uma em revisão apaga só a revisão.
 
-### Metas
+### Orçamento do mês
 
-Há dois tipos de meta mensal:
+Cada mês tem **no máximo um orçamento**: um **total** (quanto se pretende gastar e investir no mês) dividido em **fatias de %**.
 
-| Tipo | Significado | Cumprida quando |
+| Fatia | Significado | Cumprida quando |
 |---|---|---|
-| **Limite de gastos** | O máximo que se quer gastar no mês | gasto ≤ meta |
-| **Alvo de investimento** | O mínimo que se quer investir no mês | investido ≥ meta |
+| **Gasto de uma categoria** | O máximo que se quer gastar nela no mês | gasto da categoria ≤ valor da fatia |
+| **Investimentos** (no máximo uma, sem categoria) | O mínimo que se quer investir no mês | tudo o que foi investido ≥ valor da fatia |
 
-- Uma meta pode ser de uma **categoria** ou do **total do mês** (todas as categorias daquele tipo).
-- O valor segue as regras de dinheiro (maior que zero, 2 casas decimais).
-- **A meta vale do mês escolhido em diante**, até ser mudada. Mudar ou remover uma meta a partir de um mês **não altera os meses anteriores**, que continuam com a meta que tinham. Exemplo: limite de R$ 800 desde janeiro, alterado para R$ 600 a partir de abril, dá janeiro a março com R$ 800 e abril em diante com R$ 600.
-- Na edição, o tipo e a categoria de uma meta não mudam. Para isso, remova a meta e crie outra.
-- **Situação de um limite de gastos** (exibida no app): dentro do limite; **perto do limite** a partir de 80% da meta; limite estourado acima de 100%.
-- **Situação de um alvo de investimento:** abaixo do alvo ou alvo atingido.
+- O total segue as regras de dinheiro (maior que zero, 2 casas decimais).
+- Cada fatia tem um % **maior que 0 e até 100, com até 2 casas**. A **soma das fatias não passa de 100%**, e a mesma categoria não aparece duas vezes.
+- **Valor de uma fatia** = total × % ÷ 100, arredondado em centavos.
+- **Livre** = o que as fatias deixam: 100% − a soma dos %. Em dinheiro, é o total menos os valores das fatias, para fechar exatamente com o total. **Gastos em categorias sem fatia contam contra o Livre.**
+- **Cada mês é independente:** salvar ou excluir o orçamento de um mês não muda nenhum outro. Salvar substitui o orçamento do mês inteiro.
+- Mudar o total **mantém os %** e recalcula os valores das fatias.
+- **Copiar:** um mês sem orçamento pode começar com uma cópia do **último mês anterior que tem orçamento** (não precisa ser o mês imediatamente anterior). A cópia só é gravada quando o usuário salva.
+- Meses passados e futuros podem ser editados.
+- **Situação de uma fatia de gasto** (exibida no app): dentro do limite; **perto do limite** a partir de 80% do valor; limite estourado acima de 100%. **Situação da fatia de investimentos:** abaixo do alvo ou alvo atingido.
+- **Metas antigas:** as metas em R$ que valiam "do mês escolhido em diante" foram convertidas em orçamentos, do primeiro mês com meta até o mês da conversão. Em cada mês: total = o maior entre o limite do total do mês e a soma dos limites por categoria, mais o alvo de investimento (ou a soma dos alvos por categoria). Cada limite por categoria virou uma fatia, e o investimento virou uma fatia só. Os valores podem ter mudado em centavos por causa do arredondamento dos %.
 
 ### Painel
 
@@ -192,7 +196,7 @@ Há dois tipos de meta mensal:
 - **Taxa de poupança** = poupado ÷ receitas do período. Fica negativa quando os gastos passam das receitas, e não existe quando não há receitas. Um resgate lançado como receita entra no poupado do mês em que foi lançado.
 - Meses sem lançamentos aparecem zerados.
 - As quebras por categoria mostram as **8 maiores**; o resto é somado em "Outras", de modo que as partes sempre fecham com o total.
-- **Metas no painel:** cada mês é avaliado com a meta que valia naquele mês. A contagem "dentro do limite em X de N meses fechados" **deixa de fora o mês em andamento**. As categorias mais distantes da meta aparecem primeiro (até 5).
+- **Orçamento no painel:** cada mês é avaliado com o seu próprio orçamento. O **limite de gastos do mês** é o total menos a fatia de investimentos (o Livre conta como gasto permitido), e o **alvo de investimento** é a fatia de investimentos. Meses sem orçamento ficam sem meta. A contagem "dentro do limite em X de N meses fechados" **deixa de fora o mês em andamento**. As categorias que mais passaram do valor da fatia aparecem primeiro (até 5).
 
 ## Hábitos
 
@@ -413,10 +417,15 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 | `StatementImport.UncategorizedRows` | Validation | Confirmação com linhas incluídas sem categoria |
 | `StatementImport.AlreadyCommitted` | Conflict | Mudança ou confirmação de uma importação já confirmada |
 | `StatementImport.NotFound` / `RowNotFound` | NotFound | Importação (ou linha dela) não existe ou é de outro usuário |
-| `Budget.InvalidType` | Validation | Meta que não é de gasto nem de investimento |
-| `Budget.InvalidMonth` | Validation | Mês em formato inválido |
-| `Budget.AmountNotPositive` / `AmountTooManyDecimals` / `AmountTooLarge` | Validation | Valor da meta inválido (mesmas regras dos lançamentos) |
-| `Budget.NotFound` | NotFound | Nenhuma meta para remover daquele mês em diante |
+| `BudgetPlan.InvalidMonth` | Validation | Mês em formato inválido |
+| `BudgetPlan.InvalidType` | Validation | Fatia que não é de gasto nem de investimento |
+| `BudgetPlan.TotalNotPositive` / `TotalTooManyDecimals` / `TotalTooLarge` | Validation | Total do orçamento inválido (mesmas regras dos lançamentos) |
+| `BudgetPlan.PercentOutOfRange` / `PercentTooManyDecimals` | Validation | % de uma fatia fora de 0 (exclusivo) a 100, ou com mais de 2 casas |
+| `BudgetPlan.OverAllocated` | Validation | As fatias somam mais de 100% |
+| `BudgetPlan.DuplicateCategory` | Validation | A mesma categoria em duas fatias |
+| `BudgetPlan.ExpenseSliceWithoutCategory` | Validation | Fatia de gasto sem categoria |
+| `BudgetPlan.InvalidInvestmentSlice` | Validation | Fatia de investimento com categoria, ou mais de uma |
+| `BudgetPlan.NotFound` | NotFound | O mês não tem orçamento para excluir |
 | `FinanceDashboard.InvalidFrom` / `InvalidTo` | Validation | Mês do período em formato inválido |
 | `FinanceDashboard.EndBeforeStart` | Validation | Fim do período antes do início |
 | `FinanceDashboard.PeriodTooLong` | Validation | Período maior que 36 meses |
