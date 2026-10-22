@@ -60,6 +60,32 @@ namespace LifeManager.Infrastructure.Migrations
                     b.ToTable("RefreshTokens");
                 });
 
+            modelBuilder.Entity("LifeManager.Domain.BudgetPlans.BudgetPlan", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateOnly>("MonthStart")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("Total")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "MonthStart")
+                        .IsUnique();
+
+                    b.ToTable("BudgetPlans");
+                });
+
             modelBuilder.Entity("LifeManager.Domain.Budgets.Budget", b =>
                 {
                     b.Property<int>("Id")
@@ -870,6 +896,56 @@ namespace LifeManager.Infrastructure.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("LifeManager.Domain.BudgetPlans.BudgetPlan", b =>
+                {
+                    b.HasOne("LifeManager.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.OwnsMany("LifeManager.Domain.BudgetPlans.BudgetSlice", "Slices", b1 =>
+                        {
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("integer");
+
+                            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<int>("Id"));
+
+                            b1.Property<int>("BudgetPlanId")
+                                .HasColumnType("integer");
+
+                            b1.Property<int?>("CategoryId")
+                                .HasColumnType("integer");
+
+                            b1.Property<decimal>("Percent")
+                                .HasPrecision(5, 2)
+                                .HasColumnType("numeric(5,2)");
+
+                            b1.Property<int>("Type")
+                                .HasColumnType("integer");
+
+                            b1.HasKey("Id");
+
+                            b1.HasIndex("CategoryId");
+
+                            b1.HasIndex("BudgetPlanId", "CategoryId")
+                                .IsUnique();
+
+                            b1.ToTable("BudgetPlanSlices", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("BudgetPlanId");
+
+                            b1.HasOne("LifeManager.Domain.Categories.Category", null)
+                                .WithMany()
+                                .HasForeignKey("CategoryId")
+                                .OnDelete(DeleteBehavior.Cascade);
+                        });
+
+                    b.Navigation("Slices");
                 });
 
             modelBuilder.Entity("LifeManager.Domain.Budgets.Budget", b =>

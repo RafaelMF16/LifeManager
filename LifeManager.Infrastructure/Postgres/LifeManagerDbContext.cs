@@ -1,4 +1,5 @@
 ﻿using LifeManager.Domain.Auth;
+using LifeManager.Domain.BudgetPlans;
 using LifeManager.Domain.Budgets;
 using LifeManager.Domain.Categories;
 using LifeManager.Domain.Categorization;
@@ -24,6 +25,7 @@ namespace LifeManager.Infrastructure.Postgres
         public DbSet<Transaction> Transactions { get; set; }
         public DbSet<RecurringTransaction> RecurringTransactions { get; set; }
         public DbSet<Budget> Budgets { get; set; }
+        public DbSet<BudgetPlan> BudgetPlans { get; set; }
         public DbSet<PlayerProfile> PlayerProfiles { get; set; }
         public DbSet<GameLedgerEntry> GameLedgerEntries { get; set; }
         public DbSet<Habit> Habits { get; set; }
