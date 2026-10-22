@@ -1,4 +1,5 @@
 ﻿using LifeManager.Application.Auth.Services;
+using LifeManager.Application.BudgetPlans.Services;
 using LifeManager.Application.Budgets.Services;
 using LifeManager.Application.Categories.Services;
 using LifeManager.Application.FinanceDashboard.Services;
@@ -33,6 +34,7 @@ namespace LifeManager.Application.DI
             services.AddScoped<RecurringTransactionService>();
             services.AddScoped<RecurringTransactionPostingService>();
             services.AddScoped<BudgetService>();
+            services.AddScoped<BudgetPlanService>();
             services.AddScoped<PlayerWalletService>();
             services.AddScoped<HabitService>();
             services.AddScoped<HabitCheckInService>();
