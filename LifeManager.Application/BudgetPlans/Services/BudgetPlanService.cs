@@ -2,6 +2,8 @@ using LifeManager.Application.BudgetPlans.DTOs;
 using LifeManager.Domain.BudgetPlans;
 using LifeManager.Domain.BudgetPlans.Errors;
 using LifeManager.Domain.BudgetPlans.Interfaces;
+using LifeManager.Domain.Categories.Errors;
+using LifeManager.Domain.Categories.Interfaces;
 using LifeManager.Domain.FinanceDashboard;
 using LifeManager.Domain.FinanceDashboard.Interfaces;
 using LifeManager.Domain.Shared.Enums;
@@ -17,9 +19,11 @@ namespace LifeManager.Application.BudgetPlans.Services
     /// </remarks>
     public class BudgetPlanService(
         IBudgetPlanRepository budgetPlanRepository,
+        ICategoryRepository categoryRepository,
         IFinanceDashboardRepository financeDashboardRepository)
     {
         private readonly IBudgetPlanRepository _budgetPlanRepository = budgetPlanRepository;
+        private readonly ICategoryRepository _categoryRepository = categoryRepository;
         private readonly IFinanceDashboardRepository _financeDashboardRepository = financeDashboardRepository;
 
         /// <param name="month">"yyyy-MM".</param>
@@ -29,6 +33,59 @@ namespace LifeManager.Application.BudgetPlans.Services
                 return BudgetPlanErrors.InvalidMonth;
 
             return await ToResponseDtoAsync(yearMonth, userId, cancellationToken);
+        }
+
+        /// <summary>Creates the month's plan or replaces it whole; no other month changes.</summary>
+        /// <param name="month">"yyyy-MM".</param>
+        public async Task<Result<BudgetPlanResponseDto>> SaveAsync(string? month, BudgetPlanDto budgetPlanDto, UserId userId, CancellationToken cancellationToken)
+        {
+            if (!YearMonth.TryParse(month, out var yearMonth))
+                return BudgetPlanErrors.InvalidMonth;
+
+            var slices = new List<BudgetSlice>();
+            foreach (var sliceDto in budgetPlanDto.Slices ?? [])
+            {
+                var sliceResult = BudgetSlice.Create(sliceDto.Type, sliceDto.CategoryId, sliceDto.Percent);
+                if (!sliceResult.IsSuccess)
+                    return sliceResult.Error;
+
+                slices.Add(sliceResult.Value);
+            }
+
+            // Validates the whole plan before any category is read; a stored plan then takes the same values.
+            var planResult = BudgetPlan.Create(userId.Value, yearMonth, budgetPlanDto.Total, slices);
+            if (!planResult.IsSuccess)
+                return planResult.Error;
+
+            foreach (var categoryId in slices.Where(slice => slice.CategoryId is not null).Select(slice => slice.CategoryId!))
+            {
+                if (await _categoryRepository.GetByIdAsync(categoryId, userId, cancellationToken) is null)
+                    return CategoryErrors.NotFound;
+            }
+
+            var stored = await _budgetPlanRepository.GetAsync(userId, yearMonth, cancellationToken);
+            var plan = planResult.Value;
+            if (stored is not null)
+            {
+                plan = stored.Plan;
+                plan.Replace(budgetPlanDto.Total, slices);
+            }
+
+            await _budgetPlanRepository.SaveAsync(plan, cancellationToken);
+
+            return await ToResponseDtoAsync(yearMonth, userId, cancellationToken);
+        }
+
+        /// <param name="month">"yyyy-MM".</param>
+        public async Task<Result> DeleteAsync(string? month, UserId userId, CancellationToken cancellationToken)
+        {
+            if (!YearMonth.TryParse(month, out var yearMonth))
+                return BudgetPlanErrors.InvalidMonth;
+
+            if (!await _budgetPlanRepository.DeleteAsync(userId, yearMonth, cancellationToken))
+                return BudgetPlanErrors.NotFound;
+
+            return Result.Success();
         }
 
         private async Task<BudgetPlanResponseDto> ToResponseDtoAsync(YearMonth month, UserId userId, CancellationToken cancellationToken)

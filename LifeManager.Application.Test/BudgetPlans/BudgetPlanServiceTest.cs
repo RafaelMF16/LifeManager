@@ -5,8 +5,10 @@ using LifeManager.Application.Test.Configurations.SingletonLists;
 using LifeManager.Domain.BudgetPlans;
 using LifeManager.Domain.BudgetPlans.Errors;
 using LifeManager.Domain.Categories;
+using LifeManager.Domain.Categories.Errors;
 using LifeManager.Domain.MonthlySummaries;
 using LifeManager.Domain.Shared.Enums;
+using LifeManager.Domain.Shared.Results;
 using LifeManager.Domain.Shared.ValueObjects;
 using LifeManager.Domain.Transactions;
 using LifeManager.Domain.Users.ValueObjects;
@@ -177,6 +179,149 @@ namespace LifeManager.Application.Test.BudgetPlans
 
             Assert.Equal(BudgetPlanErrors.InvalidMonth, result.Error);
         }
+
+        [Fact]
+        public async Task SaveAsync_ShouldCreateTheMonthsPlan_AndReturnItLikeGet()
+        {
+            var result = await Save("2026-10", 6000m, new BudgetSliceDto(MoneyFlowType.Expense, MarketCategoryId, 25m), new BudgetSliceDto(MoneyFlowType.Investment, null, 20m));
+
+            Assert.True(result.IsSuccess);
+            Assert.True(result.Value.Exists);
+            Assert.Equal(6000m, result.Value.Total);
+            Assert.Equal([1500m, 1200m], result.Value.Slices.Select(slice => slice.Amount));
+            Assert.Equal(55m, result.Value.FreePercent);
+            var stored = Assert.Single(BudgetPlanSingleton.Instance);
+            Assert.Equal(FirstUserId, stored.UserId);
+            Assert.Equal(new DateOnly(2026, 10, 1), stored.MonthStart);
+        }
+
+        [Fact]
+        public async Task SaveAsync_ShouldReplaceTheWholePlan_WhenTheMonthAlreadyHasOne()
+        {
+            SeedPlan(FirstUserId, "2026-10", 6000m, Expense(MarketCategoryId, 25m), Investment(20m));
+
+            var result = await Save("2026-10", 8000m, new BudgetSliceDto(MoneyFlowType.Expense, HousingCategoryId, 30m));
+
+            Assert.True(result.IsSuccess);
+            var stored = Assert.Single(BudgetPlanSingleton.Instance);
+            Assert.Equal(8000m, stored.Total.Value);
+            Assert.Equal(HousingCategoryId, Assert.Single(stored.Slices).CategoryId!.Value);
+        }
+
+        [Fact]
+        public async Task SaveAsync_ShouldNotTouchOtherMonths()
+        {
+            SeedPlan(FirstUserId, "2026-09", 5000m, Expense(MarketCategoryId, 10m));
+            SeedPlan(FirstUserId, "2026-11", 7000m, Expense(MarketCategoryId, 40m));
+
+            await Save("2026-10", 6000m, new BudgetSliceDto(MoneyFlowType.Expense, MarketCategoryId, 25m));
+
+            Assert.Equal(
+                [("2026-09", 5000m, 10m), ("2026-10", 6000m, 25m), ("2026-11", 7000m, 40m)],
+                BudgetPlanSingleton.Instance
+                    .OrderBy(plan => plan.MonthStart)
+                    .Select(plan => (plan.Month.ToString(), plan.Total.Value, plan.Slices.Single().Percent.Value)));
+        }
+
+        [Fact]
+        public async Task SaveAsync_ShouldAcceptAPlanWithoutSlices()
+        {
+            var result = await Save("2026-10", 6000m);
+
+            Assert.Equal(100m, result.Value!.FreePercent);
+            Assert.Equal(6000m, result.Value.FreeAmount);
+        }
+
+        [Fact]
+        public async Task SaveAsync_ShouldReturnOverAllocated_AndKeepThePlan_WhenSlicesPassAHundred()
+        {
+            SeedPlan(FirstUserId, "2026-10", 6000m, Expense(MarketCategoryId, 25m));
+
+            var result = await Save("2026-10", 6000m, new BudgetSliceDto(MoneyFlowType.Expense, MarketCategoryId, 80m), new BudgetSliceDto(MoneyFlowType.Investment, null, 20.01m));
+
+            Assert.Equal(BudgetPlanErrors.OverAllocated, result.Error);
+            Assert.Equal(25m, Assert.Single(Assert.Single(BudgetPlanSingleton.Instance).Slices).Percent.Value);
+        }
+
+        [Fact]
+        public async Task SaveAsync_ShouldReturnCategoryNotFound_WhenACategoryBelongsToOtherUser()
+        {
+            var result = await Save("2026-10", 6000m, new BudgetSliceDto(MoneyFlowType.Expense, MarketCategoryId, 25m), new BudgetSliceDto(MoneyFlowType.Expense, OtherUserCategoryId, 10m));
+
+            Assert.Equal(CategoryErrors.NotFound, result.Error);
+            Assert.Empty(BudgetPlanSingleton.Instance);
+        }
+
+        [Theory]
+        [InlineData(0, "BudgetPlan.TotalNotPositive")]
+        [InlineData(10.123, "BudgetPlan.TotalTooManyDecimals")]
+        public async Task SaveAsync_ShouldReturnTheTotalError_WhenTheTotalIsInvalid(decimal total, string expectedCode)
+        {
+            var result = await Save("2026-10", total);
+
+            Assert.Equal(expectedCode, result.Error!.Code);
+        }
+
+        [Fact]
+        public async Task SaveAsync_ShouldReturnTheSliceError_WhenASliceIsInvalid()
+        {
+            var result = await Save("2026-10", 6000m, new BudgetSliceDto(MoneyFlowType.Expense, null, 25m));
+
+            Assert.Equal(BudgetPlanErrors.ExpenseSliceWithoutCategory, result.Error);
+        }
+
+        [Fact]
+        public async Task SaveAsync_ShouldTreatMissingSlicesAsNone()
+        {
+            var result = await _budgetPlanService.SaveAsync("2026-10", new BudgetPlanDto(6000m, null), FirstUserId, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.Empty(result.Value.Slices);
+        }
+
+        [Fact]
+        public async Task SaveAsync_ShouldReturnInvalidMonth_WhenNotYearMonth()
+        {
+            var result = await Save("2026-13", 6000m);
+
+            Assert.Equal(BudgetPlanErrors.InvalidMonth, result.Error);
+        }
+
+        [Fact]
+        public async Task DeleteAsync_ShouldDeleteOnlyThatMonthsPlan()
+        {
+            SeedPlan(FirstUserId, "2026-10", 6000m);
+            SeedPlan(FirstUserId, "2026-11", 6000m);
+            SeedPlan(SecondUserId, "2026-10", 6000m);
+
+            var result = await _budgetPlanService.DeleteAsync("2026-10", FirstUserId, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(
+                [(FirstUserId, "2026-11"), (SecondUserId, "2026-10")],
+                BudgetPlanSingleton.Instance.Select(plan => (plan.UserId, plan.Month.ToString())));
+        }
+
+        [Fact]
+        public async Task DeleteAsync_ShouldReturnNotFound_WhenTheMonthHasNoPlan()
+        {
+            SeedPlan(SecondUserId, "2026-10", 6000m);
+
+            var result = await _budgetPlanService.DeleteAsync("2026-10", FirstUserId, CancellationToken.None);
+
+            Assert.Equal(BudgetPlanErrors.NotFound, result.Error);
+        }
+
+        [Fact]
+        public async Task DeleteAsync_ShouldReturnInvalidMonth_WhenNotYearMonth()
+        {
+            var result = await _budgetPlanService.DeleteAsync("outubro", FirstUserId, CancellationToken.None);
+
+            Assert.Equal(BudgetPlanErrors.InvalidMonth, result.Error);
+        }
+
+        private Task<Result<BudgetPlanResponseDto>> Save(string month, decimal total, params BudgetSliceDto[] slices)
+            => _budgetPlanService.SaveAsync(month, new BudgetPlanDto(total, slices), FirstUserId, CancellationToken.None);
 
         private static BudgetSlice Expense(int categoryId, decimal percent)
             => BudgetSlice.Create(MoneyFlowType.Expense, categoryId, percent).Value!;
