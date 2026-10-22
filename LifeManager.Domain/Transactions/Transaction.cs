@@ -5,6 +5,9 @@ using LifeManager.Domain.RecurringTransactions;
 using LifeManager.Domain.RecurringTransactions.ValueObjects;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.Results;
+using LifeManager.Domain.StatementImports;
+using LifeManager.Domain.StatementImports.Errors;
+using LifeManager.Domain.StatementImports.ValueObjects;
 using LifeManager.Domain.Transactions.Errors;
 using LifeManager.Domain.Transactions.ValueObjects;
 
@@ -22,6 +25,12 @@ namespace LifeManager.Domain.Transactions
 
         /// <summary>The recurrence that posted this transaction; null for transactions entered by hand.</summary>
         public RecurringTransactionId? RecurringTransactionId { get; private set; }
+
+        /// <summary>The bank statement import that posted this transaction; null otherwise. Kept when the import leaves the history.</summary>
+        public StatementImportId? StatementImportId { get; private set; }
+
+        /// <summary>The bank line it came from (<see cref="ImportExternalId"/>), so importing the same statement again finds it.</summary>
+        public string? ExternalId { get; private set; }
 
         /// <summary>
         /// Persisted copy of <see cref="TransactionDescription.NormalizedValue"/>, kept as its own column so it can be
@@ -92,6 +101,23 @@ namespace LifeManager.Domain.Transactions
                 .Tap(transaction => transaction.RecurringTransactionId = recurringTransaction.Id);
         }
 
+        /// <summary>
+        /// Posts a confirmed statement line into its date's month. The row must have a category (the confirmation
+        /// checks every included row has one first).
+        /// </summary>
+        public static Result<Transaction> CreateFromImport(StatementImportRow row, MonthlySummary monthlySummary)
+        {
+            if (row.CategoryId is null)
+                return StatementImportErrors.UncategorizedRows;
+
+            return Create(row.Type, row.CategoryId.Value, row.Amount.Value, row.Description.Value, row.EffectiveDate, monthlySummary)
+                .Tap(transaction =>
+                {
+                    transaction.StatementImportId = row.StatementImportId;
+                    transaction.ExternalId = row.ExternalId;
+                });
+        }
+
         /// <summary>Changes every field except the month: a transaction always stays in the month it was created in.</summary>
         public Result<Transaction> Update(
             MoneyFlowType type,
@@ -124,7 +150,9 @@ namespace LifeManager.Domain.Transactions
             decimal amount,
             string description,
             DateOnly transactionDate,
-            int? idRecurringTransaction = null)
+            int? idRecurringTransaction = null,
+            int? idStatementImport = null,
+            string? externalId = null)
         {
             var transaction = new Transaction(
                 new MonthlySummaryId(idMonthlySummary),
@@ -134,7 +162,9 @@ namespace LifeManager.Domain.Transactions
                 TransactionDescription.FromPersistence(description),
                 transactionDate)
             {
-                RecurringTransactionId = idRecurringTransaction is null ? null : new RecurringTransactionId(idRecurringTransaction.Value)
+                RecurringTransactionId = idRecurringTransaction is null ? null : new RecurringTransactionId(idRecurringTransaction.Value),
+                StatementImportId = idStatementImport is null ? null : new StatementImportId(idStatementImport.Value),
+                ExternalId = externalId
             };
             transaction.AssignId(id);
 

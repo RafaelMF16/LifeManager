@@ -7,6 +7,7 @@ using LifeManager.Application.MonthlySummaries.Services;
 using LifeManager.Application.RecurringTransactions.Services;
 using LifeManager.Application.Rewards.Services;
 using LifeManager.Application.Shared.Time;
+using LifeManager.Application.StatementImports.Services;
 using LifeManager.Application.Transactions.Services;
 using LifeManager.Application.EnvironmentVariables.Services;
 using LifeManager.Application.Users.Services;
@@ -41,6 +42,8 @@ namespace LifeManager.Application.DI
             services.AddScoped<GameLedgerService>();
             services.AddScoped<RewardService>();
             services.AddScoped<RewardRedemptionService>();
+            services.AddScoped<StatementImportService>();
+            services.AddScoped<StatementImportRowService>();
 
             services.TryAddSingleton(TimeProvider.System);
             services.AddSingleton<AppClock>();

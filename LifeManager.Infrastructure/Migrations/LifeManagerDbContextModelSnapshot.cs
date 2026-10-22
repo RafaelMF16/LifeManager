@@ -133,6 +133,49 @@ namespace LifeManager.Infrastructure.Migrations
                     b.ToTable("Categories");
                 });
 
+            modelBuilder.Entity("LifeManager.Domain.Categorization.CategorizationRule", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Action")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("CategoryId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Hits")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("LastUsedOn")
+                        .HasColumnType("date");
+
+                    b.Property<string>("MerchantKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("UserId", "MerchantKey", "Type", "Action", "CategoryId")
+                        .IsUnique();
+
+                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("UserId", "MerchantKey", "Type", "Action", "CategoryId"), false);
+
+                    b.ToTable("CategorizationRules");
+                });
+
             modelBuilder.Entity("LifeManager.Domain.Habits.GameLedgerEntry", b =>
                 {
                     b.Property<int>("Id")
@@ -547,6 +590,149 @@ namespace LifeManager.Infrastructure.Migrations
                     b.ToTable("RewardRedemptions");
                 });
 
+            modelBuilder.Entity("LifeManager.Domain.StatementImports.StatementImport", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset?>("CommittedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("CreatedMonthCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<DateOnly>("FirstDate")
+                        .HasColumnType("date");
+
+                    b.Property<int?>("ImportedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("LastDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("RowCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Source")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Status", "CreatedAt");
+
+                    b.ToTable("StatementImports");
+                });
+
+            modelBuilder.Entity("LifeManager.Domain.StatementImports.StatementImportRow", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<int?>("CategoryId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<int?>("DuplicateOfMonthlySummaryId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("DuplicateOfTransactionId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("EditedByUser")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateOnly>("EffectiveDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("ExternalId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<bool>("Included")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("MerchantKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("NormalizedDescription")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("OriginalDescription")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<bool>("ShiftLearned")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("ShiftToNextMonth")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal>("SignedAmount")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<int>("StatementImportId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("SuggestionConfidence")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SuggestionSource")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SuggestionUses")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("StatementImportId", "Date");
+
+                    b.HasIndex("StatementImportId", "MerchantKey");
+
+                    b.ToTable("StatementImportRows");
+                });
+
             modelBuilder.Entity("LifeManager.Domain.Transactions.Transaction", b =>
                 {
                     b.Property<int>("Id")
@@ -567,6 +753,10 @@ namespace LifeManager.Infrastructure.Migrations
                         .HasMaxLength(80)
                         .HasColumnType("character varying(80)");
 
+                    b.Property<string>("ExternalId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<int>("MonthlySummaryId")
                         .HasColumnType("integer");
 
@@ -582,6 +772,9 @@ namespace LifeManager.Infrastructure.Migrations
                         .HasPrecision(14, 2)
                         .HasColumnType("numeric(14,2)");
 
+                    b.Property<int?>("StatementImportId")
+                        .HasColumnType("integer");
+
                     b.Property<DateOnly>("TransactionDate")
                         .HasColumnType("date");
 
@@ -596,6 +789,12 @@ namespace LifeManager.Infrastructure.Migrations
 
                     NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("NormalizedDescription"), "gin");
                     NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("NormalizedDescription"), new[] { "gin_trgm_ops" });
+
+                    b.HasIndex("StatementImportId");
+
+                    b.HasIndex("MonthlySummaryId", "ExternalId")
+                        .IsUnique()
+                        .HasFilter("\"ExternalId\" IS NOT NULL");
 
                     b.HasIndex("MonthlySummaryId", "TransactionDate");
 
@@ -689,6 +888,20 @@ namespace LifeManager.Infrastructure.Migrations
 
             modelBuilder.Entity("LifeManager.Domain.Categories.Category", b =>
                 {
+                    b.HasOne("LifeManager.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LifeManager.Domain.Categorization.CategorizationRule", b =>
+                {
+                    b.HasOne("LifeManager.Domain.Categories.Category", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
                     b.HasOne("LifeManager.Domain.Users.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
@@ -796,6 +1009,29 @@ namespace LifeManager.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("LifeManager.Domain.StatementImports.StatementImport", b =>
+                {
+                    b.HasOne("LifeManager.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LifeManager.Domain.StatementImports.StatementImportRow", b =>
+                {
+                    b.HasOne("LifeManager.Domain.Categories.Category", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("LifeManager.Domain.StatementImports.StatementImport", null)
+                        .WithMany()
+                        .HasForeignKey("StatementImportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("LifeManager.Domain.Transactions.Transaction", b =>
                 {
                     b.HasOne("LifeManager.Domain.Categories.Category", null)
@@ -813,6 +1049,11 @@ namespace LifeManager.Infrastructure.Migrations
                     b.HasOne("LifeManager.Domain.RecurringTransactions.RecurringTransaction", null)
                         .WithMany()
                         .HasForeignKey("RecurringTransactionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("LifeManager.Domain.StatementImports.StatementImport", null)
+                        .WithMany()
+                        .HasForeignKey("StatementImportId")
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 

@@ -66,6 +66,14 @@ namespace LifeManager.Domain.MonthlySummaries
                 TotalInvestment.Zero);
 
         /// <summary>
+        /// Opens a month a bank statement import posts into when the user hasn't opened it yet. Like
+        /// <see cref="OpenForRecurringPosting"/> it isn't limited to the current year: importing statements is how the
+        /// user brings in the months and years before they started using the app.
+        /// </summary>
+        public static MonthlySummary OpenForImport(UserId userId, YearMonth month)
+            => OpenForRecurringPosting(userId, month);
+
+        /// <summary>
         /// Rehydrates a stored summary without the creation rules (current year only, zero totals):
         /// stored summaries can belong to past years and already have totals.
         /// </summary>

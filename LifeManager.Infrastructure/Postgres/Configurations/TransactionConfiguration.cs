@@ -1,6 +1,7 @@
 using LifeManager.Domain.Categories;
 using LifeManager.Domain.MonthlySummaries;
 using LifeManager.Domain.RecurringTransactions;
+using LifeManager.Domain.StatementImports;
 using LifeManager.Domain.Transactions;
 using LifeManager.Domain.Transactions.ValueObjects;
 using Microsoft.EntityFrameworkCore;
@@ -71,6 +72,20 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
             builder.HasIndex(transaction => new { transaction.RecurringTransactionId, transaction.MonthlySummaryId })
                 .IsUnique()
                 .HasFilter("\"RecurringTransactionId\" IS NOT NULL");
+
+            builder.Property(transaction => transaction.ExternalId)
+                .HasMaxLength(ImportExternalId.Length);
+
+            // Deleting an import from the history keeps the transactions it posted.
+            builder.HasOne<StatementImport>()
+                .WithMany()
+                .HasForeignKey(transaction => transaction.StatementImportId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // A bank line is posted at most once per month: the last guard against importing the same statement twice.
+            builder.HasIndex(transaction => new { transaction.MonthlySummaryId, transaction.ExternalId })
+                .IsUnique()
+                .HasFilter("\"ExternalId\" IS NOT NULL");
         }
     }
 }

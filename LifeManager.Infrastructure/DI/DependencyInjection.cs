@@ -15,6 +15,10 @@ using LifeManager.Domain.Habits.Interfaces;
 using LifeManager.Infrastructure.Habits;
 using LifeManager.Domain.Rewards.Interfaces;
 using LifeManager.Infrastructure.Rewards;
+using LifeManager.Domain.StatementImports.Interfaces;
+using LifeManager.Infrastructure.StatementImports;
+using LifeManager.Domain.Categorization.Interfaces;
+using LifeManager.Infrastructure.Categorization;
 using LifeManager.Domain.Users.Interfaces;
 using LifeManager.Domain.UsersPreferences.Interfaces;
 using LifeManager.Infrastructure.Auth;
@@ -48,6 +52,8 @@ namespace LifeManager.Infrastructure.DI
             services.AddScoped<IGameLedgerRepository, GameLedgerRepository>();
             services.AddScoped<IRewardRepository, RewardRepository>();
             services.AddScoped<IRewardRedemptionRepository, RewardRedemptionRepository>();
+            services.AddScoped<IStatementImportRepository, StatementImportRepository>();
+            services.AddScoped<ICategorizationRuleRepository, CategorizationRuleRepository>();
 
             return services;
         }
