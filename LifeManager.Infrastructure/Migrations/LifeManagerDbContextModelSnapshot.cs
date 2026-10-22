@@ -86,45 +86,6 @@ namespace LifeManager.Infrastructure.Migrations
                     b.ToTable("BudgetPlans");
                 });
 
-            modelBuilder.Entity("LifeManager.Domain.Budgets.Budget", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(14, 2)
-                        .HasColumnType("numeric(14,2)");
-
-                    b.Property<int?>("CategoryId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateOnly>("EffectiveFrom")
-                        .HasColumnType("date");
-
-                    b.Property<DateOnly?>("EffectiveTo")
-                        .HasColumnType("date");
-
-                    b.Property<int>("Type")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CategoryId");
-
-                    b.HasIndex("UserId", "Type", "CategoryId", "EffectiveFrom")
-                        .IsUnique();
-
-                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("UserId", "Type", "CategoryId", "EffectiveFrom"), false);
-
-                    b.ToTable("Budgets");
-                });
-
             modelBuilder.Entity("LifeManager.Domain.Categories.Category", b =>
                 {
                     b.Property<int>("Id")
@@ -946,20 +907,6 @@ namespace LifeManager.Infrastructure.Migrations
                         });
 
                     b.Navigation("Slices");
-                });
-
-            modelBuilder.Entity("LifeManager.Domain.Budgets.Budget", b =>
-                {
-                    b.HasOne("LifeManager.Domain.Categories.Category", null)
-                        .WithMany()
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
-                    b.HasOne("LifeManager.Domain.Users.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("LifeManager.Domain.Categories.Category", b =>

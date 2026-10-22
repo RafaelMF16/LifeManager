@@ -7,8 +7,6 @@ using LifeManager.Domain.Transactions.Interfaces;
 using LifeManager.Infrastructure.Transactions;
 using LifeManager.Domain.RecurringTransactions.Interfaces;
 using LifeManager.Infrastructure.RecurringTransactions;
-using LifeManager.Domain.Budgets.Interfaces;
-using LifeManager.Infrastructure.Budgets;
 using LifeManager.Domain.BudgetPlans.Interfaces;
 using LifeManager.Infrastructure.BudgetPlans;
 using LifeManager.Domain.FinanceDashboard.Interfaces;
@@ -46,7 +44,6 @@ namespace LifeManager.Infrastructure.DI
             services.AddScoped<ITransactionRepository, TransactionRepository>();
             services.AddScoped<IFinanceDashboardRepository, FinanceDashboardRepository>();
             services.AddScoped<IRecurringTransactionRepository, RecurringTransactionRepository>();
-            services.AddScoped<IBudgetRepository, BudgetRepository>();
             services.AddScoped<IBudgetPlanRepository, BudgetPlanRepository>();
             services.AddScoped<IPlayerProfileRepository, PlayerProfileRepository>();
             services.AddScoped<IHabitRepository, HabitRepository>();
