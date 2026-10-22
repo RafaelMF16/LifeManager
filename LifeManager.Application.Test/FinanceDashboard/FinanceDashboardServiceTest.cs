@@ -2,7 +2,7 @@ using LifeManager.Application.FinanceDashboard.DTOs;
 using LifeManager.Application.FinanceDashboard.Services;
 using LifeManager.Application.Test.Configurations;
 using LifeManager.Application.Test.Configurations.SingletonLists;
-using LifeManager.Domain.Budgets;
+using LifeManager.Domain.BudgetPlans;
 using LifeManager.Domain.Categories;
 using LifeManager.Domain.FinanceDashboard.Enums;
 using LifeManager.Domain.FinanceDashboard.Errors;
@@ -33,7 +33,7 @@ namespace LifeManager.Application.Test.FinanceDashboard
 
         private int _nextMonthId = 1;
         private int _nextTransactionId = 1;
-        private int _nextBudgetId = 1;
+        private int _nextPlanId = 1;
 
         public FinanceDashboardServiceTest()
         {
@@ -42,7 +42,7 @@ namespace LifeManager.Application.Test.FinanceDashboard
             TransactionSingleton.Instance.Clear();
             MonthlySummarySingleton.Instance.Clear();
             CategorySingleton.Instance.Clear();
-            BudgetSingleton.Instance.Clear();
+            BudgetPlanSingleton.Instance.Clear();
 
             SeedCategory(MarketCategoryId, FirstUserId, "Mercado");
             SeedCategory(SalaryCategoryId, FirstUserId, "Salário");
@@ -301,16 +301,19 @@ namespace LifeManager.Application.Test.FinanceDashboard
         }
 
         [Fact]
-        public async Task GetAsync_ShouldEvaluateTheTotalGoals_MonthByMonth()
+        public async Task GetAsync_ShouldEvaluateTheTotalGoals_MonthByMonth_FromEachMonthsPlan()
         {
             var april = SeedMonth(FirstUserId, 2026, 4);
             var may = SeedMonth(FirstUserId, 2026, 5);
-            SeedMonth(FirstUserId, 2026, 6);
+            var july = SeedMonth(FirstUserId, 2026, 7);
             SeedTransaction(april, MoneyFlowType.Expense, MarketCategoryId, 900m);
-            SeedTransaction(may, MoneyFlowType.Expense, RentCategoryId, 1300m);
+            SeedTransaction(may, MoneyFlowType.Expense, RentCategoryId, 1700m);
             SeedTransaction(april, MoneyFlowType.Investment, TreasuryCategoryId, 500m);
-            SeedBudget(MoneyFlowType.Expense, null, 1000m, "2026-04", "2026-05");
-            SeedBudget(MoneyFlowType.Investment, null, 400m, "2026-04");
+            SeedTransaction(july, MoneyFlowType.Expense, RentCategoryId, 9999m);
+            SeedPlan("2026-04", 2000m, Investment(20m));
+            SeedPlan("2026-05", 2000m, Investment(20m));
+            SeedPlan("2026-06", 1000m);
+            SeedPlan("2026-07", 1000m);
 
             var result = await Get("2026-04", "2026-06");
 
@@ -318,24 +321,25 @@ namespace LifeManager.Application.Test.FinanceDashboard
             Assert.True(budgets.HasGoals);
             Assert.Equal(
                 [
-                    new DashboardBudgetMonthDto(2026, 4, 1000m, true, 400m, true),
-                    new DashboardBudgetMonthDto(2026, 5, 1000m, false, 400m, false),
-                    new DashboardBudgetMonthDto(2026, 6, null, null, 400m, false)
+                    // The spending limit is the total minus the investment slice, the free part included.
+                    new DashboardBudgetMonthDto(2026, 4, 1600m, true, 400m, true),
+                    new DashboardBudgetMonthDto(2026, 5, 1600m, false, 400m, false),
+                    new DashboardBudgetMonthDto(2026, 6, 1000m, true, null, null)
                 ],
                 budgets.Months);
-            Assert.Equal(new DashboardBudgetSummaryDto(2000m, 2200m, 1.1m, 2, 1), budgets.Expense);
-            Assert.Equal(new DashboardBudgetSummaryDto(1200m, 500m, 0.4167m, 3, 1), budgets.Investment);
+            Assert.Equal(new DashboardBudgetSummaryDto(4200m, 2600m, 0.619m, 3, 2), budgets.Expense);
+            Assert.Equal(new DashboardBudgetSummaryDto(800m, 500m, 0.625m, 2, 1), budgets.Investment);
         }
 
         [Fact]
-        public async Task GetAsync_ShouldUseTheVersionInForceInEachMonth_WhenAGoalChangesInThePeriod()
+        public async Task GetAsync_ShouldEvaluateEachCategory_WithTheSliceOfEachMonth()
         {
             var april = SeedMonth(FirstUserId, 2026, 4);
             var may = SeedMonth(FirstUserId, 2026, 5);
             SeedTransaction(april, MoneyFlowType.Expense, MarketCategoryId, 700m);
             SeedTransaction(may, MoneyFlowType.Expense, MarketCategoryId, 700m);
-            SeedBudget(MoneyFlowType.Expense, MarketCategoryId, 600m, "2026-01", "2026-04");
-            SeedBudget(MoneyFlowType.Expense, MarketCategoryId, 800m, "2026-05");
+            SeedPlan("2026-04", 2000m, Expense(MarketCategoryId, 30m));
+            SeedPlan("2026-05", 2000m, Expense(MarketCategoryId, 40m));
 
             var result = await Get("2026-04", "2026-05");
 
@@ -357,9 +361,7 @@ namespace LifeManager.Application.Test.FinanceDashboard
             SeedTransaction(april, MoneyFlowType.Expense, RentCategoryId, 1200m);
             SeedTransaction(april, MoneyFlowType.Expense, MarketCategoryId, 500m);
             SeedTransaction(april, MoneyFlowType.Investment, TreasuryCategoryId, 300m);
-            SeedBudget(MoneyFlowType.Expense, RentCategoryId, 1000m, "2026-04");
-            SeedBudget(MoneyFlowType.Expense, MarketCategoryId, 800m, "2026-04");
-            SeedBudget(MoneyFlowType.Investment, TreasuryCategoryId, 1000m, "2026-04");
+            SeedPlan("2026-04", 10000m, Expense(RentCategoryId, 10m), Expense(MarketCategoryId, 8m), Investment(10m));
 
             var result = await Get("2026-04", "2026-04");
 
@@ -369,30 +371,46 @@ namespace LifeManager.Application.Test.FinanceDashboard
             Assert.Equal(200m, budgets.ExpenseCategories[0].Gap);
             Assert.Equal(0, budgets.ExpenseCategories[0].MonthsAchieved);
             Assert.Equal(1, budgets.ExpenseCategories[1].MonthsAchieved);
-            var treasury = Assert.Single(budgets.InvestmentCategories);
-            Assert.Equal(700m, treasury.Gap);
-            Assert.Equal(0.3m, treasury.Ratio);
         }
 
         [Fact]
-        public async Task GetAsync_ShouldIgnoreOtherUsersGoals()
+        public async Task GetAsync_ShouldNotListInvestmentCategories_SinceInvestmentIsOneSlice()
         {
-            SeedBudget(MoneyFlowType.Expense, null, 1000m, "2026-04", userId: SecondUserId);
+            SeedTransaction(SeedMonth(FirstUserId, 2026, 4), MoneyFlowType.Investment, TreasuryCategoryId, 300m);
+            SeedPlan("2026-04", 10000m, Investment(10m));
+
+            var result = await Get("2026-04", "2026-04");
+
+            var budgets = result.Value!.Budgets;
+            Assert.Empty(budgets.InvestmentCategories);
+            Assert.Equal(new DashboardBudgetSummaryDto(1000m, 300m, 0.3m, 1, 0), budgets.Investment);
+        }
+
+        [Fact]
+        public async Task GetAsync_ShouldIgnoreOtherUsersPlans()
+        {
+            SeedPlan("2026-04", 1000m, userId: SecondUserId);
 
             var result = await Get("2026-04", "2026-04");
 
             Assert.False(result.Value!.Budgets.HasGoals);
         }
 
-        private void SeedBudget(MoneyFlowType type, int? categoryId, decimal amount, string from, string? to = null, UserId? userId = null)
-        {
-            YearMonth.TryParse(from, out var fromMonth);
-            YearMonth? toMonth = null;
-            if (to is not null && YearMonth.TryParse(to, out var parsedTo))
-                toMonth = parsedTo;
+        private static BudgetSlice Expense(int categoryId, decimal percent)
+            => BudgetSlice.Create(MoneyFlowType.Expense, categoryId, percent).Value!;
 
-            BudgetSingleton.Instance.Add(Budget.FromPersistence(
-                _nextBudgetId++, (userId ?? FirstUserId).Value, type, categoryId, amount, fromMonth.FirstDay, toMonth?.FirstDay));
+        private static BudgetSlice Investment(decimal percent)
+            => BudgetSlice.Create(MoneyFlowType.Investment, null, percent).Value!;
+
+        private void SeedPlan(string month, decimal total, params BudgetSlice[] slices)
+            => SeedPlan(month, total, FirstUserId, slices);
+
+        private void SeedPlan(string month, decimal total, UserId userId, params BudgetSlice[] slices)
+        {
+            YearMonth.TryParse(month, out var yearMonth);
+            var plan = BudgetPlan.Create(userId.Value, yearMonth, total, slices).Value!;
+            plan.AssignId(_nextPlanId++);
+            BudgetPlanSingleton.Instance.Add(plan);
         }
 
         private Task<Result<FinanceDashboardResponseDto>> Get(string? from, string? to, DashboardComparison comparison = DashboardComparison.PreviousPeriod)
