@@ -67,15 +67,14 @@ namespace LifeManager.Application.FinanceDashboard.Services
             IReadOnlyList<YearMonth> months)
         {
             var plansByMonth = plans.ToDictionary(item => item.Plan.Month.Ordinal, item => item.Plan);
-            var monthPlans = months.Select(month => plansByMonth.GetValueOrDefault(month.Ordinal)).ToList();
 
             var expenseTotals = months
-                .Select((month, index) => monthPlans[index] is { } plan
+                .Select(month => plansByMonth.GetValueOrDefault(month.Ordinal) is { } plan
                     ? MonthGoal.Limit(plan.SpendingLimit, ActualOf(current, month, MoneyFlowType.Expense, null))
                     : null)
                 .ToList();
             var investmentTotals = months
-                .Select((month, index) => monthPlans[index] is { InvestmentSlice: { } slice } plan
+                .Select(month => plansByMonth.GetValueOrDefault(month.Ordinal) is { InvestmentSlice: { } slice } plan
                     ? MonthGoal.Target(slice.AmountOf(plan.Total), ActualOf(current, month, MoneyFlowType.Investment, null))
                     : null)
                 .ToList();
