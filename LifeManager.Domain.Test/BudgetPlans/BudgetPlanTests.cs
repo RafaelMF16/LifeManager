@@ -85,28 +85,29 @@ namespace LifeManager.Domain.Test.BudgetPlans
         }
 
         [Fact]
-        public void Replace_ShouldSwapTheTotalAndSlices_KeepingTheMonth()
+        public void ReplaceWith_ShouldTakeTheTotalAndSlices_KeepingTheIdAndMonth()
         {
             var plan = BudgetPlan.Create(1, Month("2026-10"), 6000m, [Expense(3, 30m)]).Value!;
+            plan.AssignId(7);
 
-            var result = plan.Replace(8000m, [Expense(4, 10m), Investment(20m)]);
+            plan.ReplaceWith(BudgetPlan.Create(1, Month("2026-10"), 8000m, [Expense(4, 10m), Investment(20m)]).Value!);
 
-            Assert.True(result.IsSuccess);
             Assert.Equal(8000m, plan.Total.Value);
             Assert.Equal([4, null], plan.Slices.Select(slice => slice.CategoryId?.Value));
+            Assert.Equal(7, plan.Id!.Value);
             Assert.Equal(Month("2026-10"), plan.Month);
         }
 
-        [Fact]
-        public void Replace_ShouldKeepThePlanUnchanged_WhenTheNewValuesAreInvalid()
+        [Theory]
+        [InlineData(1, "2026-11")]
+        [InlineData(2, "2026-10")]
+        public void ReplaceWith_ShouldThrow_WhenThePlanIsOfAnotherUserOrMonth(int idUser, string month)
         {
             var plan = BudgetPlan.Create(1, Month("2026-10"), 6000m, [Expense(3, 30m)]).Value!;
+            var other = BudgetPlan.Create(idUser, Month(month), 8000m, []).Value!;
 
-            var result = plan.Replace(6000m, [Expense(3, 80m), Investment(30m)]);
-
-            Assert.Equal(BudgetPlanErrors.OverAllocated, result.Error);
+            Assert.Throws<InvalidOperationException>(() => plan.ReplaceWith(other));
             Assert.Equal(6000m, plan.Total.Value);
-            Assert.Single(plan.Slices);
         }
 
         [Fact]

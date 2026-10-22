@@ -69,21 +69,17 @@ namespace LifeManager.Domain.BudgetPlans
             return new BudgetPlan(new UserId(idUser), month.FirstDay, totalResult.Value, [.. slices]);
         }
 
-        /// <summary>Replaces the whole plan of the month; nothing changes when the new values are invalid.</summary>
-        public Result Replace(decimal total, IReadOnlyList<BudgetSlice> slices)
+        /// <summary>
+        /// Replaces the whole plan with <paramref name="plan"/>'s total and slices: the same user's month saved again,
+        /// already validated by <see cref="Create"/>.
+        /// </summary>
+        public void ReplaceWith(BudgetPlan plan)
         {
-            var totalResult = BudgetTotal.Create(total);
-            if (!totalResult.IsSuccess)
-                return totalResult.Error;
+            if (plan.UserId != UserId || plan.MonthStart != MonthStart)
+                throw new InvalidOperationException("A plan can only be replaced by a plan of the same user and month.");
 
-            var slicesError = ValidateSlices(slices);
-            if (slicesError is not null)
-                return slicesError;
-
-            Total = totalResult.Value;
-            _slices = [.. slices];
-
-            return Result.Success();
+            Total = plan.Total;
+            _slices = [.. plan._slices];
         }
 
         public void AssignId(int id)

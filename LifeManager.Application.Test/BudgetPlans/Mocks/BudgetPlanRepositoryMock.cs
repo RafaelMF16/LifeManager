@@ -45,21 +45,20 @@ namespace LifeManager.Application.Test.BudgetPlans.Mocks
             return Task.FromResult(items);
         }
 
-        // Mirrors the unique (UserId, MonthStart) index and the replace-by-id of BudgetPlanRepository.SaveAsync.
+        // Mirrors BudgetPlanRepository.SaveAsync: one plan per user and month, replaced in place (keeping its id).
         public Task SaveAsync(BudgetPlan plan, CancellationToken cancellationToken)
         {
-            if (plan.Id is null)
+            var stored = _instance.SingleOrDefault(stored => stored.UserId == plan.UserId && stored.MonthStart == plan.MonthStart);
+
+            if (stored is null)
             {
-                if (_instance.Any(stored => stored.UserId == plan.UserId && stored.MonthStart == plan.MonthStart))
-                    throw new InvalidOperationException("Duplicate plan for the same month");
-
-                plan.AssignId(_instance.Count == 0 ? 1 : _instance.Max(stored => stored.Id!.Value) + 1);
+                plan.AssignId(_instance.Count == 0 ? 1 : _instance.Max(existing => existing.Id!.Value) + 1);
                 _instance.Add(ToDetachedCopy(plan));
-                return Task.CompletedTask;
             }
-
-            var index = _instance.FindIndex(stored => stored.Id == plan.Id && stored.UserId == plan.UserId);
-            _instance[index] = ToDetachedCopy(plan);
+            else
+            {
+                stored.ReplaceWith(plan);
+            }
 
             return Task.CompletedTask;
         }

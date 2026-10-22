@@ -52,7 +52,7 @@ namespace LifeManager.Application.BudgetPlans.Services
                 slices.Add(sliceResult.Value);
             }
 
-            // Validates the whole plan before any category is read; a stored plan then takes the same values.
+            // Validates the whole plan before any category is read; the repository stores it over the month's plan, if any.
             var planResult = BudgetPlan.Create(userId.Value, yearMonth, budgetPlanDto.Total, slices);
             if (!planResult.IsSuccess)
                 return planResult.Error;
@@ -63,15 +63,7 @@ namespace LifeManager.Application.BudgetPlans.Services
                     return CategoryErrors.NotFound;
             }
 
-            var stored = await _budgetPlanRepository.GetAsync(userId, yearMonth, cancellationToken);
-            var plan = planResult.Value;
-            if (stored is not null)
-            {
-                plan = stored.Plan;
-                plan.Replace(budgetPlanDto.Total, slices);
-            }
-
-            await _budgetPlanRepository.SaveAsync(plan, cancellationToken);
+            await _budgetPlanRepository.SaveAsync(planResult.Value, cancellationToken);
 
             return await ToResponseDtoAsync(yearMonth, userId, cancellationToken);
         }

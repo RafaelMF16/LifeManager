@@ -14,7 +14,7 @@ namespace LifeManager.Domain.BudgetPlans.Interfaces
         /// <summary>The user's plans from <paramref name="from"/> to <paramref name="to"/> (both included), oldest first.</summary>
         Task<IReadOnlyList<BudgetPlanListItem>> GetOverlappingAsync(UserId userId, YearMonth from, YearMonth to, CancellationToken cancellationToken);
 
-        /// <summary>Adds a new plan, or replaces the stored plan of the same id with this one's total and slices.</summary>
+        /// <summary>Stores <paramref name="plan"/> as its month's: adds it, or replaces the stored plan of the same user and month with its total and slices.</summary>
         Task SaveAsync(BudgetPlan plan, CancellationToken cancellationToken);
 
         /// <returns>Whether there was a plan to delete.</returns>

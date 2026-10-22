@@ -60,17 +60,14 @@ namespace LifeManager.Infrastructure.BudgetPlans
 
         public async Task SaveAsync(BudgetPlan plan, CancellationToken cancellationToken)
         {
-            if (plan.Id is null)
-            {
-                _dbContext.Add(plan);
-                await _dbContext.SaveChangesAsync(cancellationToken);
-                return;
-            }
+            var stored = await _dbContext.BudgetPlans
+                .SingleOrDefaultAsync(storedPlan => storedPlan.UserId == plan.UserId && storedPlan.MonthStart == plan.MonthStart, cancellationToken);
 
             // Replacing the tracked plan's slices makes EF delete the stored ones and insert the new ones.
-            var stored = await _dbContext.BudgetPlans
-                .SingleAsync(storedPlan => storedPlan.Id == plan.Id && storedPlan.UserId == plan.UserId, cancellationToken);
-            stored.Replace(plan.Total.Value, plan.Slices);
+            if (stored is null)
+                _dbContext.Add(plan);
+            else
+                stored.ReplaceWith(plan);
 
             await _dbContext.SaveChangesAsync(cancellationToken);
         }
