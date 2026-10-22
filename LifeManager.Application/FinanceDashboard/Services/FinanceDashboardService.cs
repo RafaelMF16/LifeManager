@@ -172,7 +172,9 @@ namespace LifeManager.Application.FinanceDashboard.Services
                 ToAmountDto(current.Income, previous.Income),
                 ToAmountDto(current.Expense, previous.Expense),
                 ToAmountDto(current.Investment, previous.Investment),
-                ToAmountDto(current.Balance, previous.Balance));
+                ToAmountDto(current.Balance, previous.Balance),
+                ToAmountDto(current.Saved, previous.Saved),
+                current.SavingsRate);
 
         private static DashboardAmountDto ToAmountDto(decimal current, decimal previous)
             => new(current, previous, current - previous, DashboardTotals.ChangeRatio(current, previous));

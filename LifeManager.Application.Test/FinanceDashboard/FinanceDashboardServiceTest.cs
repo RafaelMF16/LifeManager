@@ -84,6 +84,8 @@ namespace LifeManager.Application.Test.FinanceDashboard
             Assert.Equal(1500m, totals.Expense.Current);
             Assert.Equal(1000m, totals.Investment.Current);
             Assert.Equal(2500m, totals.Balance.Current);
+            Assert.Equal(3500m, totals.Saved.Current);
+            Assert.Equal(0.7m, totals.SavingsRate);
             Assert.Equal([new DashboardMonthDto(2026, 4, 5000m, 1500m, 1000m, 2500m)], result.Value.Months);
             Assert.Equal(1500m, result.Value.Expenses.Total);
             Assert.Equal(1000m, result.Value.Investments.Total);
@@ -163,6 +165,36 @@ namespace LifeManager.Application.Test.FinanceDashboard
             var result = await Get("2026-04", "2026-04");
 
             Assert.Equal(new DashboardAmountDto(-50m, -100m, 50m, 0.5m), result.Value!.Totals.Balance);
+        }
+
+        [Fact]
+        public async Task GetAsync_ShouldCompareSaved_WithoutCountingInvestmentAsSpending()
+        {
+            var march = SeedMonth(FirstUserId, 2026, 3);
+            var april = SeedMonth(FirstUserId, 2026, 4);
+            SeedTransaction(march, MoneyFlowType.Income, SalaryCategoryId, 4000m);
+            SeedTransaction(march, MoneyFlowType.Expense, MarketCategoryId, 3000m);      // saved 1000
+            SeedTransaction(april, MoneyFlowType.Income, SalaryCategoryId, 5000m);
+            SeedTransaction(april, MoneyFlowType.Expense, MarketCategoryId, 3000m);
+            SeedTransaction(april, MoneyFlowType.Investment, TreasuryCategoryId, 2500m); // saved 2000, balance −500
+
+            var result = await Get("2026-04", "2026-04");
+
+            var totals = result.Value!.Totals;
+            Assert.Equal(new DashboardAmountDto(2000m, 1000m, 1000m, 1m), totals.Saved);
+            Assert.Equal(0.4m, totals.SavingsRate);
+            Assert.Equal(-500m, totals.Balance.Current);
+        }
+
+        [Fact]
+        public async Task GetAsync_ShouldLeaveSavingsRateEmpty_WhenPeriodHasNoIncome()
+        {
+            SeedTransaction(SeedMonth(FirstUserId, 2026, 4), MoneyFlowType.Expense, MarketCategoryId, 50m);
+
+            var result = await Get("2026-04", "2026-04");
+
+            Assert.Equal(-50m, result.Value!.Totals.Saved.Current);
+            Assert.Null(result.Value.Totals.SavingsRate);
         }
 
         [Fact]
