@@ -52,6 +52,12 @@ Run the background jobs once and exit (what the production Cloud Run Job does):
 dotnet run --project LifeManager.WebApi -- --run-jobs
 ```
 
+Apply the pending migrations and exit (what the production `lifemanager-migrate` Cloud Run Job does before each deploy):
+
+```
+dotnet run --project LifeManager.WebApi -- --migrate
+```
+
 Build the production image (context = repo root):
 
 ```
@@ -97,7 +103,7 @@ Layered/Clean Architecture split across four projects, referencing inward only. 
 - **LifeManager.WebApi**
   - ASP.NET Core host. Controllers live in feature folders (`Auth/Controllers`, `UsersPreferences/Controllers`, `Categories/Controllers`, `MonthlySummaries/Controllers`, `Transactions/Controllers`, `RecurringTransactions/Controllers`, `Budgets/Controllers`, `FinanceDashboard/Controllers`) under `[Route("api/[controller]")]`; `TransactionsController` is nested under its month (`api/MonthlySummaries/{monthlySummaryId}/[controller]`).
   - Background jobs live next to their feature (`RecurringTransactions/Jobs/`, `Habits/Jobs/`) and are registered in `AddApiServices` — see "Background jobs and deploy".
-  - `Program.cs` wires controllers (enums serialized as strings via `JsonStringEnumConverter`), OpenAPI (Development only), Infrastructure, Application, and `DI/DependencyInjection.cs` (`AddApiServices`: JWT bearer auth, the `AllowFrontend` CORS policy for `https://localhost:5173` with credentials, forwarded headers and the jobs). With `--run-jobs` it runs the jobs once and exits before the middleware (`RunJobsMode.cs`).
+  - `Program.cs` wires controllers (enums serialized as strings via `JsonStringEnumConverter`), OpenAPI (Development only), Infrastructure, Application, and `DI/DependencyInjection.cs` (`AddApiServices`: JWT bearer auth, the `AllowFrontend` CORS policy for `https://localhost:5173` with credentials, forwarded headers and the jobs). With `--run-jobs` it runs the jobs once and exits before the middleware (`RunJobsMode.cs`); with `--migrate` it applies the pending migrations and exits (`RunMigrationsMode.cs`).
   - Middleware order: forwarded headers → `ExceptionHandlingMiddleware` → CORS → HTTPS redirection → authentication → authorization. Forwarded headers (`X-Forwarded-Proto`/`-For`, any proxy) come first because Cloud Run terminates TLS; without them `UseHttpsRedirection` would see plain HTTP.
 
 ### Background jobs and deploy
@@ -105,6 +111,7 @@ Layered/Clean Architecture split across four projects, referencing inward only. 
 - **Runners** (`RecurringTransactionsRunner`, `HabitsDayCloseRunner`, singletons) hold one run: list the due work in one scope, then one scope per unit (recurrence / user), logging and skipping failures. The schedule is the cursor in the database, so a missed or interrupted run loses nothing.
 - **Locally**, the hosted services `RecurringTransactionsJob`/`HabitsDayCloseJob` call their runner at startup and every hour (`PeriodicTimer`). They're registered unless `backgroundJobs:enabled` is `false`.
 - **In production** (Google Cloud, `docs/deploy.md`), the API runs on Cloud Run scaled to zero with `backgroundJobs__enabled=false` (CPU only exists during requests). Cloud Scheduler triggers, every hour, a Cloud Run Job running the same image with `--run-jobs` (`RunJobsMode`: recurring transactions, then the day close, then exit 0).
+- **Migrations stay additive (expand/contract).** `--migrate` (`RunMigrationsMode`) applies them while the previous revision is still serving, so that revision must keep working on the new schema: add columns/tables first, and drop or rename only in a later change, once no deployed code reads the old shape. `MigrateAsync` also fails on a model change that has no migration, which stops the deploy.
 - **Same origin:** Firebase Hosting serves the frontend and rewrites `/api/**` to the Cloud Run service. That's why the refresh cookie is named `__session`, the only cookie Hosting forwards. CORS only matters for local dev.
 - **Image:** `LifeManager.WebApi/Dockerfile` (context = repo root; the `aspnet` image ships tzdata for `businessTimeZone`), built by Cloud Build (`cloudbuild.yaml`) from `deploy/deploy-api.ps1`, which also points the job at the new image. Migrations aren't part of the deploy: they run through the Cloud SQL Auth Proxy (`docs/deploy.md`).
 

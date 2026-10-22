@@ -29,6 +29,13 @@ if (args.Contains(RunJobsMode.Argument))
     return;
 }
 
+// Cloud Run Job mode (run by deploy/deploy-api.ps1 before the service is updated): apply the pending migrations and exit.
+if (args.Contains(RunMigrationsMode.Argument))
+{
+    await RunMigrationsMode.RunAsync(app);
+    return;
+}
+
 app.UseForwardedHeaders();
 
 if (app.Environment.IsDevelopment())
