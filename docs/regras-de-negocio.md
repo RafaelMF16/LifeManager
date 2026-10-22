@@ -128,6 +128,8 @@ Há dois tipos de meta mensal:
   - **Período anterior:** o mesmo número de meses logo antes. É usado em "Este mês", "Últimos N meses" e nos anos passados.
   - **Mesmo período do ano anterior:** os mesmos meses 12 meses antes. É usado em "Este ano" e só é permitido para períodos de até 12 meses.
 - **Variação** = (atual − anterior) ÷ |anterior|. Quando o valor anterior é zero, não há variação.
+- **Poupado = receitas − gastos.** No painel, investir conta como guardar, não como gastar. O poupado se divide em **investido** e **em conta** (o saldo, com a mesma regra do mês), e as duas partes sempre somam o total. A tela do mês e a lista de meses continuam mostrando o saldo.
+- **Taxa de poupança** = poupado ÷ receitas do período. Fica negativa quando os gastos passam das receitas, e não existe quando não há receitas. Um resgate lançado como receita entra no poupado do mês em que foi lançado.
 - Meses sem lançamentos aparecem zerados.
 - As quebras por categoria mostram as **8 maiores**; o resto é somado em "Outras", de modo que as partes sempre fecham com o total.
 - **Metas no painel:** cada mês é avaliado com a meta que valia naquele mês. A contagem "dentro do limite em X de N meses fechados" **deixa de fora o mês em andamento**. As categorias mais distantes da meta aparecem primeiro (até 5).
