@@ -171,11 +171,134 @@ O script:
 3. atualiza o serviço;
 4. aponta o job `lifemanager-jobs` para a mesma imagem.
 
+## Deploy automático (GitHub Actions)
+
+Cada merge na `main` publica o repositório em produção sozinho: a API pelo `.github/workflows/deploy.yml` deste repositório, e o front pelo do [LifeManagerFront](https://github.com/RafaelMF16/LifeManagerFront). O pipeline não adiciona custo: o Actions é ilimitado em repositório público, e o resto entra nos níveis gratuitos do GCP.
+
+- **API:** o job `test` roda `dotnet test LifeManager.slnx`. Só se ele passar, o job `deploy` autentica no GCP e roda o mesmo `./deploy/deploy-api.ps1` do deploy manual (build → migrations → serviço → job).
+- **Front:** lint, testes e build. Só se passarem, o `firebase deploy --only hosting`.
+- **Fila:** dois merges seguidos publicam um depois do outro, nunca em paralelo (`concurrency` sem cancelamento).
+- **Sem chave guardada no GitHub.** O Actions troca o token OIDC do próprio run por uma credencial de curta duração da service account `github-deployer` (Workload Identity Federation). No GitHub ficam só três variáveis, que são identificadores e não credenciais.
+- **Só a `main` dos dois repositórios autentica.** O provider rejeita qualquer token de outro dono ou de outra branch, e cada repositório só pode usar a service account pelo seu próprio nome. Um fork ou um PR de terceiros nunca consegue credencial. Os workflows disparam só em `push` na `main` e em `workflow_dispatch`.
+
+### Setup único
+
+Rode no PowerShell, com `$P` e `$R` definidos como em [Setup único do projeto](#setup-único-do-projeto), depois do primeiro deploy manual (o bucket do Cloud Build e os serviços já precisam existir).
+
+#### 1. APIs da federação
+
+```powershell
+gcloud services enable iamcredentials.googleapis.com sts.googleapis.com
+```
+
+#### 2. Pool e provider do GitHub
+
+O `--attribute-condition` é o que barra forks e outras branches: só tokens do dono `RafaelMF16` e da `main` passam.
+
+```powershell
+gcloud iam workload-identity-pools create github --location=global --display-name='GitHub Actions'
+gcloud iam workload-identity-pools providers create-oidc github-oidc --location=global --workload-identity-pool=github --display-name='GitHub OIDC' --issuer-uri='https://token.actions.githubusercontent.com' --attribute-mapping='google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.repository_owner=assertion.repository_owner,attribute.ref=assertion.ref' --attribute-condition="assertion.repository_owner == 'RafaelMF16' && assertion.ref == 'refs/heads/main'"
+```
+
+#### 3. Service account do deploy
+
+Só os dois repositórios podem usar a `github-deployer`:
+
+```powershell
+gcloud iam service-accounts create github-deployer --display-name='GitHub Actions deploy'
+$D = "github-deployer@$P.iam.gserviceaccount.com"
+$Pool = gcloud iam workload-identity-pools describe github --location=global --format='value(name)'
+foreach ($repo in 'RafaelMF16/LifeManager', 'RafaelMF16/LifeManagerFront') {
+    gcloud iam service-accounts add-iam-policy-binding $D --role=roles/iam.workloadIdentityUser --member="principalSet://iam.googleapis.com/$Pool/attribute.repository/$repo"
+}
+```
+
+Os papéis, sem `owner` nem `editor`:
+
+```powershell
+$N = gcloud projects describe $P --format='value(projectNumber)'
+foreach ($role in 'roles/cloudbuild.builds.editor', 'roles/serviceusage.serviceUsageConsumer', 'roles/logging.viewer', 'roles/run.developer', 'roles/artifactregistry.reader', 'roles/firebasehosting.admin') {
+    gcloud projects add-iam-policy-binding $P --member="serviceAccount:$D" --role=$role --condition=None
+}
+gcloud storage buckets add-iam-policy-binding "gs://${P}_cloudbuild" --member="serviceAccount:$D" --role=roles/storage.admin
+foreach ($sa in "lifemanager-run@$P.iam.gserviceaccount.com", "$N-compute@developer.gserviceaccount.com") {
+    gcloud iam service-accounts add-iam-policy-binding $sa --member="serviceAccount:$D" --role=roles/iam.serviceAccountUser
+}
+```
+
+| Papel | Para quê |
+|---|---|
+| `cloudbuild.builds.editor`, `serviceusage.serviceUsageConsumer` | `gcloud builds submit` |
+| `storage.admin` **só no bucket** `<projeto>_cloudbuild` | enviar o código-fonte para o build |
+| `logging.viewer` | acompanhar o log do build (`CLOUD_LOGGING_ONLY` no `cloudbuild.yaml`) |
+| `iam.serviceAccountUser` **só** na SA do Compute | o build roda como ela |
+| `run.developer` | publicar o serviço e os jobs e executar o `lifemanager-migrate`. Também cobre o `run.services.get` que o rewrite `/api/**` do Hosting exige |
+| `iam.serviceAccountUser` **só** na `lifemanager-run` | o serviço e os jobs rodam como ela |
+| `artifactregistry.reader` | ler a imagem publicada |
+| `firebasehosting.admin` | publicar o front |
+
+Se o primeiro run falhar por falta de permissão, a mensagem do `gcloud` (ou do `firebase`) diz qual falta. Acrescente o papel aqui e reexecute (veja [Reexecutar](#reexecutar)). Nada muda em produção num run que falha.
+
+#### 4. Limpeza das imagens
+
+O nível gratuito do Artifact Registry é de 0,5 GB, e cada imagem tem ~100–200 MB. A política mantém as 3 imagens mais recentes e apaga o resto. Ela roda uma vez por dia, então o repositório pode passar de 3 por algumas horas.
+
+```powershell
+$Policy = New-TemporaryFile
+[IO.File]::WriteAllText($Policy, '[{"name":"keep-3-most-recent","action":{"type":"Keep"},"mostRecentVersions":{"keepCount":3}},{"name":"delete-the-rest","action":{"type":"Delete"},"condition":{"tagState":"any"}}]')
+gcloud artifacts repositories set-cleanup-policies lifemanager --location=$R --policy=$Policy --no-dry-run
+Remove-Item $Policy
+```
+
+Isso também limita o rollback da API às 3 últimas imagens.
+
+#### 5. Retenção do Hosting
+
+Cada deploy do front guarda uma versão no Firebase Hosting (10 GB gratuitos). No Console do Firebase → **Hosting** → menu do site → **Configurações de liberação**, deixe **10 versões**.
+
+#### 6. GitHub (nos dois repositórios)
+
+As três variáveis, que não são segredos:
+
+```powershell
+$Provider = gcloud iam workload-identity-pools providers describe github-oidc --location=global --workload-identity-pool=github --format='value(name)'
+foreach ($repo in 'RafaelMF16/LifeManager', 'RafaelMF16/LifeManagerFront') {
+    gh variable set GCP_PROJECT_ID --repo $repo --body $P
+    gh variable set GCP_WIF_PROVIDER --repo $repo --body $Provider
+    gh variable set GCP_DEPLOYER_SA --repo $repo --body $D
+}
+```
+
+E o Environment `production`, que só aceita deploy da `main`. Pela tela: **Settings → Environments → New environment** `production` → **Deployment branches and tags** → **Selected branches and tags** → `main`. Ou pelo `gh`:
+
+```powershell
+foreach ($repo in 'RafaelMF16/LifeManager', 'RafaelMF16/LifeManagerFront') {
+    gh api -X PUT "repos/$repo/environments/production" -F 'deployment_branch_policy[protected_branches]=false' -F 'deployment_branch_policy[custom_branch_policies]=true'
+    gh api -X POST "repos/$repo/environments/production/deployment-branch-policies" -f name=main -f type=branch
+}
+```
+
+Sem a `gh`, as variáveis ficam em **Settings → Secrets and variables → Actions → Variables**.
+
+### Reexecutar
+
+GitHub → **Actions** → **Deploy** → **Run workflow** (na `main`). Serve para republicar sem um merge novo, por exemplo depois de corrigir uma permissão. Ou pelo terminal: `gh workflow run deploy.yml --repo RafaelMF16/LifeManager`.
+
+### Rollback
+
+- **API:** volte o tráfego para a revisão anterior. A imagem dela precisa ser uma das 3 que a limpeza mantém.
+  ```powershell
+  gcloud run revisions list --service=lifemanager-api --region=$R
+  gcloud run services update-traffic lifemanager-api --region=$R --to-revisions=<revisão anterior>=100
+  ```
+  O próximo deploy volta a mandar todo o tráfego para a revisão nova. Também dá para reverter o merge no GitHub, o que gera um deploy novo. As migrations não são desfeitas no rollback: como são aditivas, a revisão anterior funciona com o schema novo.
+- **Front:** Console do Firebase → **Hosting** → histórico de versões → **Reverter** na versão anterior.
+
 ## Operação
 
 - **Logs:** console → Cloud Run → `lifemanager-api` ou `lifemanager-jobs` → Logs. Ou `gcloud run services logs read lifemanager-api --region=$R`.
 - **Execuções dos jobs:** `gcloud run jobs executions list --job=lifemanager-jobs --region=$R` (ou `--job=lifemanager-migrate` para as migrations de cada deploy).
-- **Imagens antigas:** apague no Artifact Registry. O nível gratuito é de 0,5 GB, e cada imagem tem ~100–200 MB.
+- **Imagens antigas:** a política de limpeza mantém as 3 mais recentes (veja [Limpeza das imagens](#4-limpeza-das-imagens)). O nível gratuito é de 0,5 GB, e cada imagem tem ~100–200 MB.
 - **Backup manual:** `gcloud sql backups create --instance=lifemanager-db`.
 - **Fim do Free Trial (90 dias):** faça o upgrade para conta paga (o custo segue em ~US$ 15/mês) ou exporte o banco antes de desligar:
   ```powershell
