@@ -7,3 +7,6 @@
 **/obj
 **/*.user
 docs
+
+# Credentials file written by google-github-actions/auth in the CI workspace
+gha-creds-*.json

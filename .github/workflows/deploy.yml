@@ -1,0 +1,46 @@
+# Every merge on main tests the API and, only if the tests pass, publishes it through deploy/deploy-api.ps1
+# (build → migrations → service → hourly job). Setup and rollback: docs/deploy.md, "Deploy automático (GitHub Actions)".
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# On the whole run, not only the deploy job: otherwise a later merge whose tests finish first would deploy before an
+# earlier one, and the older commit would end up in production.
+concurrency:
+  group: deploy-api
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet test LifeManager.slnx
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    permissions:
+      contents: read
+      id-token: write   # OIDC for the Workload Identity Federation
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - shell: pwsh
+        run: ./deploy/deploy-api.ps1 -ProjectId ${{ vars.GCP_PROJECT_ID }}

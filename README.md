@@ -98,7 +98,9 @@ Os testes não usam banco: os repositórios são substituídos por mocks em mem�
 
 ## Deploy
 
-Produção roda no Google Cloud: API no Cloud Run, banco no Cloud SQL, jobs de hora em hora num Cloud Run Job disparado pelo Cloud Scheduler, e o front no Firebase Hosting. Arquitetura, custos, setup único e deploys estão em [docs/deploy.md](docs/deploy.md). Depois do setup, cada nova versão da API é publicada com:
+Produção roda no Google Cloud: API no Cloud Run, banco no Cloud SQL, jobs de hora em hora num Cloud Run Job disparado pelo Cloud Scheduler, e o front no Firebase Hosting. Arquitetura, custos, setup único e deploys estão em [docs/deploy.md](docs/deploy.md).
+
+Cada merge na `main` publica a API sozinho: o GitHub Actions (`.github/workflows/deploy.yml`) roda os testes e, só se eles passarem, aplica as migrations e atualiza o serviço e os jobs. Para publicar à mão (por exemplo, se o Actions estiver fora do ar), o caminho é o mesmo script que o workflow chama:
 
 ```powershell
 ./deploy/deploy-api.ps1 -ProjectId <PROJECT_ID>

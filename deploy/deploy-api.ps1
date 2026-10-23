@@ -1,11 +1,11 @@
 <#
 .SYNOPSIS
-    Builds the API image and deploys it to Cloud Run: the service (lifemanager-api) and the hourly job (lifemanager-jobs).
+    Builds the API image, applies the pending migrations (job lifemanager-migrate) and deploys the image to Cloud Run: the
+    service (lifemanager-api) and the hourly job (lifemanager-jobs).
 
 .DESCRIPTION
     Needs the one-time setup in docs/deploy.md (Artifact Registry, Cloud SQL, secrets, service accounts).
-    Run pending migrations BEFORE this script (docs/deploy.md, "Migrations").
-
+    If the migrations fail, the script stops before the service and the hourly job change, so they keep the previous image.
 .EXAMPLE
     ./deploy/deploy-api.ps1 -ProjectId lifemanager-prod
 #>
@@ -46,6 +46,25 @@ try {
 finally {
     Pop-Location
 }
+
+# Before the service: the previous revision keeps serving on the new schema until the new one takes over, which is why
+# migrations must stay additive (docs/deploy.md, "Migrations").
+Write-Host '==> Applying the migrations (job lifemanager-migrate)' -ForegroundColor Cyan
+Invoke-Checked {
+    gcloud run jobs deploy lifemanager-migrate `
+        --project $ProjectId `
+        --region $Region `
+        --image $image `
+        --args='--migrate' `
+        --service-account $serviceAccount `
+        --set-cloudsql-instances $sqlInstance `
+        --set-secrets $secrets `
+        --cpu 1 `
+        --memory 512Mi `
+        --max-retries 0 `
+        --task-timeout 10m
+}
+Invoke-Checked { gcloud run jobs execute lifemanager-migrate --project $ProjectId --region $Region --wait }
 
 Write-Host '==> Deploying the service lifemanager-api' -ForegroundColor Cyan
 Invoke-Checked {
