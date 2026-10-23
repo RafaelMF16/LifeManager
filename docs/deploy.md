@@ -183,7 +183,13 @@ Cada merge na `main` publica o repositório em produção sozinho: a API pelo `.
 
 ### Setup único
 
-Rode no PowerShell, com `$P` e `$R` definidos como em [Setup único do projeto](#setup-único-do-projeto), depois do primeiro deploy manual (o bucket do Cloud Build e os serviços já precisam existir).
+Rode no PowerShell, depois do primeiro deploy manual (o bucket do Cloud Build e os serviços já precisam existir), tudo **na mesma janela**: os passos seguintes usam as variáveis criadas nos anteriores (`$D`, `$N`). Defina `$P` e `$R` antes, mesmo que o `gcloud config` já aponte para o projeto. Com o `$P` vazio, o `$D` sai inválido e o `gcloud` só responde `INVALID_ARGUMENT: Unknown error`.
+
+```powershell
+$P = '<PROJECT_ID>'
+$R = 'southamerica-east1'
+gcloud config set project $P
+```
 
 #### 1. APIs da federação
 
