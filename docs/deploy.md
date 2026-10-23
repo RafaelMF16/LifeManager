@@ -227,7 +227,7 @@ Os papéis, sem `owner` nem `editor`:
 
 ```powershell
 $N = gcloud projects describe $P --format='value(projectNumber)'
-foreach ($role in 'roles/cloudbuild.builds.editor', 'roles/serviceusage.serviceUsageConsumer', 'roles/logging.viewer', 'roles/run.developer', 'roles/artifactregistry.reader', 'roles/firebasehosting.admin') {
+foreach ($role in 'roles/cloudbuild.builds.editor', 'roles/serviceusage.serviceUsageConsumer', 'roles/logging.viewer', 'roles/storage.bucketViewer', 'roles/run.developer', 'roles/artifactregistry.reader', 'roles/firebasehosting.admin') {
     gcloud projects add-iam-policy-binding $P --member="serviceAccount:$D" --role=$role --condition=None
 }
 gcloud storage buckets add-iam-policy-binding "gs://${P}_cloudbuild" --member="serviceAccount:$D" --role=roles/storage.admin
@@ -240,6 +240,7 @@ foreach ($sa in "lifemanager-run@$P.iam.gserviceaccount.com", "$N-compute@develo
 |---|---|
 | `cloudbuild.builds.editor`, `serviceusage.serviceUsageConsumer` | `gcloud builds submit` |
 | `storage.admin` **só no bucket** `<projeto>_cloudbuild` | enviar o código-fonte para o build |
+| `storage.bucketViewer` no projeto | só nomes e metadados de bucket, sem acesso a arquivos. O `gcloud builds submit` lista os buckets do projeto para confirmar que o bucket padrão pertence a ele (proteção contra outro projeto registrar o mesmo nome). Sem isso, o build falha com `The user is forbidden from accessing the bucket`, uma mensagem que fala de `serviceusage.services.use` mas não é sobre ele |
 | `logging.viewer` | acompanhar o log do build (`CLOUD_LOGGING_ONLY` no `cloudbuild.yaml`) |
 | `iam.serviceAccountUser` **só** na SA do Compute | o build roda como ela |
 | `run.developer` | publicar o serviço e os jobs e executar o `lifemanager-migrate`. Também cobre o `run.services.get` que o rewrite `/api/**` do Hosting exige |
