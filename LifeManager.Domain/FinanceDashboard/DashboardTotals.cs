@@ -6,6 +6,12 @@ namespace LifeManager.Domain.FinanceDashboard
         /// <summary>What is left in the account: same rule as a month's balance.</summary>
         public decimal Balance => Income - Expense - Investment;
 
+        /// <summary>What was kept from the income: investing counts as saving, not as spending. Always Investment + Balance.</summary>
+        public decimal Saved => Income - Expense;
+
+        /// <summary>The part of the income that was saved (0.3 = 30%), negative when spending passed it; null when there was no income.</summary>
+        public decimal? SavingsRate => Income == 0 ? null : Math.Round(Saved / Income, 4);
+
         /// <summary>
         /// Relative change from <paramref name="previous"/> to <paramref name="current"/> (0.12 = +12%), against the
         /// size of the previous value, so a smaller negative balance reads as an improvement. Null when there is nothing

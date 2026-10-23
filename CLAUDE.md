@@ -244,7 +244,7 @@ The codebase is mid-migration to a `Result`/`Result<T>` pattern (`LifeManager.Do
 - **Endpoint:** `GET /api/FinanceDashboard?from=yyyy-MM&to=yyyy-MM&comparison=PreviousPeriod|SamePeriodLastYear`.
   - It returns one `FinanceDashboardResponseDto` with everything the dashboard shows:
     - the period and the comparison period;
-    - income/expense/investment/balance totals, each with previous value, difference and `ChangeRatio`;
+    - income/expense/investment/balance/saved totals, each with previous value, difference and `ChangeRatio`, plus the period's `SavingsRate` (`DashboardTotals`: `Saved` = income − expense = investment + balance; `SavingsRate` = saved ÷ income, null with no income);
     - one row per month of the period;
     - expense and investment breakdowns by category.
   - The frontend resolves presets ("last 6 months", "this year") into `from`/`to` itself, since only it knows the user's local date. The endpoint never reads the clock.
