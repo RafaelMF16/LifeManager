@@ -1,6 +1,6 @@
 using LifeManager.Application.FinanceDashboard.DTOs;
-using LifeManager.Domain.Budgets;
-using LifeManager.Domain.Budgets.Interfaces;
+using LifeManager.Domain.BudgetPlans;
+using LifeManager.Domain.BudgetPlans.Interfaces;
 using LifeManager.Domain.FinanceDashboard;
 using LifeManager.Domain.FinanceDashboard.Interfaces;
 using LifeManager.Domain.FinanceDashboard.ValueObjects;
@@ -11,7 +11,7 @@ using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Application.FinanceDashboard.Services
 {
-    public class FinanceDashboardService(IFinanceDashboardRepository financeDashboardRepository, IBudgetRepository budgetRepository)
+    public class FinanceDashboardService(IFinanceDashboardRepository financeDashboardRepository, IBudgetPlanRepository budgetPlanRepository)
     {
         /// <summary>How many categories each breakdown lists before grouping the rest into "others".</summary>
         public const int TopCategoryCount = 8;
@@ -20,7 +20,7 @@ namespace LifeManager.Application.FinanceDashboard.Services
         public const int TopBudgetCategoryCount = 5;
 
         private readonly IFinanceDashboardRepository _financeDashboardRepository = financeDashboardRepository;
-        private readonly IBudgetRepository _budgetRepository = budgetRepository;
+        private readonly IBudgetPlanRepository _budgetPlanRepository = budgetPlanRepository;
 
         public async Task<Result<FinanceDashboardResponseDto>> GetAsync(FinanceDashboardQueryDto query, UserId userId, CancellationToken cancellationToken)
         {
@@ -44,7 +44,7 @@ namespace LifeManager.Application.FinanceDashboard.Services
             var previous = rows.Where(row => comparison.Contains(row.Year, row.Month)).ToList();
             var months = period.Months();
 
-            var budgets = await _budgetRepository.GetOverlappingAsync(userId, period.From, period.To, cancellationToken);
+            var plans = await _budgetPlanRepository.GetOverlappingAsync(userId, period.From, period.To, cancellationToken);
 
             return new FinanceDashboardResponseDto(
                 ToPeriodDto(period),
@@ -53,70 +53,60 @@ namespace LifeManager.Application.FinanceDashboard.Services
                 [.. months.Select(month => ToMonthDto(month, current))],
                 ToBreakdownDto(MoneyFlowType.Expense, current, previous, months),
                 ToBreakdownDto(MoneyFlowType.Investment, current, previous, months),
-                ToBudgetsDto(budgets, current, months));
+                ToBudgetsDto(plans, current, months));
         }
 
         /// <summary>
-        /// Evaluates every goal month by month (the version in force in each one) against that month's actual amount,
-        /// then sums the months that had the goal. The actual amounts are the same rows the rest of the dashboard uses.
+        /// Evaluates each month against its own plan: the spending limit (the total minus the investment slice), the
+        /// investment slice and each expense slice, against that month's actual amounts. The actual amounts are the
+        /// same rows the rest of the dashboard uses. Investment is a single slice, so there are no investment categories.
         /// </summary>
         private static DashboardBudgetsDto ToBudgetsDto(
-            IReadOnlyList<BudgetListItem> budgets,
+            IReadOnlyList<BudgetPlanListItem> plans,
             IReadOnlyCollection<DashboardCategoryMonthTotal> current,
             IReadOnlyList<YearMonth> months)
         {
-            var expenseTotals = MonthlyGoals(budgets, MoneyFlowType.Expense, null, current, months);
-            var investmentTotals = MonthlyGoals(budgets, MoneyFlowType.Investment, null, current, months);
+            var plansByMonth = plans.ToDictionary(item => item.Plan.Month.Ordinal, item => item.Plan);
+
+            var expenseTotals = months
+                .Select(month => plansByMonth.GetValueOrDefault(month.Ordinal) is { } plan
+                    ? MonthGoal.Limit(plan.SpendingLimit, ActualOf(current, month, MoneyFlowType.Expense, null))
+                    : null)
+                .ToList();
+            var investmentTotals = months
+                .Select(month => plansByMonth.GetValueOrDefault(month.Ordinal) is { InvestmentSlice: { } slice } plan
+                    ? MonthGoal.Target(slice.AmountOf(plan.Total), ActualOf(current, month, MoneyFlowType.Investment, null))
+                    : null)
+                .ToList();
 
             return new DashboardBudgetsDto(
-                budgets.Count > 0,
+                plans.Count > 0,
                 [.. months.Select((month, index) => new DashboardBudgetMonthDto(
                     month.Year,
                     month.Month,
-                    expenseTotals[index]?.Budget.Amount.Value,
+                    expenseTotals[index]?.Goal,
                     expenseTotals[index]?.Achieved,
-                    investmentTotals[index]?.Budget.Amount.Value,
+                    investmentTotals[index]?.Goal,
                     investmentTotals[index]?.Achieved))],
                 ToBudgetSummaryDto(expenseTotals),
                 ToBudgetSummaryDto(investmentTotals),
-                ToBudgetCategoriesDto(budgets, MoneyFlowType.Expense, current, months),
-                ToBudgetCategoriesDto(budgets, MoneyFlowType.Investment, current, months));
+                ToBudgetCategoriesDto(plans, current),
+                []);
         }
 
-        /// <summary>For each month of the period, the goal in force (type and category, or the total when null) and how it went; null when there was none.</summary>
-        private static IReadOnlyList<MonthGoal?> MonthlyGoals(
-            IEnumerable<BudgetListItem> budgets,
-            MoneyFlowType type,
-            int? categoryId,
-            IReadOnlyCollection<DashboardCategoryMonthTotal> current,
-            IReadOnlyList<YearMonth> months)
-        {
-            var versions = budgets
-                .Select(item => item.Budget)
-                .Where(budget => budget.Type == type && budget.CategoryId?.Value == categoryId)
-                .ToList();
-
-            return [.. months.Select(month =>
-            {
-                var budget = BudgetTimeline.GoalIn(versions, month);
-                if (budget is null)
-                    return null;
-
-                var actual = current
-                    .Where(row => row.Type == type
-                        && row.Year == month.Year
-                        && row.Month == month.Month
-                        && (categoryId is null || row.CategoryId == categoryId))
-                    .Sum(row => row.Amount);
-
-                return new MonthGoal(budget, actual, budget.IsMetBy(actual), budget.GapFor(actual));
-            })];
-        }
+        /// <summary>What the month spent (or invested), in one category or, when null, in all of them.</summary>
+        private static decimal ActualOf(IEnumerable<DashboardCategoryMonthTotal> current, YearMonth month, MoneyFlowType type, int? categoryId)
+            => current
+                .Where(row => row.Type == type
+                    && row.Year == month.Year
+                    && row.Month == month.Month
+                    && (categoryId is null || row.CategoryId == categoryId))
+                .Sum(row => row.Amount);
 
         private static DashboardBudgetSummaryDto ToBudgetSummaryDto(IReadOnlyList<MonthGoal?> monthlyGoals)
         {
             var withGoal = monthlyGoals.OfType<MonthGoal>().ToList();
-            var goal = withGoal.Sum(monthGoal => monthGoal.Budget.Amount.Value);
+            var goal = withGoal.Sum(monthGoal => monthGoal.Goal);
             var actual = withGoal.Sum(monthGoal => monthGoal.Actual);
 
             return new DashboardBudgetSummaryDto(
@@ -127,28 +117,33 @@ namespace LifeManager.Application.FinanceDashboard.Services
                 withGoal.Count(monthGoal => monthGoal.Achieved));
         }
 
-        /// <summary>The type's category goals in the period, furthest from the goal first (ties by name, then id).</summary>
+        /// <summary>The expense slices of the period's plans by category, furthest from their limit first (ties by name, then id).</summary>
         private static IReadOnlyList<DashboardBudgetCategoryDto> ToBudgetCategoriesDto(
-            IReadOnlyList<BudgetListItem> budgets,
-            MoneyFlowType type,
-            IReadOnlyCollection<DashboardCategoryMonthTotal> current,
-            IReadOnlyList<YearMonth> months)
+            IReadOnlyList<BudgetPlanListItem> plans,
+            IReadOnlyCollection<DashboardCategoryMonthTotal> current)
         {
-            return [.. budgets
-                .Where(item => item.Budget.Type == type && item.Budget.CategoryId is not null)
-                .GroupBy(item => item.Budget.CategoryId!.Value)
+            return [.. plans
+                .SelectMany(item => item.Plan.Slices
+                    .Where(slice => slice.Type == MoneyFlowType.Expense)
+                    .Select(slice => (item, slice, categoryId: slice.CategoryId!.Value)))
+                .GroupBy(entry => entry.categoryId)
                 .Select(group =>
                 {
-                    var withGoal = MonthlyGoals(group, type, group.Key, current, months).OfType<MonthGoal>().ToList();
-                    var goal = withGoal.Sum(monthGoal => monthGoal.Budget.Amount.Value);
+                    var withGoal = group
+                        .Select(entry => MonthGoal.Limit(
+                            entry.slice.AmountOf(entry.item.Plan.Total),
+                            ActualOf(current, entry.item.Plan.Month, MoneyFlowType.Expense, group.Key)))
+                        .ToList();
+                    var goal = withGoal.Sum(monthGoal => monthGoal.Goal);
                     var actual = withGoal.Sum(monthGoal => monthGoal.Actual);
 
                     return new DashboardBudgetCategoryDto(
                         group.Key,
-                        group.First().CategoryName ?? string.Empty,
+                        group.First().item.CategoryNames.GetValueOrDefault(group.Key) ?? string.Empty,
                         goal,
                         actual,
-                        Math.Round(actual / goal, 4),
+                        // A slice can round to no cents (a tiny share of a tiny total); it reads as no progress.
+                        goal == 0 ? 0 : Math.Round(actual / goal, 4),
                         withGoal.Sum(monthGoal => monthGoal.Gap),
                         withGoal.Count,
                         withGoal.Count(monthGoal => monthGoal.Achieved));
@@ -159,7 +154,13 @@ namespace LifeManager.Application.FinanceDashboard.Services
                 .Take(TopBudgetCategoryCount)];
         }
 
-        private record MonthGoal(Budget Budget, decimal Actual, bool Achieved, decimal Gap);
+        /// <summary>One month's goal and how it went. <see cref="Gap"/> is what was spent over a limit or is missing to a target.</summary>
+        private record MonthGoal(decimal Goal, decimal Actual, bool Achieved, decimal Gap)
+        {
+            public static MonthGoal Limit(decimal goal, decimal actual) => new(goal, actual, actual <= goal, Math.Max(0, actual - goal));
+
+            public static MonthGoal Target(decimal goal, decimal actual) => new(goal, actual, actual >= goal, Math.Max(0, goal - actual));
+        }
 
         private static DashboardTotals SumByType(IReadOnlyCollection<DashboardCategoryMonthTotal> rows)
             => new(SumOf(rows, MoneyFlowType.Income), SumOf(rows, MoneyFlowType.Expense), SumOf(rows, MoneyFlowType.Investment));
