@@ -129,7 +129,9 @@ Test projects mirror the layer they test 1:1 (`LifeManager.Domain.Test` → Doma
 
 ### Auth
 
-- `POST /api/Auth/Register` → 201.
+- `POST /api/Auth/Register` → 201:
+  - Takes optional `language`/`theme` (the sign-up screen's, same enums as UserPreferences; absent or undefined → `PTBR`/`Light` via `UserPreferences.CreateDefault(userId, theme, language)`, an unknown string is a model-binding 400).
+  - `IUserRepository.AddWithStarterDataAsync` stores the user, their preferences and `DefaultCategories.CreateFor(userId, preferences.Language)` (`Domain/Categories/DefaultCategories.cs`, 12 names per language) in one database transaction. They are ordinary rows of the user (no global categories, no default flag); existing users never got them.
 - `POST /api/Auth/Login`:
   - Returns `{ accessToken }`.
   - Sets the refresh token as an `HttpOnly`, `Secure` cookie `__session` (path `/api/Auth`; the name is the one Firebase Hosting forwards, see "Background jobs and deploy"). The cookie expires together with the token (`LoginResponseDto.RefreshTokenExpiresAt`).
@@ -175,6 +177,8 @@ The codebase is mid-migration to a `Result`/`Result<T>` pattern (`LifeManager.Do
 - Every context (`Users`, `Auth`, `UsersPreferences`, `Categories`, `MonthlySummaries`, `Transactions`, `RecurringTransactions`, `BudgetPlans`) uses this pattern; there is no `DomainException` anymore. New code must not throw for expected failures.
 
 ### Categories (reference flow for new features)
+
+- **Default categories:** every new user starts with the `DefaultCategories` copies made at sign-up (see Auth). Nothing tells them apart from categories the user created.
 
 - **Name rules:** `Category` has no `MoneyFlowType`. The type lives only on `Transaction`, so the same category can be used for expenses and income.
   - Only the name can change (`Rename`).
