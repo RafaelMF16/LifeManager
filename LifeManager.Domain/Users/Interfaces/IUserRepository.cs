@@ -1,5 +1,5 @@
-using LifeManager.Domain.UsersPreferences.Enums;
 using LifeManager.Domain.Users.ValueObjects;
+using LifeManager.Domain.UsersPreferences.Enums;
 
 namespace LifeManager.Domain.Users.Interfaces
 {

@@ -31,10 +31,10 @@ namespace LifeManager.Application.Test.Users.Mocks
             preferences.AssignId(UserPreferencesSingleton.Instance.Count + 1);
             UserPreferencesSingleton.Instance.Add(preferences);
 
+            var nextCategoryId = CategorySingleton.Instance.Count == 0 ? 1 : CategorySingleton.Instance.Max(storedCategory => storedCategory.Id!.Value) + 1;
             foreach (var category in categories)
             {
-                var categoryId = CategorySingleton.Instance.Count == 0 ? 1 : CategorySingleton.Instance.Max(storedCategory => storedCategory.Id!.Value) + 1;
-                category.AssignId(categoryId);
+                category.AssignId(nextCategoryId++);
                 CategorySingleton.Instance.Add(category);
             }
 
