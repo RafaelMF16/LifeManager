@@ -105,6 +105,24 @@ namespace LifeManager.Domain.Test.UsersPreferences
         }
 
         [Fact]
+        public void CreateDefault_ShouldUseGivenThemeAndLanguage_WhenTheyAreDefined()
+        {
+            var userPreferences = UserPreferences.CreateDefault(new UserId(1), Theme.Dark, Language.EN);
+
+            Assert.Equal(Theme.Dark, userPreferences.Theme);
+            Assert.Equal(Language.EN, userPreferences.Language);
+        }
+
+        [Fact]
+        public void CreateDefault_ShouldFallBackToLightThemeAndPtBr_WhenThemeAndLanguageAreUndefined()
+        {
+            var userPreferences = UserPreferences.CreateDefault(new UserId(1), (Theme)99, (Language)99);
+
+            Assert.Equal(Theme.Light, userPreferences.Theme);
+            Assert.Equal(Language.PTBR, userPreferences.Language);
+        }
+
+        [Fact]
         public void Equals_ShouldReturnTrue_WhenUserPreferencesHaveTheSameId()
         {
             var userPreferences1 = UserPreferences.Create(1, Theme.Light, Language.EN).Value!;

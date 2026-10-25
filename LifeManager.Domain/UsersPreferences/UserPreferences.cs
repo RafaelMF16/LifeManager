@@ -36,9 +36,16 @@ namespace LifeManager.Domain.UsersPreferences
             return new UserPreferences(userId, theme, language);
         }
 
-        public static UserPreferences CreateDefault(UserId userId)
+        /// <summary>
+        /// The preferences of a user who hasn't saved any. A sign-up passes the theme and language its screen was in;
+        /// a missing or undefined value falls back to <see cref="Theme.Light"/> / <see cref="Language.PTBR"/>.
+        /// </summary>
+        public static UserPreferences CreateDefault(UserId userId, Theme? theme = null, Language? language = null)
         {
-            return new UserPreferences(userId, Theme.Light, Language.PTBR);
+            var resolvedTheme = theme is { } givenTheme && Enum.IsDefined(givenTheme) ? givenTheme : Theme.Light;
+            var resolvedLanguage = language is { } givenLanguage && Enum.IsDefined(givenLanguage) ? givenLanguage : Language.PTBR;
+
+            return new UserPreferences(userId, resolvedTheme, resolvedLanguage);
         }
 
         public Result<UserPreferences> Update(Theme theme, Language language)

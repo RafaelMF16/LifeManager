@@ -1,6 +1,9 @@
+using LifeManager.Domain.Categories;
 using LifeManager.Domain.Users;
 using LifeManager.Domain.Users.Interfaces;
 using LifeManager.Domain.Users.ValueObjects;
+using LifeManager.Domain.UsersPreferences;
+using LifeManager.Domain.UsersPreferences.Enums;
 using LifeManager.Infrastructure.Postgres;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,10 +13,20 @@ namespace LifeManager.Infrastructure.Users
     {
         private readonly LifeManagerDbContext _dbContext = dbContext;
 
-        public async Task<User> AddAsync(User user, CancellationToken cancellationToken)
+        public async Task<User> AddWithStarterDataAsync(User user, Theme? theme, Language? language, CancellationToken cancellationToken)
         {
+            await using var databaseTransaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+            // The user's id only exists after this save, and the starting data needs it.
             _dbContext.Add(user);
             await _dbContext.SaveChangesAsync(cancellationToken);
+
+            var preferences = UserPreferences.CreateDefault(user.Id!, theme, language);
+            _dbContext.Add(preferences);
+            _dbContext.AddRange(DefaultCategories.CreateFor(user.Id!, preferences.Language));
+            await _dbContext.SaveChangesAsync(cancellationToken);
+
+            await databaseTransaction.CommitAsync(cancellationToken);
 
             return user;
         }

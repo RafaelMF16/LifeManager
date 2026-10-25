@@ -42,6 +42,7 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
 - Nome obrigatório, até 100 caracteres.
 - E-mail obrigatório, em formato válido e único no sistema.
 - Senha de 8 a 50 caracteres.
+- A conta nova já vem com as **preferências** (tema e idioma que a tela de cadastro estava usando; sem essa informação, claro e português) e as **[categorias padrão](#categorias)** nesse idioma. A conta, as preferências e as categorias são criadas juntas: ou tudo é gravado, ou nada.
 
 **Login**
 - E-mail ou senha errados retornam sempre o mesmo erro, sem revelar qual dos dois está errado.
@@ -65,6 +66,7 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
 ### Categorias
 
 - Uma categoria tem só um nome, de até 50 caracteres.
+- **Toda conta nova começa com 12 categorias**, no idioma do cadastro: Moradia, Mercado, Restaurantes, Transporte, Saúde, Educação, Lazer, Assinaturas, Compras, Salário, Investimentos e Outros (em inglês: Housing, Groceries, Restaurants, Transportation, Health, Education, Leisure, Subscriptions, Shopping, Salary, Investments e Other). São categorias comuns do usuário: dá para renomear e excluir como qualquer outra, e elas não mudam de idioma se ele trocar o idioma depois. Contas criadas antes dessa regra não as recebem.
 - O nome é **único por usuário, ignorando acentos e maiúsculas**: "Mercado", "mercado" e "Mercadó" são o mesmo nome. Renomear para outra grafia do mesmo nome é permitido.
 - A categoria não tem tipo: a mesma categoria serve para gastos, receitas e investimentos.
 - **Não é possível excluir uma categoria em uso** por lançamentos ou transações recorrentes. Antes, troque a categoria deles.
