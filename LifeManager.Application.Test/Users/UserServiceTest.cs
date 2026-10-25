@@ -2,8 +2,10 @@
 using LifeManager.Application.Test.Configurations.SingletonLists;
 using LifeManager.Application.Users.DTOs;
 using LifeManager.Application.Users.Services;
+using LifeManager.Domain.Categories;
 using LifeManager.Domain.Users.Errors;
 using LifeManager.Domain.Users.ValueObjects;
+using LifeManager.Domain.UsersPreferences.Enums;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LifeManager.Application.Test.Users
@@ -19,6 +21,8 @@ namespace LifeManager.Application.Test.Users
 
             UserSingleton.Instance.Clear();
             RefreshTokenSingleton.Instance.Clear();
+            CategorySingleton.Instance.Clear();
+            UserPreferencesSingleton.Instance.Clear();
         }
 
         [Fact]
@@ -105,6 +109,80 @@ namespace LifeManager.Application.Test.Users
             Assert.False(result.IsSuccess);
             Assert.Equal(UserErrors.EmailRegistered, result.Error);
             Assert.Single(UserSingleton.Instance);
+            Assert.Equal(DefaultCategories.Names(Language.PTBR).Count, CategorySingleton.Instance.Count);
+            Assert.Single(UserPreferencesSingleton.Instance);
+        }
+
+        [Fact]
+        public async Task AddUserAsync_ShouldCreateDefaultCategoriesAndPreferencesInTheChosenLanguageAndTheme_WhenGiven()
+        {
+            var userDto = new UserDto("email@email.com", "name", "password", Language.EN, Theme.Dark);
+
+            var result = await _userService.AddUserAsync(userDto, CancellationToken.None);
+
+            var userId = new UserId(result.Value!.Id);
+            Assert.Equal(
+                DefaultCategories.Names(Language.EN),
+                CategorySingleton.Instance.Where(category => category.UserId == userId).Select(category => category.Name.Value));
+            var preferences = Assert.Single(UserPreferencesSingleton.Instance);
+            Assert.Equal(userId, preferences.UserId);
+            Assert.Equal(Language.EN, preferences.Language);
+            Assert.Equal(Theme.Dark, preferences.Theme);
+        }
+
+        [Fact]
+        public async Task AddUserAsync_ShouldCreatePortugueseCategoriesAndLightTheme_WhenLanguageAndThemeAreMissing()
+        {
+            var result = await _userService.AddUserAsync(new UserDto("email@email.com", "name", "password"), CancellationToken.None);
+
+            var userId = new UserId(result.Value!.Id);
+            Assert.Equal(
+                DefaultCategories.Names(Language.PTBR),
+                CategorySingleton.Instance.Where(category => category.UserId == userId).Select(category => category.Name.Value));
+            var preferences = Assert.Single(UserPreferencesSingleton.Instance);
+            Assert.Equal(Language.PTBR, preferences.Language);
+            Assert.Equal(Theme.Light, preferences.Theme);
+        }
+
+        [Fact]
+        public async Task AddUserAsync_ShouldFallBackToPortugueseAndLightTheme_WhenLanguageAndThemeAreUndefined()
+        {
+            var userDto = new UserDto("email@email.com", "name", "password", (Language)99, (Theme)99);
+
+            await _userService.AddUserAsync(userDto, CancellationToken.None);
+
+            Assert.Equal(DefaultCategories.Names(Language.PTBR), CategorySingleton.Instance.Select(category => category.Name.Value));
+            var preferences = Assert.Single(UserPreferencesSingleton.Instance);
+            Assert.Equal(Language.PTBR, preferences.Language);
+            Assert.Equal(Theme.Light, preferences.Theme);
+        }
+
+        [Fact]
+        public async Task AddUserAsync_ShouldNotCreateCategoriesOrPreferences_WhenUserIsInvalid()
+        {
+            var result = await _userService.AddUserAsync(new UserDto("email", "name", "password", Language.EN, Theme.Dark), CancellationToken.None);
+
+            Assert.False(result.IsSuccess);
+            Assert.Empty(CategorySingleton.Instance);
+            Assert.Empty(UserPreferencesSingleton.Instance);
+        }
+
+        [Fact]
+        public async Task AddUserAsync_ShouldKeepEachUsersOwnCategoriesAndPreferences_WhenTwoUsersSignUp()
+        {
+            var first = await _userService.AddUserAsync(new UserDto("first@email.com", "first", "password", Language.EN, Theme.Dark), CancellationToken.None);
+            var second = await _userService.AddUserAsync(new UserDto("second@email.com", "second", "password"), CancellationToken.None);
+
+            var firstUserId = new UserId(first.Value!.Id);
+            var secondUserId = new UserId(second.Value!.Id);
+            Assert.Equal(
+                DefaultCategories.Names(Language.EN),
+                CategorySingleton.Instance.Where(category => category.UserId == firstUserId).Select(category => category.Name.Value));
+            Assert.Equal(
+                DefaultCategories.Names(Language.PTBR),
+                CategorySingleton.Instance.Where(category => category.UserId == secondUserId).Select(category => category.Name.Value));
+            Assert.Equal(Language.EN, UserPreferencesSingleton.Instance.Single(preferences => preferences.UserId == firstUserId).Language);
+            Assert.Equal(Language.PTBR, UserPreferencesSingleton.Instance.Single(preferences => preferences.UserId == secondUserId).Language);
         }
 
         [Fact]

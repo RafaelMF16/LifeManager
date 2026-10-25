@@ -1,7 +1,10 @@
 using LifeManager.Application.Test.Configurations.SingletonLists;
+using LifeManager.Domain.Categories;
 using LifeManager.Domain.Users;
 using LifeManager.Domain.Users.Interfaces;
 using LifeManager.Domain.Users.ValueObjects;
+using LifeManager.Domain.UsersPreferences;
+using LifeManager.Domain.UsersPreferences.Enums;
 
 namespace LifeManager.Application.Test.Users.Mocks
 {
@@ -14,12 +17,26 @@ namespace LifeManager.Application.Test.Users.Mocks
             _instance = UserSingleton.Instance;
         }
 
-        public Task<User> AddAsync(User user, CancellationToken cancellationToken)
+        // Mirrors the real repository's transaction: everything is built first and only then stored.
+        public Task<User> AddWithStarterDataAsync(User user, Theme? theme, Language? language, CancellationToken cancellationToken)
         {
+            var newId = _instance.Count + 1;
+            user.AssignId(newId);
+
+            var preferences = UserPreferences.CreateDefault(user.Id!, theme, language);
+            var categories = DefaultCategories.CreateFor(user.Id!, preferences.Language);
+
             _instance.Add(user);
 
-            var newId = _instance.Count;
-            user.AssignId(newId);
+            preferences.AssignId(UserPreferencesSingleton.Instance.Count + 1);
+            UserPreferencesSingleton.Instance.Add(preferences);
+
+            foreach (var category in categories)
+            {
+                var categoryId = CategorySingleton.Instance.Count == 0 ? 1 : CategorySingleton.Instance.Max(storedCategory => storedCategory.Id!.Value) + 1;
+                category.AssignId(categoryId);
+                CategorySingleton.Instance.Add(category);
+            }
 
             return Task.FromResult(user);
         }

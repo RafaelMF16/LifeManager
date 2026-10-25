@@ -36,7 +36,7 @@ namespace LifeManager.Application.Users.Services
             if (!userResult.IsSuccess)
                 return userResult.Error;
 
-            var user = await _userRepository.AddAsync(userResult.Value, cancellationToken);
+            var user = await _userRepository.AddWithStarterDataAsync(userResult.Value, userDto.Theme, userDto.Language, cancellationToken);
 
             return new UserResponseDto(user.Id!.Value, user.Name.Value, user.Email.Value);
         }

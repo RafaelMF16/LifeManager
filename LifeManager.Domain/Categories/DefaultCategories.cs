@@ -1,3 +1,4 @@
+using LifeManager.Domain.Users.ValueObjects;
 using LifeManager.Domain.UsersPreferences.Enums;
 
 namespace LifeManager.Domain.Categories
@@ -23,5 +24,11 @@ namespace LifeManager.Domain.Categories
         /// <summary>Any language other than <see cref="Language.EN"/> gets the Portuguese names.</summary>
         public static IReadOnlyList<string> Names(Language language)
             => language == Language.EN ? EnglishNames : PortugueseNames;
+
+        /// <summary>The names are fixed and covered by tests, so creating them never fails.</summary>
+        public static IReadOnlyList<Category> CreateFor(UserId userId, Language language)
+            => Names(language)
+                .Select(name => Category.Create(userId.Value, name).Value!)
+                .ToList();
     }
 }

@@ -1,5 +1,6 @@
 using LifeManager.Domain.Categories;
 using LifeManager.Domain.Categories.ValueObjects;
+using LifeManager.Domain.Users.ValueObjects;
 using LifeManager.Domain.UsersPreferences.Enums;
 
 namespace LifeManager.Domain.Test.Categories
@@ -47,6 +48,21 @@ namespace LifeManager.Domain.Test.Categories
 
             Assert.All(categoryNames, result => Assert.True(result.IsSuccess));
             Assert.Equal(names.Count, categoryNames.Select(result => result.Value!.NormalizedValue).Distinct().Count());
+        }
+
+        [Fact]
+        public void CreateFor_ShouldCreateOneCategoryPerNameForTheUser_WhenCalled()
+        {
+            var userId = new UserId(7);
+
+            var categories = DefaultCategories.CreateFor(userId, Language.EN);
+
+            Assert.Equal(DefaultCategories.Names(Language.EN), categories.Select(category => category.Name.Value));
+            Assert.All(categories, category =>
+            {
+                Assert.Equal(userId, category.UserId);
+                Assert.Null(category.Id);
+            });
         }
     }
 }
