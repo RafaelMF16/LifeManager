@@ -2,7 +2,9 @@ using LifeManager.Application.Auth.DTOs;
 using LifeManager.Application.Auth.Emails;
 using LifeManager.Domain.Auth;
 using LifeManager.Domain.Auth.Enums;
+using LifeManager.Domain.Auth.Errors;
 using LifeManager.Domain.Auth.Interfaces;
+using LifeManager.Domain.Auth.ValueObjects;
 using LifeManager.Domain.Shared.Results;
 using LifeManager.Domain.Users;
 using LifeManager.Domain.Users.Interfaces;
@@ -23,8 +25,10 @@ namespace LifeManager.Application.Auth.Services
         IEmailCooldownRepository emailCooldownRepository,
         IEmailSender emailSender,
         FrontendLinks frontendLinks,
+        AuthService authService,
         TimeProvider timeProvider)
     {
+        private readonly AuthService _authService = authService;
         private readonly IUserRepository _userRepository = userRepository;
         private readonly IUserPreferencesRepository _userPreferencesRepository = userPreferencesRepository;
         private readonly IPendingRegistrationRepository _pendingRegistrationRepository = pendingRegistrationRepository;
@@ -88,6 +92,57 @@ namespace LifeManager.Application.Auth.Services
                 cancellationToken);
 
             return Result.Success();
+        }
+
+        /// <summary>The set-password page checks its link first, so an expired one is shown before a password is typed.</summary>
+        public async Task<Result<PendingRegistrationResponseDto>> VerifyAsync(EmailTokenDto emailTokenDto, CancellationToken cancellationToken)
+        {
+            var pendingResult = await GetUsablePendingRegistrationAsync(emailTokenDto.Token, cancellationToken);
+            if (!pendingResult.IsSuccess)
+                return pendingResult.Error;
+
+            return new PendingRegistrationResponseDto(pendingResult.Value.Email.Value, pendingResult.Value.Name.Value);
+        }
+
+        /// <summary>
+        /// Creates the account with the chosen password, the sign-up's preferences and default categories. The link is
+        /// checked before the password, so an expired link is reported as such whatever was typed.
+        /// </summary>
+        public async Task<Result> CompleteAsync(CompleteRegistrationDto completeRegistrationDto, CancellationToken cancellationToken)
+        {
+            var pendingResult = await GetUsablePendingRegistrationAsync(completeRegistrationDto.Token, cancellationToken);
+            if (!pendingResult.IsSuccess)
+                return pendingResult.Error;
+
+            var pendingRegistration = pendingResult.Value;
+
+            var plainPasswordResult = PlainPassword.Create(completeRegistrationDto.Password);
+            if (!plainPasswordResult.IsSuccess)
+                return plainPasswordResult.Error;
+
+            var hashedPassword = _authService.EncryptPassword(plainPasswordResult.Value.Value);
+            var userResult = User.Create(pendingRegistration.Name.Value, pendingRegistration.Email.Value, hashedPassword);
+            if (!userResult.IsSuccess)
+                return userResult.Error;
+
+            var user = await _pendingRegistrationRepository.CompleteAsync(pendingRegistration, userResult.Value, cancellationToken);
+            if (user is null)
+                return AuthErrors.InvalidEmailToken;
+
+            return Result.Success();
+        }
+
+        private async Task<Result<PendingRegistration>> GetUsablePendingRegistrationAsync(string token, CancellationToken cancellationToken)
+        {
+            var tokenHashResult = EmailTokenHash.FromToken(token);
+            if (!tokenHashResult.IsSuccess)
+                return tokenHashResult.Error;
+
+            var pendingRegistration = await _pendingRegistrationRepository.GetByTokenHashAsync(tokenHashResult.Value, cancellationToken);
+            if (pendingRegistration is null || pendingRegistration.IsExpired(_timeProvider.GetUtcNow()))
+                return AuthErrors.InvalidEmailToken;
+
+            return pendingRegistration;
         }
 
         private async Task SendAccountExistsAsync(User user, CancellationToken cancellationToken)

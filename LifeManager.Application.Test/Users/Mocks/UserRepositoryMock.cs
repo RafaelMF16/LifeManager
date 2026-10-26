@@ -17,7 +17,8 @@ namespace LifeManager.Application.Test.Users.Mocks
             _instance = UserSingleton.Instance;
         }
 
-        // Mirrors the real repository's transaction: everything is built first and only then stored.
+        // Test seeding, mirroring how a completed sign-up stores an account (PendingRegistrationRepository.CompleteAsync):
+        // the user, their preferences and default categories, all built first and only then stored.
         public Task<User> AddWithStarterDataAsync(User user, Theme? theme, Language? language, CancellationToken cancellationToken)
         {
             var newId = _instance.Count + 1;
@@ -46,8 +47,5 @@ namespace LifeManager.Application.Test.Users.Mocks
 
         public Task<User?> GetByEmailAsync(Email email, CancellationToken cancellationToken)
             => Task.FromResult(_instance.SingleOrDefault(user => user.Email.Value == email.Value));
-
-        public Task<bool> ExistsByEmailAsync(Email email, CancellationToken cancellationToken)
-            => Task.FromResult(_instance.Any(user => user.Email.Value == email.Value));
     }
 }

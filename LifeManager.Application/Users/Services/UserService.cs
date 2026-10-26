@@ -18,29 +18,6 @@ namespace LifeManager.Application.Users.Services
         private readonly AuthService _authService = authService;
         private readonly TokenService _tokenService = tokenService;
 
-        public async Task<Result<UserResponseDto>> AddUserAsync(UserDto userDto, CancellationToken cancellationToken)
-        {
-            var emailResult = Email.Create(userDto.Email);
-            if (!emailResult.IsSuccess)
-                return emailResult.Error;
-
-            if (await _userRepository.ExistsByEmailAsync(emailResult.Value, cancellationToken))
-                return UserErrors.EmailRegistered;
-
-            var plainPasswordResult = PlainPassword.Create(userDto.UserPassword);
-            if (!plainPasswordResult.IsSuccess)
-                return plainPasswordResult.Error;
-
-            var hashedPassword = _authService.EncryptPassword(plainPasswordResult.Value.Value);
-            var userResult = User.Create(userDto.Name, userDto.Email, hashedPassword);
-            if (!userResult.IsSuccess)
-                return userResult.Error;
-
-            var user = await _userRepository.AddWithStarterDataAsync(userResult.Value, userDto.Theme, userDto.Language, cancellationToken);
-
-            return new UserResponseDto(user.Id!.Value, user.Name.Value, user.Email.Value);
-        }
-
         public async Task<Result<CurrentUserResponseDto>> GetCurrentUserAsync(UserId userId, CancellationToken cancellationToken)
         {
             var user = await _userRepository.GetByIdAsync(userId, cancellationToken);

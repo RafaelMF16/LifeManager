@@ -3,8 +3,13 @@ using LifeManager.Application.Auth.Services;
 using LifeManager.Application.Test.Auth.Mocks;
 using LifeManager.Application.Test.Configurations;
 using LifeManager.Application.Test.Configurations.SingletonLists;
+using LifeManager.Application.Test.Users.Mocks;
+using LifeManager.Application.Users.DTOs;
+using LifeManager.Application.Users.Services;
 using LifeManager.Domain.Auth;
+using LifeManager.Domain.Auth.Errors;
 using LifeManager.Domain.Auth.ValueObjects;
+using LifeManager.Domain.Categories;
 using LifeManager.Domain.Users;
 using LifeManager.Domain.Users.Errors;
 using LifeManager.Domain.Users.Interfaces;
@@ -42,7 +47,7 @@ namespace LifeManager.Application.Test.Auth
         private async Task<User> AddActiveUserAsync(string email, Language language)
         {
             var user = User.Create("Bia", email, "hash").Value!;
-            return await ServiceProvider.GetRequiredService<IUserRepository>().AddWithStarterDataAsync(user, Theme.Light, language, CancellationToken.None);
+            return await ((UserRepositoryMock)ServiceProvider.GetRequiredService<IUserRepository>()).AddWithStarterDataAsync(user, Theme.Light, language, CancellationToken.None);
         }
 
         [Fact]
@@ -164,6 +169,192 @@ namespace LifeManager.Application.Test.Auth
             var result = await _registrationService.RegisterAsync(new RegisterDto("bia@example.com", "", null, null), CancellationToken.None);
 
             Assert.Equal(UserErrors.UserNameIsNullOrWhiteSpace, result.Error);
+        }
+
+        private async Task<string> SignUpAsync(string email, string name = "Ana", Language? language = null, Theme? theme = null)
+        {
+            var before = EmailSenderMock.Sent.Count;
+            await _registrationService.RegisterAsync(new RegisterDto(email, name, language, theme), CancellationToken.None);
+            Assert.Equal(before + 1, EmailSenderMock.Sent.Count);
+
+            return TokenFrom(EmailSenderMock.Sent[^1].TextBody);
+        }
+
+        [Fact]
+        public async Task VerifyAsync_ShouldReturnTheEmailAndName_WhenTheTokenIsValid()
+        {
+            var token = await SignUpAsync("ana@example.com", "Ana Silva");
+
+            var result = await _registrationService.VerifyAsync(new EmailTokenDto(token), CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(new PendingRegistrationResponseDto("ana@example.com", "Ana Silva"), result.Value);
+        }
+
+        [Theory]
+        [InlineData("")]
+        [InlineData("unknown-token")]
+        public async Task VerifyAsync_ShouldReturnInvalidEmailToken_WhenTheTokenIsUnknown(string token)
+        {
+            await SignUpAsync("ana@example.com");
+
+            var result = await _registrationService.VerifyAsync(new EmailTokenDto(token), CancellationToken.None);
+
+            Assert.Equal(AuthErrors.InvalidEmailToken, result.Error);
+        }
+
+        [Fact]
+        public async Task VerifyAsync_ShouldReturnInvalidEmailToken_WhenTheLinkExpired()
+        {
+            var token = await SignUpAsync("ana@example.com");
+            _clock.UtcNow = _clock.UtcNow.AddHours(PendingRegistration.ValidityHours);
+
+            var result = await _registrationService.VerifyAsync(new EmailTokenDto(token), CancellationToken.None);
+
+            Assert.Equal(AuthErrors.InvalidEmailToken, result.Error);
+        }
+
+        [Fact]
+        public async Task CompleteAsync_ShouldCreateTheAccountWithAHashedPassword_WhenTheTokenIsValid()
+        {
+            var token = await SignUpAsync("ana@example.com", "Ana Silva");
+
+            var result = await _registrationService.CompleteAsync(new CompleteRegistrationDto(token, "my-password"), CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.Empty(PendingRegistrationSingleton.Instance);
+            var user = Assert.Single(UserSingleton.Instance);
+            Assert.Equal(("Ana Silva", "ana@example.com"), (user.Name.Value, user.Email.Value));
+            Assert.NotEqual("my-password", user.PasswordHash.Value);
+            Assert.True(ServiceProvider.GetRequiredService<AuthService>().VerifyPassword("my-password", user.PasswordHash.Value));
+        }
+
+        [Fact]
+        public async Task CompleteAsync_ShouldLetTheNewAccountLogIn()
+        {
+            var token = await SignUpAsync("ana@example.com");
+            await _registrationService.CompleteAsync(new CompleteRegistrationDto(token, "my-password"), CancellationToken.None);
+
+            var login = await ServiceProvider.GetRequiredService<UserService>()
+                .AuthenticateUserAsync(new LoginDto("ana@example.com", "my-password"), CancellationToken.None);
+
+            Assert.True(login.IsSuccess);
+        }
+
+        [Fact]
+        public async Task CompleteAsync_ShouldCreateDefaultCategoriesAndPreferencesInTheSignUpLanguageAndTheme()
+        {
+            var token = await SignUpAsync("ana@example.com", language: Language.EN, theme: Theme.Dark);
+
+            await _registrationService.CompleteAsync(new CompleteRegistrationDto(token, "my-password"), CancellationToken.None);
+
+            Assert.Equal(DefaultCategories.Names(Language.EN), CategorySingleton.Instance.Select(category => category.Name.Value));
+            var preferences = Assert.Single(UserPreferencesSingleton.Instance);
+            Assert.Equal((Language.EN, Theme.Dark), (preferences.Language, preferences.Theme));
+        }
+
+        [Fact]
+        public async Task CompleteAsync_ShouldFallBackToPortugueseAndLightTheme_WhenLanguageAndThemeWereMissing()
+        {
+            var token = await SignUpAsync("ana@example.com");
+
+            await _registrationService.CompleteAsync(new CompleteRegistrationDto(token, "my-password"), CancellationToken.None);
+
+            Assert.Equal(DefaultCategories.Names(Language.PTBR), CategorySingleton.Instance.Select(category => category.Name.Value));
+            var preferences = Assert.Single(UserPreferencesSingleton.Instance);
+            Assert.Equal((Language.PTBR, Theme.Light), (preferences.Language, preferences.Theme));
+        }
+
+        [Fact]
+        public async Task CompleteAsync_ShouldKeepEachUsersOwnCategoriesAndPreferences_WhenTwoUsersSignUp()
+        {
+            var first = await SignUpAsync("first@example.com", language: Language.EN, theme: Theme.Dark);
+            var second = await SignUpAsync("second@example.com");
+
+            await _registrationService.CompleteAsync(new CompleteRegistrationDto(first, "my-password"), CancellationToken.None);
+            await _registrationService.CompleteAsync(new CompleteRegistrationDto(second, "my-password"), CancellationToken.None);
+
+            var firstUserId = UserSingleton.Instance.Single(user => user.Email.Value == "first@example.com").Id;
+            var secondUserId = UserSingleton.Instance.Single(user => user.Email.Value == "second@example.com").Id;
+            Assert.Equal(
+                DefaultCategories.Names(Language.EN),
+                CategorySingleton.Instance.Where(category => category.UserId == firstUserId).Select(category => category.Name.Value));
+            Assert.Equal(
+                DefaultCategories.Names(Language.PTBR),
+                CategorySingleton.Instance.Where(category => category.UserId == secondUserId).Select(category => category.Name.Value));
+        }
+
+        [Fact]
+        public async Task CompleteAsync_ShouldReturnInvalidEmailToken_WhenTheLinkWasAlreadyUsed()
+        {
+            var token = await SignUpAsync("ana@example.com");
+            await _registrationService.CompleteAsync(new CompleteRegistrationDto(token, "my-password"), CancellationToken.None);
+
+            var result = await _registrationService.CompleteAsync(new CompleteRegistrationDto(token, "other-password"), CancellationToken.None);
+
+            Assert.Equal(AuthErrors.InvalidEmailToken, result.Error);
+            Assert.Single(UserSingleton.Instance);
+        }
+
+        [Fact]
+        public async Task CompleteAsync_ShouldReturnInvalidEmailToken_WhenTheLinkExpired()
+        {
+            var token = await SignUpAsync("ana@example.com");
+            _clock.UtcNow = _clock.UtcNow.AddHours(PendingRegistration.ValidityHours);
+
+            var result = await _registrationService.CompleteAsync(new CompleteRegistrationDto(token, "my-password"), CancellationToken.None);
+
+            Assert.Equal(AuthErrors.InvalidEmailToken, result.Error);
+            Assert.Empty(UserSingleton.Instance);
+        }
+
+        [Fact]
+        public async Task CompleteAsync_ShouldReturnInvalidEmailToken_WhenTheSignUpWasRenewed()
+        {
+            var oldToken = await SignUpAsync("ana@example.com");
+            _clock.UtcNow = _clock.UtcNow.Add(EmailCooldown.Duration);
+            await SignUpAsync("ana@example.com");
+
+            var result = await _registrationService.CompleteAsync(new CompleteRegistrationDto(oldToken, "my-password"), CancellationToken.None);
+
+            Assert.Equal(AuthErrors.InvalidEmailToken, result.Error);
+        }
+
+        [Fact]
+        public async Task CompleteAsync_ShouldReturnInvalidEmailToken_WhenTheEmailGotAnAccountMeanwhile()
+        {
+            var token = await SignUpAsync("ana@example.com");
+            await AddActiveUserAsync("ana@example.com", Language.PTBR);
+
+            var result = await _registrationService.CompleteAsync(new CompleteRegistrationDto(token, "my-password"), CancellationToken.None);
+
+            Assert.Equal(AuthErrors.InvalidEmailToken, result.Error);
+            Assert.Single(UserSingleton.Instance);
+        }
+
+        [Theory]
+        [InlineData("", "User.PlainPasswordIsNullOrWhiteSpace")]
+        [InlineData("short", "User.PlainPasswordTooShort")]
+        [InlineData("012345678901234567890123456789012345678901234567890", "User.PlainPasswordTooLong")]
+        public async Task CompleteAsync_ShouldReturnThePasswordError_AndKeepTheSignUp_WhenThePasswordIsInvalid(string password, string code)
+        {
+            var token = await SignUpAsync("ana@example.com");
+
+            var result = await _registrationService.CompleteAsync(new CompleteRegistrationDto(token, password), CancellationToken.None);
+
+            Assert.Equal(code, result.Error!.Code);
+            Assert.Empty(UserSingleton.Instance);
+            Assert.Single(PendingRegistrationSingleton.Instance);
+        }
+
+        [Fact]
+        public async Task CompleteAsync_ShouldReturnInvalidEmailToken_BeforeCheckingThePassword()
+        {
+            await SignUpAsync("ana@example.com");
+
+            var result = await _registrationService.CompleteAsync(new CompleteRegistrationDto("unknown-token", "short"), CancellationToken.None);
+
+            Assert.Equal(AuthErrors.InvalidEmailToken, result.Error);
         }
 
         [Fact]

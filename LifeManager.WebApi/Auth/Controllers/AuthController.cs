@@ -20,6 +20,15 @@ namespace LifeManager.WebApi.Auth.Controllers
         public async Task<IActionResult> Register([FromBody] RegisterDto registerDto, CancellationToken cancellationToken)
             => (await _registrationService.RegisterAsync(registerDto, cancellationToken)).Match(Accepted);
 
+        [HttpPost("Register/Verify")]
+        public async Task<IActionResult> VerifyRegistration([FromBody] EmailTokenDto emailTokenDto, CancellationToken cancellationToken)
+            => (await _registrationService.VerifyAsync(emailTokenDto, cancellationToken)).Match(Ok);
+
+        /// <summary>Step 2 of the sign-up: the password, sent from the page the confirmation link opens.</summary>
+        [HttpPost("Register/Complete")]
+        public async Task<IActionResult> CompleteRegistration([FromBody] CompleteRegistrationDto completeRegistrationDto, CancellationToken cancellationToken)
+            => (await _registrationService.CompleteAsync(completeRegistrationDto, cancellationToken)).Match(() => Created());
+
         [HttpPost("Login")]
         public async Task<IActionResult> Login([FromBody] LoginDto loginDto, CancellationToken cancellationToken)
             => (await _userService.AuthenticateUserAsync(loginDto, cancellationToken)).Match(tokens =>

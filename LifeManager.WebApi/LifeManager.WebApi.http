@@ -1,6 +1,33 @@
-@LifeManager.WebApi_HostAddress = http://localhost:5085
+@LifeManager.WebApi_HostAddress = https://localhost:7233
 
-GET {{LifeManager.WebApi_HostAddress}}/weatherforecast/
-Accept: application/json
+# Sign-up in two steps. Locally, without brevoApiKey, the e-mail (and its link) is written to the API console:
+# copy the token from the link into @signUpToken.
+@signUpToken = paste-the-token-from-the-console
+
+POST {{LifeManager.WebApi_HostAddress}}/api/Auth/Register
+Content-Type: application/json
+
+{ "email": "ana@example.com", "name": "Ana", "language": "PTBR", "theme": "Light" }
+
+###
+
+POST {{LifeManager.WebApi_HostAddress}}/api/Auth/Register/Verify
+Content-Type: application/json
+
+{ "token": "{{signUpToken}}" }
+
+###
+
+POST {{LifeManager.WebApi_HostAddress}}/api/Auth/Register/Complete
+Content-Type: application/json
+
+{ "token": "{{signUpToken}}", "password": "my-password" }
+
+###
+
+POST {{LifeManager.WebApi_HostAddress}}/api/Auth/Login
+Content-Type: application/json
+
+{ "email": "ana@example.com", "password": "my-password" }
 
 ###
