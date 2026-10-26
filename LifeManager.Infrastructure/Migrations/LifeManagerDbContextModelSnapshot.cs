@@ -23,6 +23,25 @@ namespace LifeManager.Infrastructure.Migrations
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "pg_trgm");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("LifeManager.Domain.Auth.EmailCooldown", b =>
+                {
+                    b.Property<string>("Email")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("LastSentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Email", "Kind");
+
+                    b.HasIndex("LastSentAt");
+
+                    b.ToTable("EmailCooldowns");
+                });
+
             modelBuilder.Entity("LifeManager.Domain.Auth.RefreshToken", b =>
                 {
                     b.Property<int>("Id")

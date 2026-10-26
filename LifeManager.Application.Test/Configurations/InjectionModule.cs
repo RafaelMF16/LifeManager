@@ -60,6 +60,7 @@ namespace LifeManager.Application.Test.Configurations
             services.AddScoped<ICategorizationRuleRepository, CategorizationRuleRepositoryMock>();
 
             services.AddScoped<IEmailSender, EmailSenderMock>();
+            services.AddScoped<IEmailCooldownRepository, EmailCooldownRepositoryMock>();
             services.AddSingleton(new FrontendLinks(TestFrontendBaseUrl));
 
             services.AddSingleton<TimeProvider, FakeTimeProvider>();

@@ -18,6 +18,7 @@ namespace LifeManager.Infrastructure.Postgres
     {
         public DbSet<User> Users { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
+        public DbSet<EmailCooldown> EmailCooldowns { get; set; }
         public DbSet<UserPreferences> UserPreferences { get; set; }
         public DbSet<Category> Categories { get; set; }
         public DbSet<MonthlySummary> MonthlySummaries { get; set; }
