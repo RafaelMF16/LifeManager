@@ -13,7 +13,10 @@ param(
     [Parameter(Mandatory = $true)]
     [string] $ProjectId,
 
-    [string] $Region = 'southamerica-east1'
+    [string] $Region = 'southamerica-east1',
+
+    # Where the links in the auth e-mails point: the Firebase Hosting site that serves the frontend.
+    [string] $FrontendBaseUrl = "https://$ProjectId.web.app"
 )
 
 $ErrorActionPreference = 'Stop'
@@ -32,7 +35,10 @@ $tag = "$commit-$(Get-Date -Format 'yyyyMMddHHmmss')"
 $image = "$Region-docker.pkg.dev/$ProjectId/lifemanager/api:$tag"
 $sqlInstance = "${ProjectId}:${Region}:lifemanager-db"
 $serviceAccount = "lifemanager-run@$ProjectId.iam.gserviceaccount.com"
-$secrets = 'lifeManagerConnectionString=lifeManagerConnectionString:latest,accessTokenSecretKey=accessTokenSecretKey:latest,refreshTokenSecretKey=refreshTokenSecretKey:latest'
+# The service and both jobs build the same services at startup (AddApiServices), so all of them get every key, e-mail
+# settings included. The sender address is a secret only to keep it out of this public repository.
+$secrets = 'lifeManagerConnectionString=lifeManagerConnectionString:latest,accessTokenSecretKey=accessTokenSecretKey:latest,refreshTokenSecretKey=refreshTokenSecretKey:latest,brevoApiKey=brevoApiKey:latest,emailSenderAddress=emailSenderAddress:latest'
+$envVars = "frontendBaseUrl=$FrontendBaseUrl"
 
 if (git -C $repoRoot status --porcelain) {
     Write-Warning 'The working tree has uncommitted changes; they will be deployed too.'
@@ -59,6 +65,7 @@ Invoke-Checked {
         --service-account $serviceAccount `
         --set-cloudsql-instances $sqlInstance `
         --set-secrets $secrets `
+        --set-env-vars $envVars `
         --cpu 1 `
         --memory 512Mi `
         --max-retries 0 `
@@ -75,7 +82,7 @@ Invoke-Checked {
         --service-account $serviceAccount `
         --add-cloudsql-instances $sqlInstance `
         --set-secrets $secrets `
-        --set-env-vars 'backgroundJobs__enabled=false' `
+        --set-env-vars "backgroundJobs__enabled=false,$envVars" `
         --cpu 1 `
         --memory 512Mi `
         --min-instances 0 `
@@ -93,6 +100,7 @@ Invoke-Checked {
         --service-account $serviceAccount `
         --set-cloudsql-instances $sqlInstance `
         --set-secrets $secrets `
+        --set-env-vars $envVars `
         --cpu 1 `
         --memory 512Mi `
         --max-retries 0 `

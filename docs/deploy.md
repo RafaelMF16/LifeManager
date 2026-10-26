@@ -14,9 +14,10 @@ GitHub Actions (merge na main) ──► testes ──► deploy-api.ps1
 ```
 
 - **Uma origem só.** O Firebase Hosting repassa `/api/**` para o Cloud Run, então o navegador fala só com `web.app`. Não há CORS em produção, e o cookie do refresh token é de primeira parte. O Hosting só repassa o cookie chamado `__session`, por isso esse é o nome do cookie (`RefreshTokenCookie`).
-- **A API escala a zero.** Sem tráfego, nenhuma instância fica ligada. Por isso os jobs de hora em hora não rodam dentro da API (`backgroundJobs__enabled=false`): o Cloud Scheduler dispara um Cloud Run Job com a mesma imagem e o argumento `--run-jobs`, que roda recorrências, fechamento do dia e a limpeza de importações de extrato abandonadas (rascunhos com mais de 30 dias) uma vez e sai.
+- **A API escala a zero.** Sem tráfego, nenhuma instância fica ligada. Por isso os jobs de hora em hora não rodam dentro da API (`backgroundJobs__enabled=false`): o Cloud Scheduler dispara um Cloud Run Job com a mesma imagem e o argumento `--run-jobs`, que roda recorrências, fechamento do dia, a limpeza de importações de extrato abandonadas (rascunhos com mais de 30 dias) e a limpeza da autenticação por e-mail (cadastros pendentes e links de recuperação vencidos há mais de 7 dias, controles de reenvio com mais de 1 dia) uma vez e sai.
 - **As migrations rodam no deploy.** Antes de atualizar o serviço, o script de deploy executa o Cloud Run Job `lifemanager-migrate`, que roda a mesma imagem com `--migrate`. Se ele falhar, nada mais muda (veja [Migrations](#migrations)).
-- **Segredos** ficam no Secret Manager e chegam como variáveis de ambiente com os mesmos nomes que a API já lê: `lifeManagerConnectionString`, `accessTokenSecretKey` e `refreshTokenSecretKey`.
+- **Segredos** ficam no Secret Manager e chegam como variáveis de ambiente com os mesmos nomes que a API já lê: `lifeManagerConnectionString`, `accessTokenSecretKey`, `refreshTokenSecretKey`, `brevoApiKey` e `emailSenderAddress`.
+- **E-mails** (confirmação de cadastro e recuperação de senha) saem pelo [Brevo](https://www.brevo.com), no plano gratuito (300 e-mails por dia). Os links apontam para `frontendBaseUrl`, que o script de deploy define como `https://<projeto>.web.app` (parâmetro `-FrontendBaseUrl`). O serviço **e os dois jobs** recebem essas chaves, porque todos montam os mesmos serviços na inicialização, e a API não sobe fora de Development sem elas.
 - **Região:** `southamerica-east1` (São Paulo) para tudo.
 
 ## Custos
@@ -99,11 +100,27 @@ function Set-Secret($name, $value) {
 Set-Secret 'lifeManagerConnectionString' "Host=/cloudsql/${P}:${R}:lifemanager-db;Database=lifemanager;Username=lifemanager;Password=$DbPassword;Maximum Pool Size=5"
 Set-Secret 'accessTokenSecretKey' (New-RandomSecret)
 Set-Secret 'refreshTokenSecretKey' (New-RandomSecret)
+Set-Secret 'brevoApiKey' '<chave da API do Brevo>'          # veja "E-mail (Brevo)" abaixo
+Set-Secret 'emailSenderAddress' '<remetente verificado no Brevo>'
 ```
 
 - Nunca reaproveite as chaves de desenvolvimento.
 - O `Maximum Pool Size=5` mantém as conexões abaixo do limite do `db-f1-micro` (~25), mesmo com 3 instâncias mais o job.
 - Para trocar um valor depois: `gcloud secrets versions add <nome> --data-file=<arquivo>`, e depois faça um novo deploy.
+
+#### E-mail (Brevo)
+
+Sem domínio próprio, o remetente é um endereço comum (ex.: um Gmail) verificado no Brevo:
+
+1. Crie uma conta gratuita em [brevo.com](https://www.brevo.com).
+2. Em **Senders, Domains & Dedicated IPs → Senders → Add a sender**, cadastre o endereço remetente e confirme pelo código que o Brevo envia para ele. Esse endereço vai no secret `emailSenderAddress`.
+3. Em **SMTP & API → API Keys → Generate a new API key**, gere a chave. Ela vai no secret `brevoApiKey` e não aparece de novo no Brevo.
+4. Opcional: o nome que aparece como remetente é `LifeManager`. Para trocar, defina a variável `emailSenderName` (acrescente-a ao `$envVars` do `deploy/deploy-api.ps1`).
+
+- Sem domínio próprio (sem SPF/DKIM do remetente), parte dos e-mails pode cair no spam. As telas pedem para o usuário conferir a caixa de spam.
+- Os secrets precisam existir **antes** do deploy que passa a usá-los. Se faltarem, o `gcloud run jobs deploy lifemanager-migrate` falha e nada muda em produção.
+- Uma falha de envio (chave inválida, limite diário) não aparece para o usuário: a API registra o erro no log (`Brevo rejected the e-mail` / `Could not reach Brevo`) e responde normalmente.
+- O limite por IP dos endpoints de e-mail usa o IP do cliente que chega pelos cabeçalhos repassados. No primeiro deploy, confira nos logs (`Rate limit hit on ... for <IP>`, só aparece quando o limite é atingido) se o IP é do usuário e não do Firebase Hosting; se for do Hosting, todos os usuários dividem o mesmo limite.
 
 ### 4. Service accounts
 
