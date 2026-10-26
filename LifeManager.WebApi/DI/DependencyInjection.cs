@@ -1,4 +1,7 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using LifeManager.Application.Auth.Emails;
+using LifeManager.Domain.Auth.Interfaces;
+using LifeManager.Infrastructure.Emails;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using LifeManager.WebApi.Habits.Jobs;
 using LifeManager.WebApi.RecurringTransactions.Jobs;
@@ -12,6 +15,11 @@ namespace LifeManager.WebApi.DI
     {
         private const string ACCESS_TOKEN_SECRET_KEY_ENVIRONMENT_VARIABLE = "accessTokenSecretKey";
         private const string BACKGROUND_JOBS_ENABLED_KEY = "backgroundJobs:enabled";
+        private const string FRONTEND_BASE_URL_KEY = "frontendBaseUrl";
+        private const string BREVO_API_KEY = "brevoApiKey";
+        private const string EMAIL_SENDER_ADDRESS_KEY = "emailSenderAddress";
+        private const string EMAIL_SENDER_NAME_KEY = "emailSenderName";
+        private const string DEFAULT_EMAIL_SENDER_NAME = "LifeManager";
 
         public static IServiceCollection AddApiServices(this WebApplicationBuilder builder)
         {
@@ -23,8 +31,47 @@ namespace LifeManager.WebApi.DI
 
             ConfigureJobs(builder);
 
+            ConfigureEmail(builder);
+
             return builder.Services;
         }
+
+        /// <summary>
+        /// With <c>brevoApiKey</c>, e-mails go through Brevo (and <c>emailSenderAddress</c> is required). Without it, only
+        /// Development runs, with <see cref="LoggingEmailSender"/> writing the links to the console; any other environment
+        /// fails at startup, like the other required keys.
+        /// </summary>
+        private static void ConfigureEmail(WebApplicationBuilder builder)
+        {
+            var frontendBaseUrl = RequiredSetting(builder, FRONTEND_BASE_URL_KEY);
+            builder.Services.AddSingleton(new FrontendLinks(frontendBaseUrl));
+
+            var brevoApiKey = builder.Configuration[BREVO_API_KEY];
+            if (string.IsNullOrWhiteSpace(brevoApiKey))
+            {
+                if (!builder.Environment.IsDevelopment())
+                    throw new InvalidOperationException($"Environment variable [{BREVO_API_KEY}] not found");
+
+                builder.Services.AddSingleton<IEmailSender, LoggingEmailSender>();
+                return;
+            }
+
+            builder.Services.AddSingleton(new BrevoSettings(
+                brevoApiKey,
+                RequiredSetting(builder, EMAIL_SENDER_ADDRESS_KEY),
+                builder.Configuration[EMAIL_SENDER_NAME_KEY] is { Length: > 0 } senderName ? senderName : DEFAULT_EMAIL_SENDER_NAME));
+
+            builder.Services.AddHttpClient<IEmailSender, BrevoEmailSender>(client =>
+            {
+                client.BaseAddress = BrevoEmailSender.BaseAddress;
+                client.Timeout = TimeSpan.FromSeconds(10);
+            });
+        }
+
+        private static string RequiredSetting(WebApplicationBuilder builder, string key)
+            => builder.Configuration[key] is { Length: > 0 } value
+                ? value
+                : throw new InvalidOperationException($"Environment variable [{key}] not found");
 
         /// <summary>
         /// The runners are always registered (the <c>--run-jobs</c> mode uses them). The hourly hosted services only when

@@ -1,4 +1,5 @@
-﻿using LifeManager.Application.DI;
+﻿using LifeManager.Application.Auth.Emails;
+using LifeManager.Application.DI;
 using LifeManager.Application.Test.Auth.Mocks;
 using LifeManager.Application.Test.Categories.Mocks;
 using LifeManager.Application.Test.MonthlySummaries.Mocks;
@@ -31,6 +32,8 @@ namespace LifeManager.Application.Test.Configurations
 {
     public static class InjectionModule
     {
+        public const string TestFrontendBaseUrl = "https://frontend.test";
+
         public static IServiceCollection AddServicesInScope(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddSingleton(configuration);
@@ -55,6 +58,9 @@ namespace LifeManager.Application.Test.Configurations
             services.AddScoped<IRewardRedemptionRepository, RewardRedemptionRepositoryMock>();
             services.AddScoped<IStatementImportRepository, StatementImportRepositoryMock>();
             services.AddScoped<ICategorizationRuleRepository, CategorizationRuleRepositoryMock>();
+
+            services.AddScoped<IEmailSender, EmailSenderMock>();
+            services.AddSingleton(new FrontendLinks(TestFrontendBaseUrl));
 
             services.AddSingleton<TimeProvider, FakeTimeProvider>();
 
