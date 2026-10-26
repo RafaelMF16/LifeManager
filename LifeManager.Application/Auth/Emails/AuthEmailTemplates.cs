@@ -38,6 +38,19 @@ namespace LifeManager.Application.Auth.Emails
                     "Redefinir minha senha", forgotPasswordUrl,
                     "Se não foi você, ignore este e-mail: nada mudou na sua conta.");
 
+        public static EmailMessage PasswordReset(Email to, UserName name, Language language, string resetPasswordUrl)
+            => language == Language.EN
+                ? Build(to, name, "Reset your password",
+                    "Hi, {0}!",
+                    "We received a request to reset your LifeManager password. Open the link below and choose a new one:",
+                    "Choose a new password", resetPasswordUrl,
+                    $"The link is valid for {PasswordResetToken.ValidityHours} hour and works only once. If you didn't ask for it, ignore this e-mail: your password stays the same.")
+                : Build(to, name, "Redefina sua senha",
+                    "Olá, {0}!",
+                    "Recebemos um pedido para redefinir sua senha no LifeManager. Abra o link abaixo e escolha uma nova:",
+                    "Escolher nova senha", resetPasswordUrl,
+                    $"O link vale por {PasswordResetToken.ValidityHours} hora e só pode ser usado uma vez. Se você não pediu, ignore este e-mail: sua senha continua a mesma.");
+
         private static EmailMessage Build(
             Email to,
             UserName name,
