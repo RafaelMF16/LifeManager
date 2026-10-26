@@ -39,6 +39,7 @@ namespace LifeManager.Infrastructure.DI
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
             services.AddScoped<IEmailCooldownRepository, EmailCooldownRepository>();
+            services.AddScoped<IPendingRegistrationRepository, PendingRegistrationRepository>();
             services.AddScoped<IUserPreferencesRepository, UserPreferencesRepository>();
             services.AddScoped<ICategoryRepository, CategoryRepository>();
             services.AddScoped<IMonthlySummaryRepository, MonthlySummaryRepository>();

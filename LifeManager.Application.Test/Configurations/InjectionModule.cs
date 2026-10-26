@@ -61,6 +61,7 @@ namespace LifeManager.Application.Test.Configurations
 
             services.AddScoped<IEmailSender, EmailSenderMock>();
             services.AddScoped<IEmailCooldownRepository, EmailCooldownRepositoryMock>();
+            services.AddScoped<IPendingRegistrationRepository, PendingRegistrationRepositoryMock>();
             services.AddSingleton(new FrontendLinks(TestFrontendBaseUrl));
 
             services.AddSingleton<TimeProvider, FakeTimeProvider>();
