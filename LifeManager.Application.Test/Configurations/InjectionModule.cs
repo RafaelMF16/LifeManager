@@ -1,4 +1,4 @@
-﻿using LifeManager.Application.Auth.Emails;
+using LifeManager.Application.Auth.Emails;
 using LifeManager.Application.DI;
 using LifeManager.Application.Test.Auth.Mocks;
 using LifeManager.Application.Test.Categories.Mocks;
@@ -62,6 +62,7 @@ namespace LifeManager.Application.Test.Configurations
             services.AddScoped<IEmailSender, EmailSenderMock>();
             services.AddScoped<IEmailCooldownRepository, EmailCooldownRepositoryMock>();
             services.AddScoped<IPendingRegistrationRepository, PendingRegistrationRepositoryMock>();
+            services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepositoryMock>();
             services.AddSingleton(new FrontendLinks(TestFrontendBaseUrl));
 
             services.AddSingleton<TimeProvider, FakeTimeProvider>();

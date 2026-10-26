@@ -1,4 +1,4 @@
-﻿using LifeManager.Domain.Auth.Interfaces;
+using LifeManager.Domain.Auth.Interfaces;
 using LifeManager.Domain.Categories.Interfaces;
 using LifeManager.Infrastructure.Categories;
 using LifeManager.Domain.MonthlySummaries.Interfaces;
@@ -40,6 +40,7 @@ namespace LifeManager.Infrastructure.DI
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
             services.AddScoped<IEmailCooldownRepository, EmailCooldownRepository>();
             services.AddScoped<IPendingRegistrationRepository, PendingRegistrationRepository>();
+            services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
             services.AddScoped<IUserPreferencesRepository, UserPreferencesRepository>();
             services.AddScoped<ICategoryRepository, CategoryRepository>();
             services.AddScoped<IMonthlySummaryRepository, MonthlySummaryRepository>();

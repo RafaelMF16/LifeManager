@@ -1,4 +1,4 @@
-﻿using LifeManager.Domain.Auth;
+using LifeManager.Domain.Auth;
 using LifeManager.Domain.BudgetPlans;
 using LifeManager.Domain.Categories;
 using LifeManager.Domain.Categorization;
@@ -20,6 +20,7 @@ namespace LifeManager.Infrastructure.Postgres
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<EmailCooldown> EmailCooldowns { get; set; }
         public DbSet<PendingRegistration> PendingRegistrations { get; set; }
+        public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
         public DbSet<UserPreferences> UserPreferences { get; set; }
         public DbSet<Category> Categories { get; set; }
         public DbSet<MonthlySummary> MonthlySummaries { get; set; }

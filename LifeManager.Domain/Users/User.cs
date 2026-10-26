@@ -37,6 +37,11 @@ namespace LifeManager.Domain.Users
             Id = new UserId(id);
         }
 
+        public void ChangePassword(PasswordHash passwordHash)
+        {
+            PasswordHash = passwordHash;
+        }
+
         public override bool Equals(object? obj)
         {
             if (obj is not User other)

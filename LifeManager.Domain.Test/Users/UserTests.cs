@@ -1,5 +1,6 @@
 using LifeManager.Domain.Users;
 using LifeManager.Domain.Users.Errors;
+using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Domain.Test.Users
 {
@@ -58,6 +59,16 @@ namespace LifeManager.Domain.Test.Users
 
             Assert.NotNull(user.Id);
             Assert.Equal(10, user.Id!.Value);
+        }
+
+        [Fact]
+        public void ChangePassword_ShouldReplaceThePasswordHash()
+        {
+            var user = User.Create("test", "r@email.com", "old-hash").Value!;
+
+            user.ChangePassword(PasswordHash.Create("new-hash").Value!);
+
+            Assert.Equal("new-hash", user.PasswordHash.Value);
         }
 
         [Fact]
