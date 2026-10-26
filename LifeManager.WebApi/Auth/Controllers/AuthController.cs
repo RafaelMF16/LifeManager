@@ -1,4 +1,5 @@
-﻿using LifeManager.Application.Auth.Services;
+﻿using LifeManager.Application.Auth.DTOs;
+using LifeManager.Application.Auth.Services;
 using LifeManager.Application.Users.DTOs;
 using LifeManager.Application.Users.Services;
 using LifeManager.WebApi.Extensions;
@@ -8,14 +9,16 @@ namespace LifeManager.WebApi.Auth.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class AuthController(UserService userService, TokenService tokenService) : Controller
+    public class AuthController(UserService userService, TokenService tokenService, RegistrationService registrationService) : Controller
     {
         private readonly UserService _userService = userService;
         private readonly TokenService _tokenService = tokenService;
+        private readonly RegistrationService _registrationService = registrationService;
 
+        /// <summary>Step 1 of the sign-up: always 202 for a valid name and e-mail, whether or not it has an account.</summary>
         [HttpPost("Register")]
-        public async Task<IActionResult> Register([FromBody] UserDto userDto, CancellationToken cancellationToken)
-            => (await _userService.AddUserAsync(userDto, cancellationToken)).Match(_ => Created());
+        public async Task<IActionResult> Register([FromBody] RegisterDto registerDto, CancellationToken cancellationToken)
+            => (await _registrationService.RegisterAsync(registerDto, cancellationToken)).Match(Accepted);
 
         [HttpPost("Login")]
         public async Task<IActionResult> Login([FromBody] LoginDto loginDto, CancellationToken cancellationToken)
