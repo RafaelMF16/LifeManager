@@ -2,6 +2,7 @@
 using LifeManager.Domain.Auth.Interfaces;
 using LifeManager.Infrastructure.Emails;
 using LifeManager.WebApi.Auth;
+using LifeManager.WebApi.Auth.Jobs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using LifeManager.WebApi.Habits.Jobs;
@@ -86,6 +87,7 @@ namespace LifeManager.WebApi.DI
             builder.Services.AddSingleton<RecurringTransactionsRunner>();
             builder.Services.AddSingleton<HabitsDayCloseRunner>();
             builder.Services.AddSingleton<StatementImportsCleanupRunner>();
+            builder.Services.AddSingleton<AuthCleanupRunner>();
 
             if (!builder.Configuration.GetValue(BACKGROUND_JOBS_ENABLED_KEY, defaultValue: true))
                 return;
@@ -93,6 +95,7 @@ namespace LifeManager.WebApi.DI
             builder.Services.AddHostedService<RecurringTransactionsJob>();
             builder.Services.AddHostedService<HabitsDayCloseJob>();
             builder.Services.AddHostedService<StatementImportsCleanupJob>();
+            builder.Services.AddHostedService<AuthCleanupJob>();
         }
 
         /// <summary>
