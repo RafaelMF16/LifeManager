@@ -1,6 +1,7 @@
 ﻿using LifeManager.Application.Auth.Emails;
 using LifeManager.Domain.Auth.Interfaces;
 using LifeManager.Infrastructure.Emails;
+using LifeManager.WebApi.Auth;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using LifeManager.WebApi.Habits.Jobs;
@@ -32,6 +33,8 @@ namespace LifeManager.WebApi.DI
             ConfigureJobs(builder);
 
             ConfigureEmail(builder);
+
+            AuthRateLimits.Configure(builder.Services);
 
             return builder.Services;
         }

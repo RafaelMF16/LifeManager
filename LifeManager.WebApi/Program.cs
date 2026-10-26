@@ -1,4 +1,4 @@
-using LifeManager.Infrastructure.DI;
+﻿using LifeManager.Infrastructure.DI;
 using LifeManager.Application.DI;
 using LifeManager.WebApi;
 using LifeManager.WebApi.DI;
@@ -46,6 +46,9 @@ if (app.Environment.IsDevelopment())
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseCors("AllowFrontend");
+
+// After CORS, so a 429 still carries the CORS headers and the frontend can read its body (local dev is cross-origin).
+app.UseRateLimiter();
 
 app.UseHttpsRedirection();
 
