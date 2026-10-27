@@ -1,4 +1,5 @@
-﻿using LifeManager.Application.Auth.Services;
+﻿using LifeManager.Application.AccountHolders.Services;
+using LifeManager.Application.Auth.Services;
 using LifeManager.Application.BudgetPlans.Services;
 using LifeManager.Application.Categories.Services;
 using LifeManager.Application.FinanceDashboard.Services;
@@ -29,6 +30,7 @@ namespace LifeManager.Application.DI
             services.AddScoped<AuthCleanupService>();
             services.AddScoped<EnvironmentVariableService>();
             services.AddScoped<UserPreferencesService>();
+            services.AddScoped<AccountHolderService>();
             services.AddScoped<CategoryService>();
             services.AddScoped<MonthlySummaryService>();
             services.AddScoped<TransactionService>();

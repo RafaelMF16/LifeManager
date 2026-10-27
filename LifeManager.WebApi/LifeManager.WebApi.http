@@ -71,3 +71,18 @@ GET {{LifeManager.WebApi_HostAddress}}/api/MonthlySummaries/1/Transactions?type=
 Authorization: Bearer {{accessToken}}
 
 ###
+
+# The account holders: names, as the bank writes them, whose transfers a statement import leaves out.
+GET {{LifeManager.WebApi_HostAddress}}/api/AccountHolders
+Authorization: Bearer {{accessToken}}
+
+###
+
+# Replaces the whole list (up to 5; [] clears it). An invalid name comes back with its index in the list.
+PUT {{LifeManager.WebApi_HostAddress}}/api/AccountHolders
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{ "names": ["Ana Maria Souza", "Ana Souza Consultoria Ltda"] }
+
+###

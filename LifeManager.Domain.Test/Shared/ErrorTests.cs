@@ -1,3 +1,4 @@
+using System.Text.Json;
 using LifeManager.Domain.Shared.Results;
 
 namespace LifeManager.Domain.Test.Shared
@@ -22,6 +23,23 @@ namespace LifeManager.Domain.Test.Shared
             Assert.Equal(SomeError.Type, error.Type);
             Assert.Equal(3, error.Index);
             Assert.Null(SomeError.Index);
+        }
+
+        [Fact]
+        public void Serialize_ShouldLeaveTheIndexOut_WhenThereIsNone()
+        {
+            var json = JsonSerializer.Serialize(SomeError);
+
+            Assert.DoesNotContain("Index", json);
+            Assert.Contains("\"Code\":\"Some.Code\"", json);
+        }
+
+        [Fact]
+        public void Serialize_ShouldWriteTheIndex_WhenThereIsOne()
+        {
+            var json = JsonSerializer.Serialize(SomeError.AtIndex(2), new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+            Assert.Contains("\"index\":2", json);
         }
     }
 }

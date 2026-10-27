@@ -1,4 +1,6 @@
-﻿namespace LifeManager.Domain.Shared.Results
+﻿using System.Text.Json.Serialization;
+
+namespace LifeManager.Domain.Shared.Results
 {
     public record Error
     {
@@ -8,8 +10,10 @@
 
         /// <summary>
         /// The position of the item the error is about, when a request sends a list and one item fails (a name among the
-        /// account holders). Null for every other error, and then left out of the response body.
+        /// account holders). Null for every other error, and then left out of the response body, so the body of every other
+        /// error stays <c>{ code, message, type }</c>.
         /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public int? Index { get; private init; }
 
         private Error(string code, string message, ErrorType type)
