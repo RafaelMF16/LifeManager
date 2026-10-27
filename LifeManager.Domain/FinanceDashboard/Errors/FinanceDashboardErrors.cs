@@ -10,5 +10,6 @@ namespace LifeManager.Domain.FinanceDashboard.Errors
         public static readonly Error PeriodTooLong = Error.Validation("FinanceDashboard.PeriodTooLong", "The period cannot be longer than 36 months");
         public static readonly Error InvalidComparison = Error.Validation("FinanceDashboard.InvalidComparison", "Comparison must be PreviousPeriod or SamePeriodLastYear");
         public static readonly Error ComparisonTooLong = Error.Validation("FinanceDashboard.ComparisonTooLong", "Comparing with the same period last year needs a period of at most 12 months");
+        public static readonly Error InvalidMonth = Error.Validation("FinanceDashboard.InvalidMonth", "Month must be a month in the yyyy-MM format");
     }
 }

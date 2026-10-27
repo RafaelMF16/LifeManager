@@ -42,5 +42,20 @@ namespace LifeManager.Application.Test.FinanceDashboard.Mocks
 
             return Task.FromResult(totals);
         }
+
+        // Mirrors FinanceDashboardRepository: the user's expenses (through their month) in the inclusive date range,
+        // summed (positive) and counted per day.
+        public Task<IReadOnlyList<DashboardDayTotal>> GetExpenseDayTotalsAsync(UserId userId, DateOnly from, DateOnly to, CancellationToken cancellationToken)
+        {
+            IReadOnlyList<DashboardDayTotal> totals = [.. TransactionSingleton.Instance
+                .Where(transaction => transaction.Type == MoneyFlowType.Expense
+                    && transaction.TransactionDate >= from
+                    && transaction.TransactionDate <= to
+                    && MonthlySummarySingleton.Instance.Any(monthlySummary => monthlySummary.Id == transaction.MonthlySummaryId && monthlySummary.UserId == userId))
+                .GroupBy(transaction => transaction.TransactionDate)
+                .Select(group => new DashboardDayTotal(group.Key, -group.Sum(transaction => transaction.SignedAmount), group.Count()))];
+
+            return Task.FromResult(totals);
+        }
     }
 }

@@ -55,3 +55,19 @@ Content-Type: application/json
 { "token": "{{resetToken}}", "password": "my-new-password" }
 
 ###
+
+# Paste the accessToken returned by the Login above.
+@accessToken = paste-the-access-token
+
+# A month's expenses day by day (the dashboard's calendar).
+GET {{LifeManager.WebApi_HostAddress}}/api/FinanceDashboard/Days?month=2026-10
+Authorization: Bearer {{accessToken}}
+
+###
+
+# One day's expenses inside a month (the calendar's day panel). Amount sorts by the signed value, so Asc puts the
+# biggest expense first. Use the monthlySummaryId returned by the request above.
+GET {{LifeManager.WebApi_HostAddress}}/api/MonthlySummaries/1/Transactions?type=Expense&date=2026-10-02&sortBy=Amount&sortDirection=Asc
+Authorization: Bearer {{accessToken}}
+
+###

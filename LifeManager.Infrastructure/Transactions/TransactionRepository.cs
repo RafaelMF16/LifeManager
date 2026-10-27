@@ -45,6 +45,7 @@ namespace LifeManager.Infrastructure.Transactions
             PageRequest pageRequest,
             TransactionTypeFilter typeFilter,
             CategoryId? categoryId,
+            DateOnly? date,
             string? normalizedSearch,
             TransactionSortBy sortBy,
             SortDirection sortDirection,
@@ -64,6 +65,9 @@ namespace LifeManager.Infrastructure.Transactions
 
             if (categoryId is not null)
                 transactions = transactions.Where(transaction => transaction.CategoryId == categoryId);
+
+            if (date is not null)
+                transactions = transactions.Where(transaction => transaction.TransactionDate == date);
 
             if (!string.IsNullOrEmpty(normalizedSearch))
             {

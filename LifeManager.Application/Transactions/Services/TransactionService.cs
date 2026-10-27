@@ -81,6 +81,9 @@ namespace LifeManager.Application.Transactions.Services
             if (monthlySummary is null)
                 return MonthlySummaryErrors.NotFound;
 
+            if (query.Date is { } date && (date.Year != monthlySummary.Year.Value || date.Month != monthlySummary.Month.Value))
+                return TransactionErrors.DateOutsideMonth;
+
             var normalizedSearch = SearchText.Normalize(query.Search);
 
             if (normalizedSearch.Length > TransactionDescription.MaxLength)
@@ -89,7 +92,7 @@ namespace LifeManager.Application.Transactions.Services
             var categoryId = query.CategoryId is null ? null : new CategoryId(query.CategoryId.Value);
 
             var transactions = await _transactionRepository.GetPagedAsync(
-                monthlySummary.Id!, pageRequest, query.Type, categoryId, normalizedSearch, query.SortBy, query.SortDirection, cancellationToken);
+                monthlySummary.Id!, pageRequest, query.Type, categoryId, query.Date, normalizedSearch, query.SortBy, query.SortDirection, cancellationToken);
 
             return PagedResponseDto<TransactionResponseDto>.From(transactions, ToResponseDto);
         }

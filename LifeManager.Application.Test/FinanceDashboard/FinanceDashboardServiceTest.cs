@@ -402,6 +402,103 @@ namespace LifeManager.Application.Test.FinanceDashboard
         private static BudgetSlice Investment(decimal percent)
             => BudgetSlice.Create(MoneyFlowType.Investment, null, percent).Value!;
 
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("2026-13")]
+        [InlineData("2026-1")]
+        [InlineData("1999-12")]
+        public async Task GetDaysAsync_ShouldFail_WhenMonthIsInvalid(string? month)
+        {
+            var result = await GetDays(month);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(FinanceDashboardErrors.InvalidMonth, result.Error);
+        }
+
+        [Theory]
+        [InlineData("2024-02", 29)]
+        [InlineData("2026-02", 28)]
+        [InlineData("2026-04", 30)]
+        [InlineData("2026-10", 31)]
+        public async Task GetDaysAsync_ShouldReturnEveryDayOfTheMonthInOrder(string month, int dayCount)
+        {
+            var result = await GetDays(month);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(month, result.Value.Month);
+            Assert.Equal(dayCount, result.Value.Days.Count);
+            Assert.Equal(
+                Enumerable.Range(1, dayCount).Select(day => $"{month}-{day:D2}"),
+                result.Value.Days.Select(day => day.Date.ToString("yyyy-MM-dd")));
+        }
+
+        [Fact]
+        public async Task GetDaysAsync_ShouldZeroFill_WhenMonthDoesNotExist()
+        {
+            var result = await GetDays("2026-10");
+
+            Assert.True(result.IsSuccess);
+            Assert.Null(result.Value.MonthlySummaryId);
+            Assert.Equal(0, result.Value.Total);
+            Assert.Equal(0, result.Value.MaxDayTotal);
+            Assert.All(result.Value.Days, day => Assert.Equal((0m, 0), (day.Total, day.Count)));
+        }
+
+        [Fact]
+        public async Task GetDaysAsync_ShouldSumExpensesPerDay()
+        {
+            var october = SeedMonth(FirstUserId, 2026, 10);
+            SeedTransaction(october, MoneyFlowType.Expense, MarketCategoryId, 62.40m, day: 2);
+            SeedTransaction(october, MoneyFlowType.Expense, RentCategoryId, 25.50m, day: 2);
+            SeedTransaction(october, MoneyFlowType.Expense, MarketCategoryId, 640m, day: 15);
+
+            var result = await GetDays("2026-10");
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(october.Id!.Value, result.Value.MonthlySummaryId);
+            Assert.Equal(727.90m, result.Value.Total);
+            Assert.Equal(640m, result.Value.MaxDayTotal);
+            Assert.Equal(new DashboardDayDto(new DateOnly(2026, 10, 2), 87.90m, 2), result.Value.Days[1]);
+            Assert.Equal(new DashboardDayDto(new DateOnly(2026, 10, 15), 640m, 1), result.Value.Days[14]);
+            Assert.Equal(new DashboardDayDto(new DateOnly(2026, 10, 1), 0, 0), result.Value.Days[0]);
+        }
+
+        [Fact]
+        public async Task GetDaysAsync_ShouldIgnoreIncomeInvestmentAndOtherUsers()
+        {
+            var october = SeedMonth(FirstUserId, 2026, 10);
+            SeedTransaction(october, MoneyFlowType.Income, SalaryCategoryId, 5000m, day: 5);
+            SeedTransaction(october, MoneyFlowType.Investment, TreasuryCategoryId, 1000m, day: 5);
+            SeedTransaction(october, MoneyFlowType.Expense, MarketCategoryId, 30m, day: 5);
+            var otherUserOctober = SeedMonth(SecondUserId, 2026, 10);
+            SeedTransaction(otherUserOctober, MoneyFlowType.Expense, OtherUserCategoryId, 999m, day: 5);
+
+            var result = await GetDays("2026-10");
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(30m, result.Value.Total);
+            Assert.Equal(new DashboardDayDto(new DateOnly(2026, 10, 5), 30m, 1), result.Value.Days[4]);
+        }
+
+        [Fact]
+        public async Task GetDaysAsync_ShouldMatchTheDashboardMonthExpense()
+        {
+            var october = SeedMonth(FirstUserId, 2026, 10);
+            SeedTransaction(october, MoneyFlowType.Expense, MarketCategoryId, 120m, day: 3);
+            SeedTransaction(october, MoneyFlowType.Expense, RentCategoryId, 900m, day: 10);
+            SeedTransaction(october, MoneyFlowType.Income, SalaryCategoryId, 5000m, day: 10);
+
+            var days = await GetDays("2026-10");
+            var dashboard = await Get("2026-10", "2026-10");
+
+            Assert.Equal(dashboard.Value.Months.Single().Expense, days.Value.Total);
+            Assert.Equal(days.Value.Total, days.Value.Days.Sum(day => day.Total));
+        }
+
+        private Task<Result<DashboardDaysResponseDto>> GetDays(string? month)
+            => _financeDashboardService.GetDaysAsync(new DashboardDaysQueryDto { Month = month }, FirstUserId, CancellationToken.None);
+
         private void SeedPlan(string month, decimal total, params BudgetSlice[] slices)
             => SeedPlan(month, total, FirstUserId, slices);
 

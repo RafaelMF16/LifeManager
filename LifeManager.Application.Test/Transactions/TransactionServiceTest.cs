@@ -277,6 +277,53 @@ namespace LifeManager.Application.Test.Transactions
             Assert.Equal([2], result.Value.Items.Select(item => item.Id));
         }
 
+        [Fact]
+        public async Task GetPagedAsync_ShouldReturnOnlyThatDaysExpenses_WhenDateIsGiven()
+        {
+            await Create(Expense("Supermercado", 62.40m, 2));
+            await Create(Expense("Padaria", 25.50m, 2));
+            await Create(Income("Salário", 3000m, 2));
+            await Create(Expense("Farmácia", 40m, 3));
+
+            var query = new TransactionListQueryDto
+            {
+                Type = TransactionTypeFilter.Expense,
+                Date = Day(2),
+                SortBy = TransactionSortBy.Amount,
+                SortDirection = SortDirection.Asc
+            };
+            var result = await _transactionService.GetPagedAsync(MonthId, query, FirstUserId, CancellationToken.None);
+
+            // Amount sorts by the signed value, so ascending puts the biggest expense first.
+            Assert.True(result.IsSuccess);
+            Assert.Equal([1, 2], result.Value.Items.Select(item => item.Id));
+            Assert.Equal(2, result.Value.TotalCount);
+        }
+
+        [Fact]
+        public async Task GetPagedAsync_ShouldReturnEveryDay_WhenDateIsNotGiven()
+        {
+            await Create(Expense("Supermercado", 62.40m, 2));
+            await Create(Expense("Farmácia", 40m, 3));
+
+            var result = await _transactionService.GetPagedAsync(MonthId, new TransactionListQueryDto(), FirstUserId, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(2, result.Value.TotalCount);
+        }
+
+        [Theory]
+        [InlineData(0, 4)]
+        [InlineData(-1, 3)]
+        public async Task GetPagedAsync_ShouldReturnDateOutsideMonth_WhenDateIsInAnotherMonth(int yearOffset, int month)
+        {
+            var query = new TransactionListQueryDto { Date = new DateOnly(CurrentYear + yearOffset, month, 1) };
+            var result = await _transactionService.GetPagedAsync(MonthId, query, FirstUserId, CancellationToken.None);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(TransactionErrors.DateOutsideMonth, result.Error);
+        }
+
         [Theory]
         [InlineData(TransactionSortBy.Description, SortDirection.Asc, new[] { 2, 3, 1 })]
         [InlineData(TransactionSortBy.Description, SortDirection.Desc, new[] { 1, 3, 2 })]

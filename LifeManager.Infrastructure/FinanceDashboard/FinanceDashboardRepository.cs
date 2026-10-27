@@ -58,5 +58,27 @@ namespace LifeManager.Infrastructure.FinanceDashboard
                 total.Month,
                 total.Type == MoneyFlowType.Income ? total.Total : -total.Total))];
         }
+
+        public async Task<IReadOnlyList<DashboardDayTotal>> GetExpenseDayTotalsAsync(UserId userId, DateOnly from, DateOnly to, CancellationToken cancellationToken)
+        {
+            // Same filters as the monthly totals, so a month's days add up to its expense on the dashboard. Expenses'
+            // SignedAmount is negative, hence the minus.
+            var totals = await _dbContext.Transactions
+                .AsNoTracking()
+                .Where(transaction => transaction.Type == MoneyFlowType.Expense
+                    && transaction.TransactionDate >= from
+                    && transaction.TransactionDate <= to
+                    && _dbContext.MonthlySummaries.Any(monthlySummary => monthlySummary.Id == transaction.MonthlySummaryId && monthlySummary.UserId == userId))
+                .GroupBy(transaction => transaction.TransactionDate)
+                .Select(group => new
+                {
+                    Date = group.Key,
+                    Total = group.Sum(transaction => transaction.SignedAmount),
+                    Count = group.Count()
+                })
+                .ToListAsync(cancellationToken);
+
+            return [.. totals.Select(total => new DashboardDayTotal(total.Date, -total.Total, total.Count))];
+        }
     }
 }
