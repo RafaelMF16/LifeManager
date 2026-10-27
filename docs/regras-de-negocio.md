@@ -217,6 +217,7 @@ Cada mês tem **no máximo um orçamento**: um **total** (quanto se pretende gas
 - Meses sem lançamentos aparecem zerados.
 - As quebras por categoria mostram as **8 maiores**; o resto é somado em "Outras", de modo que as partes sempre fecham com o total.
 - **Orçamento no painel:** cada mês é avaliado com o seu próprio orçamento. O **limite de gastos do mês** é o total menos a fatia de investimentos (o Livre conta como gasto permitido), e o **alvo de investimento** é a fatia de investimentos. Meses sem orçamento ficam sem meta. A contagem "dentro do limite em X de N meses fechados" **deixa de fora o mês em andamento**. As categorias que mais passaram do valor da fatia aparecem primeiro (até 5).
+- **Gastos por dia:** o calendário do painel soma só os **gastos** de cada dia do mês (receitas e investimentos ficam de fora), pela data do lançamento, com o mesmo critério dos totais do mês, então os dias sempre fecham com o gasto do mês. Uma linha de extrato jogada para o mês seguinte conta no dia em que foi lançada (o dia 1º). Todos os dias do mês aparecem, zerados quando não há gasto.
 
 ## Hábitos
 
@@ -452,6 +453,7 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 | `FinanceDashboard.PeriodTooLong` | Validation | Período maior que 36 meses |
 | `FinanceDashboard.InvalidComparison` | Validation | Tipo de comparação desconhecido |
 | `FinanceDashboard.ComparisonTooLong` | Validation | Comparação com o ano anterior em período maior que 12 meses |
+| `FinanceDashboard.InvalidMonth` | Validation | Mês dos gastos por dia ausente ou em formato inválido |
 
 ### Hábitos
 

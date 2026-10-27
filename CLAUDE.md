@@ -286,6 +286,7 @@ The codebase is mid-migration to a `Result`/`Result<T>` pattern (`LifeManager.Do
   - `ChangeRatio = (current − previous) / |previous|`, rounded to 4 places, and null when the previous value is 0.
   - `Share` is the part of the breakdown total (0 when the total is 0).
   - `MonthlyAmounts` lines up with `Months`.
+- **Days:** `GET /api/FinanceDashboard/Days?month=yyyy-MM` (`GetDaysAsync` → `DashboardDaysResponseDto`) feeds the dashboard's calendar: every day of the month in order (zero-filled), expenses only, with `Total`, `MaxDayTotal` (the base of the calendar's colors) and `MonthlySummaryId` (`IMonthlySummaryRepository.GetByPeriodAsync`; null when the user has no such month), which the frontend uses to list a day's expenses through the transactions listing's `date` filter. `FinanceDashboardRepository.GetExpenseDayTotalsAsync` groups by `TransactionDate` with the same date/ownership filters as the monthly query, so the days add up to the month's expense. A bad or missing month returns `FinanceDashboard.InvalidMonth` (400). It never reads the clock either: future days come back with zeros.
 
 ### Habits
 

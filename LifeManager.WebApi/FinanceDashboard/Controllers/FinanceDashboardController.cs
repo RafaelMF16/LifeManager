@@ -16,5 +16,9 @@ namespace LifeManager.WebApi.FinanceDashboard.Controllers
         [HttpGet]
         public async Task<IActionResult> Get([FromQuery] FinanceDashboardQueryDto query, CancellationToken cancellationToken)
             => (await _financeDashboardService.GetAsync(query, User.GetUserId(), cancellationToken)).Match(Ok);
+
+        [HttpGet("Days")]
+        public async Task<IActionResult> GetDays([FromQuery] DashboardDaysQueryDto query, CancellationToken cancellationToken)
+            => (await _financeDashboardService.GetDaysAsync(query, User.GetUserId(), cancellationToken)).Match(Ok);
     }
 }

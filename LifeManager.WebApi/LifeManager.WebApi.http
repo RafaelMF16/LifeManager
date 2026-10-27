@@ -55,3 +55,12 @@ Content-Type: application/json
 { "token": "{{resetToken}}", "password": "my-new-password" }
 
 ###
+
+# Paste the accessToken returned by the Login above.
+@accessToken = paste-the-access-token
+
+# A month's expenses day by day (the dashboard's calendar).
+GET {{LifeManager.WebApi_HostAddress}}/api/FinanceDashboard/Days?month=2026-10
+Authorization: Bearer {{accessToken}}
+
+###
