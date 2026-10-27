@@ -2,8 +2,10 @@ using LifeManager.Application.FinanceDashboard.DTOs;
 using LifeManager.Domain.BudgetPlans;
 using LifeManager.Domain.BudgetPlans.Interfaces;
 using LifeManager.Domain.FinanceDashboard;
+using LifeManager.Domain.FinanceDashboard.Errors;
 using LifeManager.Domain.FinanceDashboard.Interfaces;
 using LifeManager.Domain.FinanceDashboard.ValueObjects;
+using LifeManager.Domain.MonthlySummaries.Interfaces;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.Results;
 using LifeManager.Domain.Shared.ValueObjects;
@@ -11,7 +13,10 @@ using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Application.FinanceDashboard.Services
 {
-    public class FinanceDashboardService(IFinanceDashboardRepository financeDashboardRepository, IBudgetPlanRepository budgetPlanRepository)
+    public class FinanceDashboardService(
+        IFinanceDashboardRepository financeDashboardRepository,
+        IBudgetPlanRepository budgetPlanRepository,
+        IMonthlySummaryRepository monthlySummaryRepository)
     {
         /// <summary>How many categories each breakdown lists before grouping the rest into "others".</summary>
         public const int TopCategoryCount = 8;
@@ -21,6 +26,7 @@ namespace LifeManager.Application.FinanceDashboard.Services
 
         private readonly IFinanceDashboardRepository _financeDashboardRepository = financeDashboardRepository;
         private readonly IBudgetPlanRepository _budgetPlanRepository = budgetPlanRepository;
+        private readonly IMonthlySummaryRepository _monthlySummaryRepository = monthlySummaryRepository;
 
         public async Task<Result<FinanceDashboardResponseDto>> GetAsync(FinanceDashboardQueryDto query, UserId userId, CancellationToken cancellationToken)
         {
@@ -54,6 +60,34 @@ namespace LifeManager.Application.FinanceDashboard.Services
                 ToBreakdownDto(MoneyFlowType.Expense, current, previous, months),
                 ToBreakdownDto(MoneyFlowType.Investment, current, previous, months),
                 ToBudgetsDto(plans, current, months));
+        }
+
+        /// <summary>
+        /// A month's expenses day by day. Like the dashboard, it filters on the transaction date and never reads the
+        /// clock: every day of the month comes back, the future ones with zeros.
+        /// </summary>
+        public async Task<Result<DashboardDaysResponseDto>> GetDaysAsync(DashboardDaysQueryDto query, UserId userId, CancellationToken cancellationToken)
+        {
+            if (!YearMonth.TryParse(query.Month, out var month))
+                return FinanceDashboardErrors.InvalidMonth;
+
+            var totals = await _financeDashboardRepository.GetExpenseDayTotalsAsync(userId, month.FirstDay, month.LastDay, cancellationToken);
+            var monthlySummary = await _monthlySummaryRepository.GetByPeriodAsync(userId, month, cancellationToken);
+
+            var totalsByDate = totals.ToDictionary(total => total.Date);
+            var days = Enumerable.Range(0, month.LastDay.Day)
+                .Select(offset => month.FirstDay.AddDays(offset))
+                .Select(date => totalsByDate.GetValueOrDefault(date) is { } total
+                    ? new DashboardDayDto(date, total.Amount, total.Count)
+                    : new DashboardDayDto(date, 0, 0))
+                .ToList();
+
+            return new DashboardDaysResponseDto(
+                month.ToString(),
+                monthlySummary?.Id?.Value,
+                days.Sum(day => day.Total),
+                days.Max(day => day.Total),
+                days);
         }
 
         /// <summary>
