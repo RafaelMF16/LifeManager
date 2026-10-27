@@ -63,8 +63,10 @@ namespace LifeManager.Application.Auth.Emails
             string url,
             string footer)
         {
+            var greeting = string.Format(greetingFormat, name?.Value);
+
             var text = $"""
-                {string.Format(greetingFormat, name?.Value)}
+                {greeting}
 
                 {intro}
 
@@ -78,7 +80,7 @@ namespace LifeManager.Application.Auth.Emails
                 <!doctype html>
                 <html>
                 <body style="font-family: Arial, sans-serif; color: #1f2933; line-height: 1.5;">
-                  <p>{WebUtility.HtmlEncode(string.Format(greetingFormat, name?.Value))}</p>
+                  <p>{WebUtility.HtmlEncode(greeting)}</p>
                   <p>{WebUtility.HtmlEncode(intro)}</p>
                   <p><a href="{encodedUrl}" style="display: inline-block; padding: 10px 16px; background: #2563eb; color: #ffffff; text-decoration: none; border-radius: 6px;">{WebUtility.HtmlEncode(buttonLabel)}</a></p>
                   <p style="font-size: 13px; color: #52606d;">{encodedUrl}</p>
