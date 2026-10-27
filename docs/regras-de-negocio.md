@@ -417,7 +417,7 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 | `Transaction.AmountNotPositive` | Validation | Valor zero ou negativo |
 | `Transaction.AmountTooManyDecimals` | Validation | Mais de 2 casas decimais |
 | `Transaction.AmountTooLarge` | Validation | Valor acima do máximo |
-| `Transaction.DateOutsideMonth` | Validation | Data fora do mês do lançamento |
+| `Transaction.DateOutsideMonth` | Validation | Data fora do mês do lançamento (também ao filtrar a lista de um dia) |
 | `Transaction.NotFound` | NotFound | Lançamento não existe |
 | `RecurringTransaction.InvalidDay` | Validation | Dia fora de 1 a 31 |
 | `RecurringTransaction.InvalidStartMonth` / `InvalidEndMonth` | Validation | Mês de início ou fim em formato inválido |

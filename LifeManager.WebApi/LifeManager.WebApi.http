@@ -64,3 +64,10 @@ GET {{LifeManager.WebApi_HostAddress}}/api/FinanceDashboard/Days?month=2026-10
 Authorization: Bearer {{accessToken}}
 
 ###
+
+# One day's expenses inside a month (the calendar's day panel). Amount sorts by the signed value, so Asc puts the
+# biggest expense first. Use the monthlySummaryId returned by the request above.
+GET {{LifeManager.WebApi_HostAddress}}/api/MonthlySummaries/1/Transactions?type=Expense&date=2026-10-02&sortBy=Amount&sortDirection=Asc
+Authorization: Bearer {{accessToken}}
+
+###

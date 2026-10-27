@@ -53,6 +53,7 @@ namespace LifeManager.Application.Test.Transactions.Mocks
             PageRequest pageRequest,
             TransactionTypeFilter typeFilter,
             CategoryId? categoryId,
+            DateOnly? date,
             string? normalizedSearch,
             TransactionSortBy sortBy,
             SortDirection sortDirection,
@@ -70,6 +71,9 @@ namespace LifeManager.Application.Test.Transactions.Mocks
 
             if (categoryId is not null)
                 query = query.Where(transaction => transaction.CategoryId == categoryId);
+
+            if (date is not null)
+                query = query.Where(transaction => transaction.TransactionDate == date);
 
             if (!string.IsNullOrEmpty(normalizedSearch))
                 query = query.Where(transaction => transaction.NormalizedDescription.Contains(normalizedSearch, StringComparison.Ordinal));

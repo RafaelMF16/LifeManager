@@ -18,12 +18,14 @@ namespace LifeManager.Domain.Transactions.Interfaces
         Task<TransactionListItem?> GetByIdAsync(TransactionId transactionId, MonthlySummaryId monthlySummaryId, CancellationToken cancellationToken);
 
         /// <param name="categoryId">Null means every category.</param>
+        /// <param name="date">Null means every day.</param>
         /// <param name="normalizedSearch">Already normalized (see <c>SearchText.Normalize</c>); null or empty means no filter.</param>
         Task<PagedList<TransactionListItem>> GetPagedAsync(
             MonthlySummaryId monthlySummaryId,
             PageRequest pageRequest,
             TransactionTypeFilter typeFilter,
             CategoryId? categoryId,
+            DateOnly? date,
             string? normalizedSearch,
             TransactionSortBy sortBy,
             SortDirection sortDirection,
