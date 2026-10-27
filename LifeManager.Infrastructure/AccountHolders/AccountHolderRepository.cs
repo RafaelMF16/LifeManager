@@ -26,8 +26,9 @@ namespace LifeManager.Infrastructure.AccountHolders
             await using var databaseTransaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
             // Locks the user's row so two saves of the same list run one after the other: the last one wins whole,
-            // instead of both deleting first and then clashing on (UserId, Position).
-            await _dbContext.Database.ExecuteSqlAsync($"""SELECT 1 FROM "Users" WHERE "Id" = {userId} FOR UPDATE""", cancellationToken);
+            // instead of both deleting first and then clashing on (UserId, Position). NO KEY UPDATE, so inserts that
+            // only reference the user (their FK check takes KEY SHARE) don't wait for it.
+            await _dbContext.Database.ExecuteSqlAsync($"""SELECT 1 FROM "Users" WHERE "Id" = {userId} FOR NO KEY UPDATE""", cancellationToken);
 
             await _dbContext.AccountHolders
                 .Where(accountHolder => accountHolder.UserId == accountHolderList.UserId)
