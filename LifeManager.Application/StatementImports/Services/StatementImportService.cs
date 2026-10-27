@@ -1,6 +1,7 @@
 using LifeManager.Application.Shared.DTOs;
 using LifeManager.Application.Shared.Time;
 using LifeManager.Application.StatementImports.DTOs;
+using LifeManager.Domain.AccountHolders.Interfaces;
 using LifeManager.Domain.Categories.Errors;
 using LifeManager.Domain.Categories.Interfaces;
 using LifeManager.Domain.Categories.ValueObjects;
@@ -38,6 +39,7 @@ namespace LifeManager.Application.StatementImports.Services
         IMonthlySummaryRepository monthlySummaryRepository,
         ICategoryRepository categoryRepository,
         IUserRepository userRepository,
+        IAccountHolderRepository accountHolderRepository,
         AppClock appClock,
         TimeProvider timeProvider)
     {
@@ -49,6 +51,7 @@ namespace LifeManager.Application.StatementImports.Services
         private readonly IMonthlySummaryRepository _monthlySummaryRepository = monthlySummaryRepository;
         private readonly ICategoryRepository _categoryRepository = categoryRepository;
         private readonly IUserRepository _userRepository = userRepository;
+        private readonly IAccountHolderRepository _accountHolderRepository = accountHolderRepository;
         private readonly AppClock _appClock = appClock;
         private readonly TimeProvider _timeProvider = timeProvider;
 
@@ -241,9 +244,11 @@ namespace LifeManager.Application.StatementImports.Services
             var history = await _transactionRepository.GetCategoryHistoryAsync(userId, cancellationToken);
 
             var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
+            var accountHolders = await _accountHolderRepository.GetByUserIdAsync(userId, cancellationToken);
 
             var suggester = new CategorySuggester(rules.Select(rule => rule.ToEvidence()).Concat(CategoryEvidence.FromHistory(history)), today);
-            var ownTransfers = OwnTransferDetector.For(user?.Name.Value);
+            // The user's own name always counts; the holders they listed add the names the bank actually writes.
+            var ownTransfers = OwnTransferDetector.For([user?.Name.Value, .. accountHolders.Select(holder => holder.Name.Value)]);
             var monthShifts = new MonthShiftAdvisor(rules, today);
 
             foreach (var row in rows)

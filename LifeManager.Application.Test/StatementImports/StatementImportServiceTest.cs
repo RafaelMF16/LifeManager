@@ -3,6 +3,7 @@ using LifeManager.Application.StatementImports.Services;
 using LifeManager.Application.Test.Configurations;
 using LifeManager.Application.Test.Configurations.SingletonLists;
 using LifeManager.Application.Test.StatementImports.Mocks;
+using LifeManager.Domain.AccountHolders;
 using LifeManager.Domain.Categories;
 using LifeManager.Domain.Categories.Errors;
 using LifeManager.Domain.Categories.ValueObjects;
@@ -58,6 +59,7 @@ namespace LifeManager.Application.Test.StatementImports
             MonthlySummarySingleton.Instance.Clear();
             CategorySingleton.Instance.Clear();
             UserSingleton.Instance.Clear();
+            AccountHolderSingleton.Instance.Clear();
 
             SeedCategory(Restaurants, FirstUserId, "Restaurantes");
             SeedCategory(Market, FirstUserId, "Mercado");
@@ -701,6 +703,78 @@ namespace LifeManager.Application.Test.StatementImports
             Assert.Equal(SuggestionSource.Rule, row.SuggestionSource);
         }
 
+        [Fact]
+        public async Task CreateAsync_ShouldLeaveOutTransfersToTheUsersAccountHolders()
+        {
+            SeedUser(FirstUserId, "Rafa");
+            SeedAccountHolders(FirstUserId, "Rafael Moreira Ferreira", "Empresa X Ltda");
+
+            await CreateAsync(
+                Line(2024, 3, 5, -500m, "Pix enviado: \"Cp :18236120-RAFAEL MOREIRA FERREIRA\""),
+                Line(2024, 3, 6, 2000m, "TED RECEBIDA EMPRESA X LTDA"),
+                Line(2024, 3, 7, -40m, "Pix enviado: \"Cp :00360305-Outra Pessoa\""));
+
+            var sent = SingleRow(MerchantKey.From("Pix enviado: \"Cp :18236120-RAFAEL MOREIRA FERREIRA\""));
+            Assert.False(sent.Included);
+            Assert.Equal(SuggestionSource.OwnTransfer, sent.SuggestionSource);
+
+            var company = SingleRow(MerchantKey.From("TED RECEBIDA EMPRESA X LTDA"));
+            Assert.False(company.Included);
+            Assert.Equal(SuggestionSource.OwnTransfer, company.SuggestionSource);
+
+            var stranger = SingleRow(MerchantKey.From("Pix enviado: \"Cp :00360305-Outra Pessoa\""));
+            Assert.True(stranger.Included);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldKeepTheTransfer_WhenTheNameIsNotAnAccountHolder()
+        {
+            SeedUser(FirstUserId, "Rafa");
+
+            await CreateAsync(Line(2024, 3, 5, -500m, "Pix enviado: \"Cp :18236120-RAFAEL MOREIRA FERREIRA\""));
+
+            var row = StatementImportRowSingleton.Instance.Single();
+            Assert.True(row.Included);
+            Assert.Equal(SuggestionSource.None, row.SuggestionSource);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldStillUseTheUsersName_WhenThereAreAccountHolders()
+        {
+            SeedUser(FirstUserId, "Fulano Beltrano Ciclano");
+            SeedAccountHolders(FirstUserId, "Empresa X Ltda");
+
+            await CreateAsync(Line(2024, 3, 5, 1000m, "Pix recebido: \"Cp :90400888-FULANO BELTRANO CICLANO\""));
+
+            Assert.Equal(SuggestionSource.OwnTransfer, StatementImportRowSingleton.Instance.Single().SuggestionSource);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldIgnoreAnotherUsersAccountHolders()
+        {
+            SeedUser(FirstUserId, "Rafa");
+            SeedAccountHolders(SecondUserId, "Rafael Moreira Ferreira");
+
+            await CreateAsync(Line(2024, 3, 5, -500m, "Pix enviado: \"Cp :18236120-RAFAEL MOREIRA FERREIRA\""));
+
+            Assert.True(StatementImportRowSingleton.Instance.Single().Included);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldFollowTheUsersRule_OverAnAccountHolder()
+        {
+            const string description = "TED RECEBIDA EMPRESA X LTDA";
+            SeedUser(FirstUserId, "Rafa");
+            SeedAccountHolders(FirstUserId, "Empresa X Ltda");
+            SeedRule(MerchantKey.From(description), Salary, hits: 2, type: MoneyFlowType.Income);
+
+            await CreateAsync(Line(2024, 3, 5, 2000m, description));
+
+            var row = StatementImportRowSingleton.Instance.Single();
+            Assert.True(row.Included);
+            Assert.Equal(SuggestionSource.Rule, row.SuggestionSource);
+        }
+
         /// <summary>
         /// Every investment and own-transfer line of three real statements (Inter 2025, Nubank Jan and Sep 2026), as the
         /// frontend describes them, with the holder's name, CPF and account replaced; plus each format of the other lines.
@@ -912,6 +986,12 @@ namespace LifeManager.Application.Test.StatementImports
 
             var rows = StatementImportRowSingleton.Instance;
             rows[rows.FindIndex(stored => stored.Id == row.Id)] = copy;
+        }
+
+        private static void SeedAccountHolders(UserId userId, params string[] names)
+        {
+            var holders = AccountHolderList.Create(userId, names).Value!.Holders;
+            AccountHolderSingleton.Instance.AddRange(holders);
         }
 
         private static void SeedUser(UserId userId, string name)
