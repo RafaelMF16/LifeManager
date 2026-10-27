@@ -1,4 +1,4 @@
-﻿using LifeManager.Domain.Shared.Results;
+using LifeManager.Domain.Shared.Results;
 
 namespace LifeManager.Domain.Users.Errors
 {
@@ -15,7 +15,6 @@ namespace LifeManager.Domain.Users.Errors
         public static readonly Error PlainPasswordTooLong = Error.Validation("User.PlainPasswordTooLong", "PlainPassword cannot be longer than 50 characters");
         public static readonly Error PlainPasswordTooShort = Error.Validation("User.PlainPasswordTooShort", "PlainPassword must be at least 8 characters long");
 
-        public static readonly Error EmailRegistered = Error.Conflict("User.EmailRegistered", "Email already registered");
         public static readonly Error InvalidCredentials = Error.Unauthorized("User.InvalidCredentials", "Invalid email or password");
     }
 }

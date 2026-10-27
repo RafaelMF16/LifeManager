@@ -38,11 +38,29 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
 
 ## Contas e sessão
 
-**Cadastro**
-- Nome obrigatório, até 100 caracteres.
-- E-mail obrigatório, em formato válido e único no sistema.
-- Senha de 8 a 50 caracteres.
+**Cadastro (em duas etapas, com confirmação por e-mail)**
+- **1ª etapa:** o usuário informa nome (obrigatório, até 100 caracteres) e e-mail (obrigatório e em formato válido). A resposta é sempre a mesma, tenha o e-mail conta ou não:
+  - **e-mail sem conta:** o cadastro fica pendente e um e-mail de confirmação é enviado, no idioma da tela de cadastro, com um link que vale por **24 horas**;
+  - **e-mail que já tem conta:** nada é criado, e o dono recebe um e-mail avisando que já tem conta, com o link para recuperar a senha.
+- **2ª etapa:** o link abre a tela de definir senha (8 a 50 caracteres, digitada duas vezes). Ao salvar, a conta é criada e o usuário volta para o login (não entra automaticamente).
+- Cadastrar de novo o mesmo e-mail ainda pendente renova o cadastro (nome, tema e idioma novos) e envia um link novo; **o link anterior deixa de valer**.
+- O link só pode ser usado uma vez. Link vencido, já usado ou desconhecido recebe sempre a mesma resposta ("link inválido ou expirado").
 - A conta nova já vem com as **preferências** (tema e idioma que a tela de cadastro estava usando; sem essa informação, claro e português) e as **[categorias padrão](#categorias)** nesse idioma. A conta, as preferências e as categorias são criadas juntas: ou tudo é gravado, ou nada.
+- Se, entre o envio e a confirmação, o e-mail virar conta por outro caminho, o link é tratado como inválido.
+
+**Recuperação de senha**
+- Em "Esqueceu a senha?", o usuário informa o e-mail. A resposta é sempre a mesma: só um e-mail com conta recebe o link, e um e-mail sem conta não recebe nada.
+- O link vale por **1 hora** e só pode ser usado uma vez. Pedir um link novo invalida os anteriores ainda não usados.
+- Ao salvar a nova senha, **todas as sessões abertas da conta são encerradas** (em qualquer aparelho) e o usuário volta para o login.
+- O e-mail vai no idioma das preferências da conta.
+
+**Limites dos e-mails**
+- Cada tipo de e-mail (confirmação, "você já tem uma conta" e recuperação) vai para o mesmo endereço **no máximo uma vez por minuto**. Um pedido dentro desse minuto responde normalmente, mas não envia nada; o link já enviado continua valendo.
+- Por endereço de rede (IP): no máximo **10 pedidos de cadastro ou recuperação** e **20 usos de link** (verificar, concluir cadastro ou redefinir senha) **a cada 10 minutos**. Acima disso, a resposta é "muitas tentativas" até a janela virar.
+- O tempo de resposta pode variar um pouco entre e-mail com conta e sem conta na recuperação (só o primeiro envia e-mail). Foi aceito para o porte do projeto.
+
+**Limpeza automática**
+- De hora em hora são apagados: cadastros pendentes vencidos há mais de **7 dias**, links de recuperação vencidos ou usados há mais de **7 dias** e os registros do limite de um minuto com mais de **1 dia**.
 
 **Login**
 - E-mail ou senha errados retornam sempre o mesmo erro, sem revelar qual dos dois está errado.
@@ -351,7 +369,7 @@ O próprio usuário cadastra as recompensas e as compra com as moedas ganhas nos
 
 A API responde a falhas esperadas com `{ code, message, type }`. O frontend usa o `code` para mostrar a mensagem traduzida. **Os códigos fazem parte do contrato e não devem ser renomeados.**
 
-O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `NotFound` → 404, `Conflict` → 409.
+O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `NotFound` → 404, `Conflict` → 409. A exceção é `Auth.TooManyRequests`, que sai com 429.
 
 ### Contas
 
@@ -364,10 +382,11 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 | `User.PlainPasswordIsNullOrWhiteSpace` | Validation | Senha vazia |
 | `User.PlainPasswordTooShort` | Validation | Senha com menos de 8 caracteres |
 | `User.PlainPasswordTooLong` | Validation | Senha com mais de 50 caracteres |
-| `User.EmailRegistered` | Conflict | E-mail já cadastrado |
 | `User.InvalidCredentials` | Unauthorized | E-mail ou senha errados |
 | `User.NotFound` | NotFound | Usuário não existe |
 | `Auth.InvalidRefreshToken` | Unauthorized | Sessão expirada, revogada ou inválida (é preciso entrar de novo) |
+| `Auth.InvalidEmailToken` | Validation | Link do e-mail (cadastro ou recuperação) vencido, já usado ou desconhecido |
+| `Auth.TooManyRequests` | Failure (429) | Muitos pedidos de cadastro/recuperação ou usos de link do mesmo IP em 10 minutos |
 | `UserPreferences.InvalidTheme` | Validation | Tema desconhecido |
 | `UserPreferences.InvalidLanguage` | Validation | Idioma desconhecido |
 

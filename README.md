@@ -4,7 +4,7 @@ O LifeManager é uma ferramenta pessoal para organizar várias áreas da vida nu
 
 ## O que o projeto faz
 
-- **Contas:** cadastro, login e sessão com renovação automática (access token + refresh token em cookie). Preferências de tema e idioma ficam salvas por usuário.
+- **Contas:** cadastro com confirmação por e-mail, recuperação de senha por e-mail, login e sessão com renovação automática (access token + refresh token em cookie). Preferências de tema e idioma ficam salvas por usuário.
 - **Finanças:** categorias, meses, lançamentos (receitas, gastos e investimentos), transações recorrentes lançadas automaticamente, metas mensais (limite de gastos e alvo de investimento) e um painel com a evolução do período.
 - **Hábitos (gamificado):** hábitos para construir ou evitar, check-ins diários, ofensivas, um personagem com nível, XP, HP e moedas, e uma loja de recompensas que você mesmo define e paga com moedas.
 
@@ -57,7 +57,16 @@ openssl rand -base64 48
 
 Opcional: `businessTimeZone` (id IANA, padrão `America/Sao_Paulo`) define o fuso do "hoje" usado pelas regras (check-ins, recorrências, resgates).
 
-Fora do ambiente de desenvolvimento, as mesmas chaves podem vir de variáveis de ambiente.
+**E-mails em desenvolvimento:** sem nenhuma configuração de e-mail, a API não envia nada. Ela escreve no console cada e-mail (confirmação de cadastro, "você já tem uma conta", recuperação de senha) com o link completo: copie o link do console e abra no navegador. Os links apontam para `frontendBaseUrl`, que já vem como `https://localhost:5173` no `appsettings.Development.json`.
+
+Para testar com e-mails de verdade, crie uma conta gratuita no [Brevo](https://www.brevo.com), verifique um remetente e gere uma chave de API (passo a passo em [docs/deploy.md](docs/deploy.md#e-mail-brevo)):
+
+```bash
+dotnet user-secrets set "brevoApiKey" "<chave da API do Brevo>" --project LifeManager.WebApi
+dotnet user-secrets set "emailSenderAddress" "<remetente verificado no Brevo>" --project LifeManager.WebApi
+```
+
+Fora do ambiente de desenvolvimento, as mesmas chaves podem vir de variáveis de ambiente. Lá, `brevoApiKey`, `emailSenderAddress` e `frontendBaseUrl` são obrigatórias.
 
 ### 3. Confiar no certificado HTTPS de desenvolvimento
 
@@ -83,10 +92,12 @@ dotnet run --project LifeManager.WebApi --launch-profile https
 
 A API fica em `https://localhost:7233`. O CORS libera só o frontend em `https://localhost:5173`. Para subir o front, siga o README do [LifeManagerFront](https://github.com/RafaelMF16/LifeManagerFront).
 
-Junto com a API sobem dois jobs em segundo plano, que rodam ao iniciar e depois a cada hora:
+Junto com a API sobem quatro jobs em segundo plano, que rodam ao iniciar e depois a cada hora:
 
 - **Recorrências:** lança as transações recorrentes cujo dia chegou.
 - **Fechamento do dia dos hábitos:** avalia os dias que já fecharam (falhas, dias limpos, proteções).
+- **Limpeza das importações:** apaga rascunhos de importação de extrato com mais de 30 dias.
+- **Limpeza da autenticação:** apaga cadastros pendentes e links de recuperação vencidos e controles de reenvio antigos.
 
 ### 6. Rodar os testes
 
