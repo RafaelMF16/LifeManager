@@ -20,7 +20,7 @@ namespace LifeManager.Domain.Test.AccountHolders
         [Fact]
         public void Create_ShouldNormalizeTheName_ForComparingHolders()
         {
-            Assert.Equal("jose da silva", AccountHolderName.Create("  José da SILVA ").Value!.NormalizedValue);
+            Assert.Equal("jose da silva", AccountHolderName.Create("  José  da   SILVA ").Value!.NormalizedValue);
         }
 
         [Theory]

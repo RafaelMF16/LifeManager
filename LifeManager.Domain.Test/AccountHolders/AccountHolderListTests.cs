@@ -70,10 +70,12 @@ namespace LifeManager.Domain.Test.AccountHolders
             Assert.Equal(2, result.Error.Index);
         }
 
-        [Fact]
-        public void Create_ShouldPointToTheSecondOccurrence_WhenANameRepeatsIgnoringAccentsCaseAndSpaces()
+        [Theory]
+        [InlineData("  JOSE DA SILVA ")]
+        [InlineData("José  da   Silva")]
+        public void Create_ShouldPointToTheSecondOccurrence_WhenANameRepeatsIgnoringAccentsCaseAndSpaces(string repeated)
         {
-            var result = AccountHolderList.Create(UserId, ["José da Silva", "Empresa X Ltda", "  JOSE DA SILVA "]);
+            var result = AccountHolderList.Create(UserId, ["José da Silva", "Empresa X Ltda", repeated]);
 
             Assert.False(result.IsSuccess);
             Assert.Equal(AccountHolderErrors.DuplicateName.Code, result.Error.Code);

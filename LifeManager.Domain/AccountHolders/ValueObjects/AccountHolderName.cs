@@ -15,13 +15,14 @@ namespace LifeManager.Domain.AccountHolders.ValueObjects
 
         public string Value { get; }
 
-        /// <summary>Case- and accent-insensitive form, used to find a name listed twice.</summary>
+        /// <summary>Case-, accent- and spacing-insensitive form, used to find a name listed twice.</summary>
         public string NormalizedValue { get; }
 
         private AccountHolderName(string value)
         {
             Value = value;
-            NormalizedValue = SearchText.Normalize(value);
+            // "José  da Silva" is the same holder as "Jose da Silva": runs of spaces collapse to one.
+            NormalizedValue = string.Join(' ', SearchText.Normalize(value).Split(' ', StringSplitOptions.RemoveEmptyEntries));
         }
 
         public static Result<AccountHolderName> Create(string? value)
