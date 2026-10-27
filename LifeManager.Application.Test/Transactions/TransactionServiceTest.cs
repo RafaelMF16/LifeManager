@@ -312,10 +312,12 @@ namespace LifeManager.Application.Test.Transactions
             Assert.Equal(2, result.Value.TotalCount);
         }
 
-        [Fact]
-        public async Task GetPagedAsync_ShouldReturnDateOutsideMonth_WhenDateIsInAnotherMonth()
+        [Theory]
+        [InlineData(0, 4)]
+        [InlineData(-1, 3)]
+        public async Task GetPagedAsync_ShouldReturnDateOutsideMonth_WhenDateIsInAnotherMonth(int yearOffset, int month)
         {
-            var query = new TransactionListQueryDto { Date = new DateOnly(CurrentYear, 4, 1) };
+            var query = new TransactionListQueryDto { Date = new DateOnly(CurrentYear + yearOffset, month, 1) };
             var result = await _transactionService.GetPagedAsync(MonthId, query, FirstUserId, CancellationToken.None);
 
             Assert.False(result.IsSuccess);
