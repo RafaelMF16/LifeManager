@@ -4,7 +4,7 @@ namespace LifeManager.Domain.Auth.Interfaces
 {
     public sealed record EmailMessage(
         string ToAddress,
-        string ToName,
+        string? ToName,
         string Subject,
         string HtmlBody,
         string TextBody);

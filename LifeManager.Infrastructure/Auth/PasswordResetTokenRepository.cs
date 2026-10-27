@@ -45,6 +45,10 @@ namespace LifeManager.Infrastructure.Auth
                 .Where(user => user.Id == token.UserId)
                 .ExecuteUpdateAsync(setters => setters.SetProperty(user => user.PasswordHash, newPasswordHash), cancellationToken);
 
+            await _dbContext.RefreshTokens
+                .Where(refreshToken => refreshToken.UserId == token.UserId && !refreshToken.IsRevoked)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(refreshToken => refreshToken.IsRevoked, true), cancellationToken);
+
             await databaseTransaction.CommitAsync(cancellationToken);
 
             return true;

@@ -21,7 +21,8 @@ namespace LifeManager.Application.Test.Auth.Mocks
         public Task<PasswordResetToken?> GetByTokenHashAsync(EmailTokenHash tokenHash, CancellationToken cancellationToken)
             => Task.FromResult(_instance.SingleOrDefault(token => token.TokenHash.Equals(tokenHash)));
 
-        // Mirrors the transaction: the conditional update on the link, then the user's password; a lost race writes nothing.
+        // Mirrors the transaction: the conditional update on the link, then the user's password and sessions; a lost race
+        // writes nothing.
         public Task<bool> UseAsync(PasswordResetToken token, PasswordHash newPasswordHash, DateTimeOffset now, CancellationToken cancellationToken)
         {
             var stored = _instance.SingleOrDefault(candidate => candidate.Id == token.Id);
@@ -30,6 +31,8 @@ namespace LifeManager.Application.Test.Auth.Mocks
 
             stored.MarkUsed(now);
             UserSingleton.Instance.SingleOrDefault(user => user.Id == token.UserId)?.ChangePassword(newPasswordHash);
+            foreach (var refreshToken in RefreshTokenSingleton.Instance.Where(refreshToken => refreshToken.UserId.Equals(token.UserId) && !refreshToken.IsRevoked))
+                refreshToken.RevokeToken();
 
             return Task.FromResult(true);
         }

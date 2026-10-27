@@ -21,7 +21,6 @@ namespace LifeManager.Application.Auth.Services
         IUserRepository userRepository,
         IUserPreferencesRepository userPreferencesRepository,
         IPasswordResetTokenRepository passwordResetTokenRepository,
-        IRefreshTokenRepository refreshTokenRepository,
         IEmailCooldownRepository emailCooldownRepository,
         IEmailSender emailSender,
         FrontendLinks frontendLinks,
@@ -31,7 +30,6 @@ namespace LifeManager.Application.Auth.Services
         private readonly IUserRepository _userRepository = userRepository;
         private readonly IUserPreferencesRepository _userPreferencesRepository = userPreferencesRepository;
         private readonly IPasswordResetTokenRepository _passwordResetTokenRepository = passwordResetTokenRepository;
-        private readonly IRefreshTokenRepository _refreshTokenRepository = refreshTokenRepository;
         private readonly IEmailCooldownRepository _emailCooldownRepository = emailCooldownRepository;
         private readonly IEmailSender _emailSender = emailSender;
         private readonly FrontendLinks _frontendLinks = frontendLinks;
@@ -85,8 +83,8 @@ namespace LifeManager.Application.Auth.Services
         }
 
         /// <summary>
-        /// Sets the new password and revokes every refresh token of the user, so other open sessions end on their next
-        /// refresh. The link is checked before the password, and it works only once.
+        /// Sets the new password and revokes every refresh token of the user (in the same database transaction), so other
+        /// open sessions end on their next refresh. The link is checked before the password, and it works only once.
         /// </summary>
         public async Task<Result> ResetAsync(ResetPasswordDto resetPasswordDto, CancellationToken cancellationToken)
         {
@@ -102,11 +100,8 @@ namespace LifeManager.Application.Auth.Services
             if (!passwordHashResult.IsSuccess)
                 return passwordHashResult.Error;
 
-            var token = tokenResult.Value;
-            if (!await _passwordResetTokenRepository.UseAsync(token, passwordHashResult.Value, _timeProvider.GetUtcNow(), cancellationToken))
+            if (!await _passwordResetTokenRepository.UseAsync(tokenResult.Value, passwordHashResult.Value, _timeProvider.GetUtcNow(), cancellationToken))
                 return AuthErrors.InvalidEmailToken;
-
-            await _refreshTokenRepository.RevokeAllActiveByUserIdAsync(token.UserId, cancellationToken);
 
             return Result.Success();
         }

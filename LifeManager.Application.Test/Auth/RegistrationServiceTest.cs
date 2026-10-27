@@ -66,6 +66,19 @@ namespace LifeManager.Application.Test.Auth
         }
 
         [Fact]
+        public async Task RegisterAsync_ShouldLeaveTheTypedNameOutOfTheConfirmation()
+        {
+            const string typedName = "Ana visite evil.example";
+
+            await _registrationService.RegisterAsync(new RegisterDto("ana@example.com", typedName, null, null), CancellationToken.None);
+
+            var message = Assert.Single(EmailSenderMock.Sent);
+            Assert.DoesNotContain(typedName, message.TextBody);
+            Assert.DoesNotContain(typedName, message.HtmlBody);
+            Assert.Null(message.ToName);
+        }
+
+        [Fact]
         public async Task RegisterAsync_ShouldWriteTheEmailInTheSignUpLanguage()
         {
             await _registrationService.RegisterAsync(new RegisterDto("ana@example.com", "Ana", Language.EN, null), CancellationToken.None);
@@ -358,9 +371,12 @@ namespace LifeManager.Application.Test.Auth
         }
 
         [Fact]
-        public async Task RegisterAsync_ShouldEscapeTheNameInTheHtml()
+        public async Task RegisterAsync_ShouldEscapeTheAccountsNameInTheHtml()
         {
-            await _registrationService.RegisterAsync(new RegisterDto("ana@example.com", "<b>Ana</b>", null, null), CancellationToken.None);
+            var user = User.Create("<b>Ana</b>", "ana@example.com", "hash").Value!;
+            await ((UserRepositoryMock)ServiceProvider.GetRequiredService<IUserRepository>()).AddWithStarterDataAsync(user, Theme.Light, Language.PTBR, CancellationToken.None);
+
+            await _registrationService.RegisterAsync(new RegisterDto("ana@example.com", "Ana", null, null), CancellationToken.None);
 
             var message = Assert.Single(EmailSenderMock.Sent);
             Assert.DoesNotContain("<b>Ana</b>", message.HtmlBody);

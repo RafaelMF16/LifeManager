@@ -12,15 +12,17 @@ namespace LifeManager.Application.Auth.Emails
     /// </summary>
     public static class AuthEmailTemplates
     {
-        public static EmailMessage Confirmation(Email to, UserName name, Language language, string setPasswordUrl)
+        // No name here: it was typed by whoever filled the sign-up form, maybe not the mailbox's owner, and it must not
+        // put someone else's text into an e-mail sent under the app's name.
+        public static EmailMessage Confirmation(Email to, Language language, string setPasswordUrl)
             => language == Language.EN
-                ? Build(to, name, "Confirm your e-mail",
-                    "Hi, {0}!",
+                ? Build(to, null, "Confirm your e-mail",
+                    "Hi!",
                     "Confirm your e-mail to finish creating your LifeManager account. Open the link below and choose your password:",
                     "Choose my password", setPasswordUrl,
                     $"The link is valid for {PendingRegistration.ValidityHours} hours. If you didn't sign up, ignore this e-mail.")
-                : Build(to, name, "Confirme seu e-mail",
-                    "Olá, {0}!",
+                : Build(to, null, "Confirme seu e-mail",
+                    "Olá!",
                     "Confirme seu e-mail para terminar de criar sua conta no LifeManager. Abra o link abaixo e escolha sua senha:",
                     "Escolher minha senha", setPasswordUrl,
                     $"O link vale por {PendingRegistration.ValidityHours} horas. Se você não se cadastrou, ignore este e-mail.");
@@ -53,7 +55,7 @@ namespace LifeManager.Application.Auth.Emails
 
         private static EmailMessage Build(
             Email to,
-            UserName name,
+            UserName? name,
             string subject,
             string greetingFormat,
             string intro,
@@ -62,7 +64,7 @@ namespace LifeManager.Application.Auth.Emails
             string footer)
         {
             var text = $"""
-                {string.Format(greetingFormat, name.Value)}
+                {string.Format(greetingFormat, name?.Value)}
 
                 {intro}
 
@@ -76,7 +78,7 @@ namespace LifeManager.Application.Auth.Emails
                 <!doctype html>
                 <html>
                 <body style="font-family: Arial, sans-serif; color: #1f2933; line-height: 1.5;">
-                  <p>{WebUtility.HtmlEncode(string.Format(greetingFormat, name.Value))}</p>
+                  <p>{WebUtility.HtmlEncode(string.Format(greetingFormat, name?.Value))}</p>
                   <p>{WebUtility.HtmlEncode(intro)}</p>
                   <p><a href="{encodedUrl}" style="display: inline-block; padding: 10px 16px; background: #2563eb; color: #ffffff; text-decoration: none; border-radius: 6px;">{WebUtility.HtmlEncode(buttonLabel)}</a></p>
                   <p style="font-size: 13px; color: #52606d;">{encodedUrl}</p>
@@ -85,7 +87,7 @@ namespace LifeManager.Application.Auth.Emails
                 </html>
                 """;
 
-            return new EmailMessage(to.Value, name.Value, subject, html, text);
+            return new EmailMessage(to.Value, name?.Value, subject, html, text);
         }
     }
 }

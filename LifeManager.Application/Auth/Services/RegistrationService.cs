@@ -88,7 +88,7 @@ namespace LifeManager.Application.Auth.Services
             await _pendingRegistrationRepository.SaveAsync(pendingRegistration, cancellationToken);
 
             await _emailSender.SendAsync(
-                AuthEmailTemplates.Confirmation(email, pendingRegistration.Name, pendingRegistration.Language, _frontendLinks.SetPasswordUrl(token)),
+                AuthEmailTemplates.Confirmation(email, pendingRegistration.Language, _frontendLinks.SetPasswordUrl(token)),
                 cancellationToken);
 
             return Result.Success();

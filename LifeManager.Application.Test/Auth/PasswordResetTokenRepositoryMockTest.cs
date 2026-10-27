@@ -21,6 +21,7 @@ namespace LifeManager.Application.Test.Auth
         public PasswordResetTokenRepositoryMockTest()
         {
             PasswordResetTokenSingleton.Instance.Clear();
+            RefreshTokenSingleton.Instance.Clear();
             UserSingleton.Instance.Clear();
             _repository = ServiceProvider.GetRequiredService<IPasswordResetTokenRepository>();
             Assert.IsType<PasswordResetTokenRepositoryMock>(_repository);
@@ -38,6 +39,13 @@ namespace LifeManager.Application.Test.Auth
             => PasswordResetToken.Create(user.Id!, EmailTokenHash.FromToken(token).Value!, now ?? Now);
 
         private static EmailTokenHash HashOf(string token) => EmailTokenHash.FromToken(token).Value!;
+
+        private static RefreshToken SeedSession(User user)
+        {
+            var session = RefreshToken.Create(user.Id!.Value, $"session-{user.Id.Value}", Now.AddDays(7), Now.AddDays(30), false).Value!;
+            RefreshTokenSingleton.Instance.Add(session);
+            return session;
+        }
 
         [Fact]
         public async Task AddReplacingUnusedAsync_ShouldReplaceTheUsersUnusedLinks()
@@ -66,6 +74,24 @@ namespace LifeManager.Application.Test.Auth
         }
 
         [Fact]
+        public async Task UseAsync_ShouldRevokeOnlyTheUsersSessions()
+        {
+            var user = SeedUser();
+            var other = User.Create("Bia", "bia@example.com", "hash").Value!;
+            other.AssignId(2);
+            UserSingleton.Instance.Add(other);
+            var userSession = SeedSession(user);
+            var otherSession = SeedSession(other);
+            await _repository.AddReplacingUnusedAsync(NewToken(user, "token"), CancellationToken.None);
+            var token = (await _repository.GetByTokenHashAsync(HashOf("token"), CancellationToken.None))!;
+
+            await _repository.UseAsync(token, PasswordHash.Create("new-hash").Value!, Now, CancellationToken.None);
+
+            Assert.True(userSession.IsRevoked);
+            Assert.False(otherSession.IsRevoked);
+        }
+
+        [Fact]
         public async Task UseAsync_ShouldWriteNothing_WhenTheLinkWasAlreadyUsed()
         {
             var user = SeedUser();
@@ -86,10 +112,13 @@ namespace LifeManager.Application.Test.Auth
             await _repository.AddReplacingUnusedAsync(NewToken(user, "token"), CancellationToken.None);
             var token = (await _repository.GetByTokenHashAsync(HashOf("token"), CancellationToken.None))!;
 
+            var session = SeedSession(user);
+
             var used = await _repository.UseAsync(token, PasswordHash.Create("new-hash").Value!, Now.AddHours(PasswordResetToken.ValidityHours), CancellationToken.None);
 
             Assert.False(used);
             Assert.Equal("old-hash", user.PasswordHash.Value);
+            Assert.False(session.IsRevoked);
         }
 
         [Fact]
