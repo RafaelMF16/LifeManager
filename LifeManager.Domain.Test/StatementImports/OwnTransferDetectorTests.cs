@@ -79,5 +79,55 @@ namespace LifeManager.Domain.Test.StatementImports
             Assert.False(OwnTransferDetector.For(holder).IsOwnTransfer("Pix recebido: \"Cp :90400888-FULANO DE TAL\""));
             Assert.False(OwnTransferDetector.For(holder).IsOwnTransfer("Pix recebido: \"Cp :90400888-JO DA SILVA\""));
         }
+
+        [Theory]
+        [InlineData("Pix enviado: \"Cp :18236120-RAFAEL MOREIRA FERREIRA\"")]
+        [InlineData("TED RECEBIDA EMPRESA X LTDA")]
+        [InlineData("Pix recebido: \"Cp :90400888-FULANO BELTRANO CICLANO\"")]
+        public void IsOwnTransfer_ShouldFindATransferInAnyOfTheHoldersNames(string description)
+        {
+            var detector = OwnTransferDetector.For(["Rafael Moreira Ferreira", "Empresa X Ltda", Holder]);
+
+            Assert.True(detector.IsOwnTransfer(description));
+        }
+
+        [Fact]
+        public void IsOwnTransfer_ShouldKeepTheOtherHolders_WhenANameHasLessThanTwoWords()
+        {
+            var detector = OwnTransferDetector.For(["Rafa", null, "", Holder]);
+
+            Assert.True(detector.IsOwnTransfer("Pix enviado: \"Cp :18236120-Fulano Beltrano Ciclano\""));
+            Assert.False(detector.IsOwnTransfer("Pix enviado: \"Cp :18236120-RAFA\""));
+        }
+
+        [Fact]
+        public void IsOwnTransfer_ShouldMatchEachHolderWithItsOwnRule()
+        {
+            // "Fulano Ciclano" (2 words) must be together; the 3-word holder may have names in between.
+            var detector = OwnTransferDetector.For(["Fulano Ciclano", "Rafael Moreira Ferreira"]);
+
+            Assert.False(detector.IsOwnTransfer("PIX ENVIADO FULANO BELTRANO CICLANO"));
+            Assert.True(detector.IsOwnTransfer("PIX ENVIADO RAFAEL SOUZA MOREIRA FERREIRA"));
+        }
+
+        [Fact]
+        public void IsOwnTransfer_ShouldFindNothing_WhenThereAreNoHolders()
+        {
+            Assert.False(OwnTransferDetector.For([]).IsOwnTransfer("Pix enviado: \"Cp :18236120-Fulano Beltrano Ciclano\""));
+        }
+
+        [Theory]
+        [InlineData("Rafael Moreira Ferreira", 3)]
+        [InlineData("Ana de Sá", 1)]
+        [InlineData("José da Silva dos Santos", 3)]
+        [InlineData("Jo da Silva", 1)]
+        [InlineData("Empresa X Ltda", 2)]
+        [InlineData("Maria-Clara Souza", 3)]
+        [InlineData("  ", 0)]
+        [InlineData(null, 0)]
+        public void CountNameWords_ShouldCountOnlyTheWordsThatCanBePartOfAName(string? name, int expected)
+        {
+            Assert.Equal(expected, OwnTransferDetector.CountNameWords(name));
+        }
     }
 }
