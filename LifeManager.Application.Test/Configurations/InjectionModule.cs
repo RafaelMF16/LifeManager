@@ -1,3 +1,5 @@
+using LifeManager.Application.Test.AccountHolders.Mocks;
+using LifeManager.Domain.AccountHolders.Interfaces;
 using LifeManager.Application.Auth.Emails;
 using LifeManager.Application.DI;
 using LifeManager.Application.Test.Auth.Mocks;
@@ -58,6 +60,7 @@ namespace LifeManager.Application.Test.Configurations
             services.AddScoped<IRewardRedemptionRepository, RewardRedemptionRepositoryMock>();
             services.AddScoped<IStatementImportRepository, StatementImportRepositoryMock>();
             services.AddScoped<ICategorizationRuleRepository, CategorizationRuleRepositoryMock>();
+            services.AddScoped<IAccountHolderRepository, AccountHolderRepositoryMock>();
 
             services.AddScoped<IEmailSender, EmailSenderMock>();
             services.AddScoped<IEmailCooldownRepository, EmailCooldownRepositoryMock>();

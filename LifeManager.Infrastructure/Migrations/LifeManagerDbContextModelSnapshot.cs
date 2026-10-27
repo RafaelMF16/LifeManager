@@ -23,6 +23,33 @@ namespace LifeManager.Infrastructure.Migrations
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "pg_trgm");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("LifeManager.Domain.AccountHolders.AccountHolder", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("AccountHolders");
+                });
+
             modelBuilder.Entity("LifeManager.Domain.Auth.EmailCooldown", b =>
                 {
                     b.Property<string>("Email")
@@ -952,6 +979,15 @@ namespace LifeManager.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("UserPreferences");
+                });
+
+            modelBuilder.Entity("LifeManager.Domain.AccountHolders.AccountHolder", b =>
+                {
+                    b.HasOne("LifeManager.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("LifeManager.Domain.Auth.PasswordResetToken", b =>

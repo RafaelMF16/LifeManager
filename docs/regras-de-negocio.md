@@ -165,9 +165,17 @@ Traz o extrato do banco (OFX ou CSV) para o app. O arquivo é lido no navegador;
 **Reconhecidos pelo texto do banco** (valem desde a primeira importação, sem histórico; o que o usuário já decidiu para o mesmo estabelecimento vem antes)
 - **Aplicação** (saída que começa com "Aplicação", "Aplic", "Dinheiro guardado", "Compra/Débito Tesouro Direto"): vem como **investimento**. A categoria fica vazia, a menos que um investimento de nome parecido já tenha uma.
 - **Resgate** (entrada que começa com "Resgate", "Dinheiro resgatado", "Crédito/Venda Tesouro Direto", ou uma aplicação estornada): vem **fora da importação**, porque não é receita nem dinheiro novo investido.
-- **Transferência entre contas próprias** (Pix, TED ou transferência, nos dois sentidos, com o **nome do cadastro** do usuário na linha): vem **fora da importação**. Todas as palavras do nome do cadastro precisam aparecer, na mesma ordem. Com 3 palavras ou mais, o banco pode ter nomes a mais no meio; com 2, elas precisam estar juntas ("Maria Silva" não reconhece "Maria Aparecida Silva", que é outra pessoa). Palavras de até 2 letras e "de", "da", "do", "das", "dos", "e" não contam. Com um nome de uma palavra só, nada é reconhecido, para não pegar outras pessoas com o mesmo nome.
+- **Transferência entre contas próprias** (Pix, TED ou transferência, nos dois sentidos, com o **nome do cadastro** do usuário ou um dos seus **titulares** na linha; veja "Titulares das minhas contas" abaixo): vem **fora da importação**. Todas as palavras do nome do cadastro precisam aparecer, na mesma ordem. Com 3 palavras ou mais, o banco pode ter nomes a mais no meio; com 2, elas precisam estar juntas ("Maria Silva" não reconhece "Maria Aparecida Silva", que é outra pessoa). Palavras de até 2 letras e "de", "da", "do", "das", "dos", "e" não contam. Com um nome de uma palavra só, nada é reconhecido, para não pegar outras pessoas com o mesmo nome.
 - Só vale o **começo** do texto: "Pix enviado: Aplicação…" não é uma aplicação. O sentido do dinheiro decide: uma aplicação com valor de entrada é um estorno, logo um resgate.
 - Incluir uma dessas linhas (por exemplo, o salário que chega de uma conta própria que não é importada) ensina a regra, e as próximas importações seguem essa decisão.
+
+**Titulares das minhas contas** (os nomes que o banco escreve nas transferências entre contas próprias)
+- O nome do cadastro é o nome de exibição e pode não ser o que o banco escreve ("Rafa" no app, "RAFAEL MOREIRA FERREIRA" no extrato). Por isso o usuário pode cadastrar **até 5 titulares**: o próprio nome completo, uma conta PJ, uma conta conjunta.
+- Cada titular tem **até 100 caracteres** (espaços nas pontas são removidos) e precisa de **ao menos 2 palavras de nome**, contadas como no reconhecimento: palavras de até 2 letras e "de", "da", "do", "das", "dos", "e" não contam ("Rafael" e "Ana de Sá" não valem).
+- O mesmo nome não pode aparecer duas vezes (ignorando acentos, maiúsculas e espaços).
+- Salvar **substitui a lista inteira**. Uma lista vazia apaga todos.
+- O reconhecimento procura o **nome do cadastro e todos os titulares**, cada um com a regra das palavras descrita acima. O que o usuário já decidiu para o estabelecimento continua valendo antes.
+- A lista vale para os **próximos envios**: mudar os titulares não refaz as importações que já estão em revisão.
 
 **Possíveis duplicatas** (linhas que vêm de fora, para o usuário decidir)
 - a mesma linha de um extrato já importado (mesmo identificador da linha e da conta);
@@ -368,7 +376,7 @@ O próprio usuário cadastra as recompensas e as compra com as moedas ganhas nos
 
 ## Apêndice: códigos de erro
 
-A API responde a falhas esperadas com `{ code, message, type }`. O frontend usa o `code` para mostrar a mensagem traduzida. **Os códigos fazem parte do contrato e não devem ser renomeados.**
+A API responde a falhas esperadas com `{ code, message, type }`. O frontend usa o `code` para mostrar a mensagem traduzida. Quando o envio é uma lista e um item dela falha (os titulares), a resposta também traz `index`: a posição do item, a partir de 0. **Os códigos fazem parte do contrato e não devem ser renomeados.**
 
 O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `NotFound` → 404, `Conflict` → 409. A exceção é `Auth.TooManyRequests`, que sai com 429.
 
@@ -439,6 +447,12 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 | `StatementImport.UncategorizedRows` | Validation | Confirmação com linhas incluídas sem categoria |
 | `StatementImport.AlreadyCommitted` | Conflict | Mudança ou confirmação de uma importação já confirmada |
 | `StatementImport.NotFound` / `RowNotFound` | NotFound | Importação (ou linha dela) não existe ou é de outro usuário |
+| `AccountHolder.NamesRequired` | Validation | Titulares salvos sem a lista de nomes |
+| `AccountHolder.TooMany` | Validation | Mais de 5 titulares |
+| `AccountHolder.NameIsNullOrWhiteSpace` | Validation | Titular vazio (com `index`) |
+| `AccountHolder.NameTooLong` | Validation | Titular com mais de 100 caracteres (com `index`) |
+| `AccountHolder.NameTooShort` | Validation | Titular com menos de 2 palavras de nome (com `index`) |
+| `AccountHolder.DuplicateName` | Validation | O mesmo titular duas vezes; o `index` é o da segunda vez |
 | `BudgetPlan.InvalidMonth` | Validation | Mês em formato inválido |
 | `BudgetPlan.InvalidType` | Validation | Fatia que não é de gasto nem de investimento |
 | `BudgetPlan.TotalNotPositive` / `TotalTooManyDecimals` / `TotalTooLarge` | Validation | Total do orçamento inválido (mesmas regras dos lançamentos) |

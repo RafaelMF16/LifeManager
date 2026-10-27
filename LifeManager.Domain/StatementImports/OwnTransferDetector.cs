@@ -9,7 +9,8 @@ namespace LifeManager.Domain.StatementImports
     /// the user's own name, every word of it in order. With <see cref="MinWordsForGaps"/> words or more, the bank may write
     /// more names in between ("Fulano Beltrano Tal" finds "FULANO BELTRANO SOUZA TAL"); a shorter name must be there as
     /// is, since "Maria Silva" would otherwise find "Maria Aparecida Silva", someone else. A name of a single word would
-    /// match strangers, so then nothing is detected.
+    /// match strangers, so then nothing is detected. The user may have several holders (their own name plus the account
+    /// holders they list): each is matched on its own, and the line is a transfer when any of them is found.
     /// </summary>
     public sealed class OwnTransferDetector
     {
@@ -21,22 +22,32 @@ namespace LifeManager.Domain.StatementImports
         /// <summary>Linking words of Portuguese names, which banks drop or keep at will.</summary>
         private static readonly HashSet<string> NameParticles = ["de", "da", "do", "das", "dos", "e"];
 
-        private readonly string[] _holderWords;
+        private readonly string[][] _holders;
 
-        private OwnTransferDetector(string[] holderWords)
+        private OwnTransferDetector(string[][] holders)
         {
-            _holderWords = holderWords;
+            _holders = holders;
         }
 
-        public static OwnTransferDetector For(string? holderName)
+        public static OwnTransferDetector For(string? holderName) => For([holderName]);
+
+        /// <summary>A holder with fewer than <see cref="MinNameWords"/> name words is left out; the others still count.</summary>
+        public static OwnTransferDetector For(IEnumerable<string?> holderNames)
         {
-            var words = NameWords(Words(holderName)).ToArray();
-            return new OwnTransferDetector(words.Length >= MinNameWords ? words : []);
+            var holders = holderNames
+                .Select(name => NameWords(Words(name)).ToArray())
+                .Where(words => words.Length >= MinNameWords)
+                .ToArray();
+
+            return new OwnTransferDetector(holders);
         }
+
+        /// <summary>How many words of <paramref name="name"/> can be part of a name, the way the holders are matched.</summary>
+        public static int CountNameWords(string? name) => NameWords(Words(name)).Count();
 
         public bool IsOwnTransfer(string? description)
         {
-            if (_holderWords.Length == 0)
+            if (_holders.Length == 0)
                 return false;
 
             var words = Words(description);
@@ -44,26 +55,26 @@ namespace LifeManager.Domain.StatementImports
                 return false;
 
             var names = NameWords(words.Skip(1)).ToList();
-            return _holderWords.Length >= MinWordsForGaps ? ContainsInOrder(names) : ContainsTogether(names);
+            return _holders.Any(holder => holder.Length >= MinWordsForGaps ? ContainsInOrder(names, holder) : ContainsTogether(names, holder));
         }
 
-        private bool ContainsInOrder(List<string> names)
+        private static bool ContainsInOrder(List<string> names, string[] holder)
         {
             var next = 0;
             foreach (var name in names)
             {
-                if (name == _holderWords[next] && ++next == _holderWords.Length)
+                if (name == holder[next] && ++next == holder.Length)
                     return true;
             }
 
             return false;
         }
 
-        private bool ContainsTogether(List<string> names)
+        private static bool ContainsTogether(List<string> names, string[] holder)
         {
-            for (var start = 0; start + _holderWords.Length <= names.Count; start++)
+            for (var start = 0; start + holder.Length <= names.Count; start++)
             {
-                if (names.Skip(start).Take(_holderWords.Length).SequenceEqual(_holderWords))
+                if (names.Skip(start).Take(holder.Length).SequenceEqual(holder))
                     return true;
             }
 

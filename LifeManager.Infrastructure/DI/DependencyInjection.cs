@@ -1,3 +1,5 @@
+using LifeManager.Domain.AccountHolders.Interfaces;
+using LifeManager.Infrastructure.AccountHolders;
 using LifeManager.Domain.Auth.Interfaces;
 using LifeManager.Domain.Categories.Interfaces;
 using LifeManager.Infrastructure.Categories;
@@ -57,6 +59,7 @@ namespace LifeManager.Infrastructure.DI
             services.AddScoped<IRewardRedemptionRepository, RewardRedemptionRepository>();
             services.AddScoped<IStatementImportRepository, StatementImportRepository>();
             services.AddScoped<ICategorizationRuleRepository, CategorizationRuleRepository>();
+            services.AddScoped<IAccountHolderRepository, AccountHolderRepository>();
 
             return services;
         }

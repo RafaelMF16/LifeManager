@@ -1,3 +1,4 @@
+using LifeManager.Domain.AccountHolders;
 using LifeManager.Domain.Auth;
 using LifeManager.Domain.BudgetPlans;
 using LifeManager.Domain.Categories;
@@ -36,6 +37,7 @@ namespace LifeManager.Infrastructure.Postgres
         public DbSet<StatementImport> StatementImports { get; set; }
         public DbSet<StatementImportRow> StatementImportRows { get; set; }
         public DbSet<CategorizationRule> CategorizationRules { get; set; }
+        public DbSet<AccountHolder> AccountHolders { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
