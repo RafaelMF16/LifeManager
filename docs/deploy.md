@@ -114,8 +114,9 @@ Sem domínio próprio, o remetente é um endereço comum (ex.: um Gmail) verific
 
 1. Crie uma conta gratuita em [brevo.com](https://www.brevo.com).
 2. Em **Senders, Domains & Dedicated IPs → Senders → Add a sender**, cadastre o endereço remetente e confirme pelo código que o Brevo envia para ele. Esse endereço vai no secret `emailSenderAddress`.
-3. Em **SMTP & API → API Keys → Generate a new API key**, gere a chave. Ela vai no secret `brevoApiKey` e não aparece de novo no Brevo.
-4. Opcional: o nome que aparece como remetente é `LifeManager`. Para trocar, defina a variável `emailSenderName` (acrescente-a ao `$envVars` do `deploy/deploy-api.ps1`).
+3. Em **SMTP & API → API Keys → Generate a new API key**, gere a chave (começa com `xkeysib-`; a "SMTP key", `xsmtpsib-`, não serve). Ela vai no secret `brevoApiKey` e não aparece de novo no Brevo.
+4. Em **Security → Authorised IPs**, desative o bloqueio por IP: o Cloud Run não tem IP fixo, e com o bloqueio ativo o Brevo recusa os envios com 401 ("unrecognised IP address").
+5. Opcional: o nome que aparece como remetente é `LifeManager`. Para trocar, defina a variável `emailSenderName` (acrescente-a ao `$envVars` do `deploy/deploy-api.ps1`).
 
 - Sem domínio próprio (sem SPF/DKIM do remetente), parte dos e-mails pode cair no spam. As telas pedem para o usuário conferir a caixa de spam.
 - Os secrets precisam existir **antes** do deploy que passa a usá-los. Se faltarem, o `gcloud run jobs deploy lifemanager-migrate` falha e nada muda em produção.
