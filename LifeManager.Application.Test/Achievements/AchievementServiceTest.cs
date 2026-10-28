@@ -1,4 +1,5 @@
 using LifeManager.Application.Achievements.Services;
+using LifeManager.Application.Habits.DTOs;
 using LifeManager.Application.Habits.Services;
 using LifeManager.Application.Rewards.Services;
 using LifeManager.Application.Test.Achievements.Mocks;
@@ -408,6 +409,22 @@ namespace LifeManager.Application.Test.Achievements
             var change = await playerWalletService.ApplyAsync(UserId, GameLedgerEntryKind.HabitDone, new GameDelta(5, 0, 0), Today, null, CancellationToken.None);
 
             Assert.Empty(change.Profile.NewAchievements);
+        }
+
+        [Fact]
+        public async Task Ledger_ShouldNameTheAchievement_OnItsBonusAndTheLevelUpItCaused()
+        {
+            SeedProfile(totalXp: GameRules.TotalXpForLevel(2) - 10);
+            SeedHabit(1);
+            SeedCheckIns(1, 10);
+            await Sync();
+
+            var ledger = await ServiceProvider.GetRequiredService<GameLedgerService>()
+                .GetPagedAsync(new GameLedgerListQueryDto(), UserId, CancellationToken.None);
+
+            Assert.Equal(2, ledger.Value!.Items.Count);
+            Assert.All(ledger.Value.Items, entry => Assert.Equal(AchievementCode.CheckIns10, entry.AchievementCode));
+            Assert.Contains(ledger.Value.Items, entry => entry.Kind == GameLedgerEntryKind.LevelUp);
         }
 
         [Fact]
