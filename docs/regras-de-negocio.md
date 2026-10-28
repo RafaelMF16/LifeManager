@@ -27,6 +27,7 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
   - [Fechamento do dia](#fechamento-do-dia)
   - [Estatísticas e extrato](#estatísticas-e-extrato)
 - [Loja de recompensas](#loja-de-recompensas)
+  - [Itens de jogo](#itens-de-jogo)
 - [Apêndice: códigos de erro](#apêndice-códigos-de-erro)
 
 ## Princípios gerais
@@ -377,7 +378,7 @@ Um processo do servidor roda a cada hora (e ao iniciar a API) e **fecha os dias 
 - Hábitos arquivados também têm estatísticas.
 
 **Extrato** (histórico)
-- Lista toda mudança em moedas, XP e HP, da mais recente para a mais antiga: hábito cumprido, falha, recaída, dia limpo, marco, resgate, nocaute, desfeito, proteção usada e subida de nível.
+- Lista toda mudança em moedas, XP e HP, da mais recente para a mais antiga: hábito cumprido, falha, recaída, dia limpo, marco, resgate, item comprado, nocaute, desfeito, proteção usada e subida de nível.
 - Pode ser filtrado por hábito.
 
 **Tela "Hoje"**
@@ -396,7 +397,24 @@ O próprio usuário cadastra as recompensas e as compra com as moedas ganhas nos
 - **Resgatar** desconta o preço das moedas. O saldo é conferido no momento do resgate: sem moedas suficientes, nada acontece.
 - O resgate guarda o nome, o ícone e o **preço pago**. Mudar a recompensa depois não altera o histórico.
 - **Desfazer um resgate:** só **no mesmo dia** do resgate e só uma vez. O preço pago volta integralmente.
-- **Ritmo de ganho:** a loja mostra quantos dias de hábitos cada recompensa custa, com base na média de moedas por dia ganhas com hábitos nos **últimos 14 dias**. Resgates e nocautes não entram nessa média.
+- **Ritmo de ganho:** a loja mostra quantos dias de hábitos cada recompensa custa, com base na média de moedas por dia ganhas com hábitos nos **últimos 14 dias**. Resgates, compras de itens e nocautes não entram nessa média.
+
+### Itens de jogo
+
+Além das recompensas do usuário, a loja vende dois **itens de jogo** fixos, que agem na hora da compra (não há inventário):
+
+| Item | Preço | Efeito | Limite |
+|---|---|---|---|
+| **Poção de HP** | 40 moedas | +25 HP, sem passar de 100 | 3 por dia |
+| **Proteção de ofensiva** | 150 moedas | +1 proteção, igual à ganha pela ofensiva | 1 por semana (segunda a domingo) |
+
+- **Quando é recusada** (nada muda), nesta ordem: o limite do dia ou da semana já foi atingido; a poção com o HP cheio, ou a proteção com 2 guardadas; moedas insuficientes. Compras desfeitas não contam para o limite.
+- **A poção custa sempre 40 moedas**, mesmo quando cura menos de 25 (HP perto do máximo). Ela não mexe em XP, então não sobe nível.
+- **A proteção comprada é igual a uma ganha:** o fechamento do dia a usa da mesma forma, e o máximo continua sendo 2.
+- A compra fica no **extrato** como "item comprado", com as moedas pagas e o HP curado.
+- **Desfazer uma compra:** só **no mesmo dia** e só uma vez. O preço volta integralmente e o limite é liberado de novo.
+  - **Poção:** a cura é retirada, mas o HP para em 1 (o desfazer nunca derruba o jogador).
+  - **Proteção:** só se o jogador ainda tiver alguma guardada. Se o fechamento do dia já a usou, o desfazer é recusado.
 
 ## Apêndice: códigos de erro
 
@@ -546,3 +564,13 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 | `Rewards.UndoOutsideWindow` | Validation | Desfazer um resgate que não é de hoje |
 | `Rewards.AlreadyUndone` | Conflict | O resgate já foi desfeito |
 | `Rewards.NotFound` / `RedemptionNotFound` | NotFound | Recompensa ou resgate não existe |
+| `GameItems.UnknownItem` | Validation | Item que não existe na loja |
+| `GameItems.InsufficientCoins` | Conflict | Moedas insuficientes para o item |
+| `GameItems.HpFull` | Conflict | Poção com o HP já no máximo |
+| `GameItems.StreakFreezesFull` | Conflict | Proteção com 2 já guardadas |
+| `GameItems.DailyLimitReached` | Conflict | 4ª poção no mesmo dia |
+| `GameItems.WeeklyLimitReached` | Conflict | 2ª proteção na mesma semana |
+| `GameItems.UndoOutsideWindow` | Validation | Desfazer uma compra que não é de hoje |
+| `GameItems.AlreadyUndone` | Conflict | A compra já foi desfeita |
+| `GameItems.ItemAlreadyUsed` | Conflict | Desfazer uma proteção que o fechamento do dia já usou |
+| `GameItems.PurchaseNotFound` | NotFound | Compra não existe |
