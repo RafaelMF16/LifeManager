@@ -16,11 +16,23 @@ namespace LifeManager.Domain.Habits.Errors
         public static readonly Error WeekDaysRequired = Error.Validation("Habit.WeekDaysRequired", "Pick at least one day of the week");
         public static readonly Error InvalidTimesPerWeek = Error.Validation("Habit.InvalidTimesPerWeek", "Times per week must be between 1 and 6");
         public static readonly Error InvalidFrequencyCombination = Error.Validation("Habit.InvalidFrequencyCombination", "Week days and times per week only apply to their own frequency type");
-        public static readonly Error NotCheckable = Error.Validation("Habit.NotCheckable", "A habit to avoid isn't checked in: each day without a relapse counts by itself");
+        public static readonly Error InvalidTargetValue = Error.Validation("Habit.InvalidTargetValue", "The daily target must be between 1 and 100000");
+        public static readonly Error TargetUnitRequired = Error.Validation("Habit.TargetUnitRequired", "A daily target needs a unit");
+        public static readonly Error TargetUnitTooLong = Error.Validation("Habit.TargetUnitTooLong", "The target unit cannot be longer than 15 characters");
+        public static readonly Error InvalidTargetStep = Error.Validation("Habit.InvalidTargetStep", "The quick-add step must be between 1 and the daily target");
+        public static readonly Error InvalidTargetCombination = Error.Validation("Habit.InvalidTargetCombination", "A unit or step only applies with a daily target");
+        public static readonly Error TargetNotAllowed = Error.Validation("Habit.TargetNotAllowed", "Only a habit to build can have a daily target");
+        public static readonly Error NotCheckable =Error.Validation("Habit.NotCheckable", "A habit to avoid isn't checked in: each day without a relapse counts by itself");
         public static readonly Error NotScheduled = Error.Validation("Habit.NotScheduled", "The habit isn't scheduled on this day");
         public static readonly Error CheckInOutsideWindow = Error.Validation("Habit.CheckInOutsideWindow", "Only today and yesterday can be checked in or undone, from the habit's start date");
 
         public static readonly Error NotAvoidable = Error.Validation("Habit.NotAvoidable", "Only a habit to avoid has relapses");
+
+        public static readonly Error NotMeasurable = Error.Validation("Habit.NotMeasurable", "Only a habit with a daily target takes progress");
+        public static readonly Error InvalidProgressValue = Error.Validation("Habit.InvalidProgressValue", "Progress must be between 1 and 100000");
+        public static readonly Error TooManyProgressEntries = Error.Validation("Habit.TooManyProgressEntries", "A day takes at most 50 progress entries");
+        public static readonly Error ProgressRequired = Error.Validation("Habit.ProgressRequired", "A habit with a daily target is completed by logging progress");
+        public static readonly Error ProgressEntryNotFound = Error.NotFound("Habit.ProgressEntryNotFound", "Progress entry not found");
 
         public static readonly Error CheckInNotFound = Error.NotFound("Habit.CheckInNotFound", "The habit wasn't checked in on this day");
         public static readonly Error RelapseNotFound = Error.NotFound("Habit.RelapseNotFound", "No relapse was logged on this day");

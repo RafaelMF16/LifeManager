@@ -12,11 +12,13 @@ namespace LifeManager.Application.Habits.Services
 {
     /// <summary>
     /// The day's checklist: checking a habit in earns its coins (with the streak bonus), XP and a little HP; undoing
-    /// gives back exactly what it earned. Only today and yesterday can change; older days are the day close's job.
+    /// gives back exactly what it earned. Only today and yesterday can change; older days are the day close's job. A
+    /// habit with a daily target is checked in by logging progress (<see cref="HabitProgressService"/>) instead.
     /// </summary>
     public class HabitCheckInService(
         IHabitRepository habitRepository,
         IHabitCheckInRepository habitCheckInRepository,
+        IHabitProgressRepository habitProgressRepository,
         AppClock appClock,
         TimeProvider timeProvider)
     {
@@ -25,6 +27,7 @@ namespace LifeManager.Application.Habits.Services
 
         private readonly IHabitRepository _habitRepository = habitRepository;
         private readonly IHabitCheckInRepository _habitCheckInRepository = habitCheckInRepository;
+        private readonly IHabitProgressRepository _habitProgressRepository = habitProgressRepository;
         private readonly AppClock _appClock = appClock;
         private readonly TimeProvider _timeProvider = timeProvider;
 
@@ -40,6 +43,9 @@ namespace LifeManager.Application.Habits.Services
             var recentStart = today.AddDays(-RecentMissDays);
             var from = recentStart < weekStart ? recentStart : weekStart;
             var checkIns = await _habitCheckInRepository.GetByUserIdAsync(userId, from, today, cancellationToken);
+            var entriesByHabitAndDay = (await _habitProgressRepository.GetByUserIdAsync(userId, yesterday, today, cancellationToken))
+                .GroupBy(entry => (entry.HabitId.Value, entry.Date))
+                .ToDictionary(group => group.Key, group => (IReadOnlyList<HabitProgressEntry>)[.. group]);
 
             var activeHabitIds = habits.Concat(habitsToAvoid).Select(habit => habit.Id!.Value).ToHashSet();
             var recentMisses = checkIns
@@ -62,12 +68,12 @@ namespace LifeManager.Application.Habits.Services
                 var successDates = successDatesByHabit.GetValueOrDefault(habit.Id!.Value) ?? [];
 
                 if (habit.EnsureCanCheckIn(today, today).IsSuccess)
-                    todayItems.Add(ToTodayItem(habit, today, successDates));
+                    todayItems.Add(ToTodayItem(habit, today, successDates, DayEntries(entriesByHabitAndDay, habit, today)));
 
                 if (habit.EnsureCanCheckIn(yesterday, today).IsSuccess
                     && !successDates.Contains(yesterday)
                     && !IsWeekTargetMet(habit, successDates, yesterday))
-                    yesterdayPending.Add(ToTodayItem(habit, yesterday, successDates));
+                    yesterdayPending.Add(ToTodayItem(habit, yesterday, successDates, DayEntries(entriesByHabitAndDay, habit, yesterday)));
             }
 
             var relapseDatesByHabit = checkIns
@@ -125,6 +131,9 @@ namespace LifeManager.Application.Habits.Services
             if (!canCheckIn.IsSuccess)
                 return canCheckIn.Error;
 
+            if (habit.Target is not null)
+                return HabitErrors.ProgressRequired;
+
             var now = _timeProvider.GetUtcNow();
             PlayerProfile? profile = null;
 
@@ -133,11 +142,9 @@ namespace LifeManager.Application.Habits.Services
             var effects = await _habitCheckInRepository.RecordAsync(habit, date, HabitCheckInStatus.Done, now, context =>
             {
                 profile = context.Profile;
-                var streakBefore = StreakCalculator.Current(habit, Without(context.SuccessDates, date), context.FailedDates, today);
-                var streak = StreakCalculator.Current(habit, context.SuccessDates, context.FailedDates, today);
-                completion = HabitRewards.ApplyCompletion(habit, context.Profile, GameLedgerEntryKind.HabitDone, date, now, streakBefore, streak, context.SuccessDates);
+                (var dayEffects, completion) = CompleteDay(habit, context.Profile, date, now, context.SuccessDates, context.FailedDates, today);
 
-                return new HabitCheckInEffects(streak, completion.Applied, completion.Outcome, completion.Entries, completion.FreezesEarned > 0);
+                return dayEffects;
             }, cancellationToken);
 
             if (effects is null)
@@ -155,13 +162,60 @@ namespace LifeManager.Application.Habits.Services
                 completion.FreezesEarned);
         }
 
-        private static HashSet<DateOnly> Without(IReadOnlySet<DateOnly> dates, DateOnly date)
-            => [.. dates.Where(day => day != date)];
+        /// <summary>
+        /// Applies a completed day to the locked profile: the reward with its streak bonus, milestone and freeze. Shared by
+        /// a check-in and by progress reaching the day's target.
+        /// </summary>
+        /// <param name="successDates">The habit's success days, <paramref name="date"/> included.</param>
+        internal static (HabitCheckInEffects Effects, HabitCompletion Completion) CompleteDay(
+            Habit habit,
+            PlayerProfile profile,
+            DateOnly date,
+            DateTimeOffset now,
+            IReadOnlySet<DateOnly> successDates,
+            IReadOnlySet<DateOnly> failedDates,
+            DateOnly today)
+        {
+            var streakBefore = StreakCalculator.Current(habit, Without(successDates, date), failedDates, today);
+            var streak = StreakCalculator.Current(habit, successDates, failedDates, today);
+            var completion = HabitRewards.ApplyCompletion(habit, profile, GameLedgerEntryKind.HabitDone, date, now, streakBefore, streak, successDates);
+
+            return (new HabitCheckInEffects(streak, completion.Applied, completion.Outcome, completion.Entries, completion.FreezesEarned > 0), completion);
+        }
 
         /// <summary>
-        /// Gives back what the check-in earned, milestone coins and the streak freeze it earned included (if the player
-        /// still holds one). The HP it healed is taken back only down to 1: an undo never knocks the player out.
+        /// Gives back what <paramref name="removed"/> earned to the locked profile, milestone coins and the streak freeze it
+        /// earned included (if the player still holds one). The HP it healed is taken back only down to 1: an undo never
+        /// knocks the player out. Shared by an undone check-in and by progress falling below the day's target.
         /// </summary>
+        /// <param name="successDates">The habit's success days, without <paramref name="removed"/>'s.</param>
+        internal static HabitCheckInEffects UndoDay(
+            Habit habit,
+            PlayerProfile profile,
+            HabitCheckIn removed,
+            DateTimeOffset now,
+            IReadOnlySet<DateOnly> successDates,
+            IReadOnlySet<DateOnly> failedDates,
+            DateOnly today)
+        {
+            var streak = StreakCalculator.Current(habit, successDates, failedDates, today);
+
+            var awarded = removed.Awarded;
+            var hpToTakeBack = Math.Min(awarded.Hp, Math.Max(profile.Hp - 1, 0));
+            var outcome = profile.Apply(new GameDelta(-awarded.Coins, -awarded.Xp, -hpToTakeBack));
+            var entries = GameLedgerEntry.FromOutcome(habit.UserId, GameLedgerEntryKind.Undo, removed.Date, now, habit.Name.Value, outcome, habit.Id);
+
+            // A freeze the player already spent is gone: nothing to take back.
+            if (removed.FreezeAwarded)
+                profile.UseStreakFreeze();
+
+            return new HabitCheckInEffects(streak, outcome.Applied, outcome, entries);
+        }
+
+        internal static HashSet<DateOnly> Without(IReadOnlySet<DateOnly> dates, DateOnly date)
+            => [.. dates.Where(day => day != date)];
+
+        /// <summary>Gives back what the check-in earned (<see cref="UndoDay"/>).</summary>
         public async Task<Result<HabitCheckInResultDto>> UndoCheckInAsync(int id, DateOnly date, UserId userId, CancellationToken cancellationToken)
         {
             var habit = await _habitRepository.GetByIdAsync(new HabitId(id), userId, cancellationToken);
@@ -180,19 +234,8 @@ namespace LifeManager.Application.Habits.Services
             var effects = await _habitCheckInRepository.RemoveAsync(habit, date, HabitCheckInStatus.Done, context =>
             {
                 profile = context.Profile;
-                var streak = StreakCalculator.Current(habit, context.SuccessDates, context.FailedDates, today);
 
-                var removed = context.Removed!;
-                var awarded = removed.Awarded;
-                var hpToTakeBack = Math.Min(awarded.Hp, Math.Max(context.Profile.Hp - 1, 0));
-                var outcome = context.Profile.Apply(new GameDelta(-awarded.Coins, -awarded.Xp, -hpToTakeBack));
-                var entries = GameLedgerEntry.FromOutcome(habit.UserId, GameLedgerEntryKind.Undo, date, now, habit.Name.Value, outcome, habit.Id);
-
-                // A freeze the player already spent is gone: nothing to take back.
-                if (removed.FreezeAwarded)
-                    context.Profile.UseStreakFreeze();
-
-                return new HabitCheckInEffects(streak, outcome.Applied, outcome, entries);
+                return UndoDay(habit, context.Profile, context.Removed!, now, context.SuccessDates, context.FailedDates, today);
             }, cancellationToken);
 
             if (effects is null)
@@ -206,7 +249,13 @@ namespace LifeManager.Application.Habits.Services
             => habit.FrequencyType == HabitFrequencyType.TimesPerWeek
                 && StreakCalculator.CountInWeek(successDates, date) >= habit.TimesPerWeek;
 
-        private static HabitTodayItemDto ToTodayItem(Habit habit, DateOnly date, IReadOnlySet<DateOnly> successDates)
+        private static IReadOnlyList<HabitProgressEntry> DayEntries(
+            IReadOnlyDictionary<(int HabitId, DateOnly Date), IReadOnlyList<HabitProgressEntry>> entriesByHabitAndDay,
+            Habit habit,
+            DateOnly date)
+            => entriesByHabitAndDay.GetValueOrDefault((habit.Id!.Value, date)) ?? [];
+
+        private static HabitTodayItemDto ToTodayItem(Habit habit, DateOnly date, IReadOnlySet<DateOnly> successDates, IReadOnlyList<HabitProgressEntry> entries)
         {
             var done = successDates.Contains(date);
             var weekly = habit.FrequencyType == HabitFrequencyType.TimesPerWeek;
@@ -230,7 +279,10 @@ namespace LifeManager.Application.Habits.Services
                 habit.LongestStreak,
                 done,
                 weekDoneCount,
-                coinsPreview);
+                coinsPreview,
+                HabitTargetDto.From(habit.Target),
+                entries.Sum(entry => entry.Value),
+                [.. entries.Select(HabitProgressEntryDto.From)]);
         }
     }
 }

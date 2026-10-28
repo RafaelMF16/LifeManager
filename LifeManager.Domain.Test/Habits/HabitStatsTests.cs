@@ -37,6 +37,64 @@ namespace LifeManager.Domain.Test.Habits
         }
 
         [Fact]
+        public void Days_ShouldMarkDaysWithProgressButNoCompletionAsPartial()
+        {
+            var habit = CreateHabit(Today.AddDays(-10));
+            HabitCheckIn[] checkIns =
+            [
+                CheckIn(Today.AddDays(-6), HabitCheckInStatus.Done),
+                CheckIn(Today.AddDays(-5), HabitCheckInStatus.Missed),
+                CheckIn(Today.AddDays(-4), HabitCheckInStatus.Frozen)
+            ];
+            var amounts = new Dictionary<DateOnly, int>
+            {
+                [Today.AddDays(-6)] = 2250,
+                [Today.AddDays(-5)] = 1200,
+                [Today.AddDays(-4)] = 300,
+                [Today.AddDays(-3)] = 100,
+                [Today] = 500
+            };
+
+            var days = HabitStats.Days(habit, checkIns, Today, amounts, days: 14);
+
+            Assert.Equal((HabitDayState.Done, (int?)2250), Read(days, Today.AddDays(-6)));
+            Assert.Equal((HabitDayState.Partial, (int?)1200), Read(days, Today.AddDays(-5)));
+            Assert.Equal((HabitDayState.Frozen, (int?)300), Read(days, Today.AddDays(-4)));
+            // Closed and not judged yet, and today still in progress.
+            Assert.Equal((HabitDayState.Partial, (int?)100), Read(days, Today.AddDays(-3)));
+            Assert.Equal((HabitDayState.Partial, (int?)500), Read(days, Today));
+            Assert.Equal((HabitDayState.Pending, (int?)null), Read(days, Today.AddDays(-1)));
+        }
+
+        [Fact]
+        public void Days_ShouldMarkAWeeklyHabitsDayWithProgressAsPartial()
+        {
+            var weekly = CreateHabit(Today.AddDays(-30), frequencyType: HabitFrequencyType.TimesPerWeek, timesPerWeek: 3);
+
+            var days = HabitStats.Days(weekly, [], Today, new Dictionary<DateOnly, int> { [Today.AddDays(-1)] = 2000 }, days: 3);
+
+            Assert.Equal(HabitDayState.Partial, StateOn(days, Today.AddDays(-1)));
+            Assert.Equal(HabitDayState.None, StateOn(days, Today));
+        }
+
+        [Fact]
+        public void Consistency_ShouldNotChange_WithProgress()
+        {
+            var habit = CreateHabit(Today.AddDays(-10));
+            HabitCheckIn[] checkIns = [CheckIn(Today.AddDays(-3), HabitCheckInStatus.Done), CheckIn(Today.AddDays(-2), HabitCheckInStatus.Missed)];
+
+            var consistency = HabitStats.Consistency(habit, checkIns, Today);
+
+            Assert.Equal((1, 2), (consistency.Achieved, consistency.Due));
+        }
+
+        private static (HabitDayState, int?) Read(IReadOnlyList<HabitDay> days, DateOnly date)
+        {
+            var day = days.Single(stored => stored.Date == date);
+            return (day.State, day.Amount);
+        }
+
+        [Fact]
         public void Days_ShouldReadEachDayFromItsRecord()
         {
             var habit = CreateHabit(Today.AddDays(-10));

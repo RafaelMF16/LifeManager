@@ -220,5 +220,114 @@ namespace LifeManager.Domain.Test.Habits
 
             Assert.Equal(cursor, habit.EvaluatedUntil);
         }
+
+        [Fact]
+        public void Create_ShouldHaveNoTarget_WhenNoneIsGiven()
+        {
+            var habit = Create().Value!;
+
+            Assert.Null(habit.Target);
+            Assert.Null(habit.TargetValue);
+            Assert.Null(habit.TargetUnit);
+            Assert.Null(habit.TargetStep);
+        }
+
+        [Fact]
+        public void Create_ShouldKeepTheTargetColumns_WhenTargetIsValid()
+        {
+            var habit = Habit.Create(1, "Drink water", null, null, HabitKind.Positive, HabitDifficulty.Easy, HabitFrequencyType.Daily,
+                HabitWeekDays.None, null, Today, Now, targetValue: 2000, targetUnit: " ml ", targetStep: 250).Value!;
+
+            Assert.Equal(2000, habit.TargetValue);
+            Assert.Equal("ml", habit.TargetUnit);
+            Assert.Equal(250, habit.TargetStep);
+            Assert.Equal(2000, habit.Target!.Value);
+        }
+
+        [Fact]
+        public void Create_ShouldReturnFailure_WhenTargetIsInvalid()
+        {
+            var result = Habit.Create(1, "Read", null, null, HabitKind.Positive, HabitDifficulty.Easy, HabitFrequencyType.Daily,
+                HabitWeekDays.None, null, Today, Now, targetValue: 20, targetUnit: null);
+
+            Assert.Equal(HabitErrors.TargetUnitRequired, result.Error);
+        }
+
+        [Fact]
+        public void Create_ShouldReturnFailure_WhenHabitToAvoidHasTarget()
+        {
+            var result = Habit.Create(1, "Coffee", null, null, HabitKind.Negative, HabitDifficulty.Easy, HabitFrequencyType.Daily,
+                HabitWeekDays.None, null, Today, Now, targetValue: 2, targetUnit: "cups");
+
+            Assert.Equal(HabitErrors.TargetNotAllowed, result.Error);
+        }
+
+        [Fact]
+        public void Update_ShouldTurnABinaryHabitIntoAMeasuredOneAndBack_KeepingStreakAndCursor()
+        {
+            var habit = Habit.FromPersistence(
+                1, 1, "Read", null, null, HabitKind.Positive, HabitDifficulty.Easy,
+                HabitFrequencyType.Daily, HabitWeekDays.None, null,
+                startDate: new DateOnly(2026, 9, 1),
+                createdAt: Now,
+                archivedAt: null,
+                currentStreak: 12,
+                longestStreak: 20,
+                evaluatedUntil: Today.AddDays(-2));
+
+            var measured = habit.Update("Read", null, null, HabitDifficulty.Easy, HabitFrequencyType.Daily, HabitWeekDays.None, null,
+                targetValue: 20, targetUnit: "pages", targetStep: 5);
+
+            Assert.True(measured.IsSuccess);
+            Assert.Equal(20, habit.TargetValue);
+            Assert.Equal("pages", habit.TargetUnit);
+            Assert.Equal(5, habit.TargetStep);
+
+            var binary = habit.Update("Read", null, null, HabitDifficulty.Easy, HabitFrequencyType.Daily, HabitWeekDays.None, null);
+
+            Assert.True(binary.IsSuccess);
+            Assert.Null(habit.Target);
+            Assert.Null(habit.TargetValue);
+            Assert.Equal(12, habit.CurrentStreak);
+            Assert.Equal(Today.AddDays(-2), habit.EvaluatedUntil);
+        }
+
+        [Fact]
+        public void Update_ShouldReturnFailureAndKeepTheTarget_WhenTargetIsInvalid()
+        {
+            var habit = Habit.Create(1, "Read", null, null, HabitKind.Positive, HabitDifficulty.Easy, HabitFrequencyType.Daily,
+                HabitWeekDays.None, null, Today, Now, targetValue: 20, targetUnit: "pages").Value!;
+
+            var result = habit.Update("Read", null, null, HabitDifficulty.Easy, HabitFrequencyType.Daily, HabitWeekDays.None, null,
+                targetValue: 20, targetUnit: "pages", targetStep: 21);
+
+            Assert.Equal(HabitErrors.InvalidTargetStep, result.Error);
+            Assert.Null(habit.TargetStep);
+        }
+
+        [Fact]
+        public void Update_ShouldReturnFailure_WhenHabitToAvoidGetsTarget()
+        {
+            var habit = Create(kind: HabitKind.Negative).Value!;
+
+            var result = habit.Update("Read", null, null, HabitDifficulty.Easy, HabitFrequencyType.Daily, HabitWeekDays.None, null,
+                targetValue: 3, targetUnit: "times");
+
+            Assert.Equal(HabitErrors.TargetNotAllowed, result.Error);
+        }
+
+        [Fact]
+        public void FromPersistence_ShouldRebuildTheTarget()
+        {
+            var habit = Habit.FromPersistence(
+                1, 1, "Walk", null, null, HabitKind.Positive, HabitDifficulty.Easy,
+                HabitFrequencyType.Daily, HabitWeekDays.None, null,
+                startDate: Today, createdAt: Now, archivedAt: null, currentStreak: 0, longestStreak: 0, evaluatedUntil: Today.AddDays(-1),
+                targetValue: 10, targetUnit: "min", targetStep: null);
+
+            Assert.Equal(10, habit.Target!.Value);
+            Assert.Equal("min", habit.Target.Unit);
+            Assert.Null(habit.Target.Step);
+        }
     }
 }

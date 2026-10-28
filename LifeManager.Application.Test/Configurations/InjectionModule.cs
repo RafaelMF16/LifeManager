@@ -54,6 +54,7 @@ namespace LifeManager.Application.Test.Configurations
             services.AddScoped<IPlayerProfileRepository, PlayerProfileRepositoryMock>();
             services.AddScoped<IHabitRepository, HabitRepositoryMock>();
             services.AddScoped<IHabitCheckInRepository, HabitCheckInRepositoryMock>();
+            services.AddScoped<IHabitProgressRepository, HabitProgressRepositoryMock>();
             services.AddScoped<IHabitEvaluationRepository, HabitEvaluationRepositoryMock>();
             services.AddScoped<IGameLedgerRepository, GameLedgerRepositoryMock>();
             services.AddScoped<IRewardRepository, RewardRepositoryMock>();

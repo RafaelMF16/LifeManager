@@ -35,7 +35,10 @@ namespace LifeManager.Application.Habits.Services
                 HabitWeekDaysMapper.ToMask(habitDto.WeekDays),
                 habitDto.TimesPerWeek,
                 _appClock.Today(),
-                _timeProvider.GetUtcNow());
+                _timeProvider.GetUtcNow(),
+                habitDto.TargetValue,
+                habitDto.TargetUnit,
+                habitDto.TargetStep);
             if (!habitResult.IsSuccess)
                 return habitResult.Error;
 
@@ -91,7 +94,10 @@ namespace LifeManager.Application.Habits.Services
                 habitDto.Difficulty,
                 habitDto.FrequencyType,
                 HabitWeekDaysMapper.ToMask(habitDto.WeekDays),
-                habitDto.TimesPerWeek);
+                habitDto.TimesPerWeek,
+                habitDto.TargetValue,
+                habitDto.TargetUnit,
+                habitDto.TargetStep);
             if (!updateResult.IsSuccess)
                 return updateResult.Error;
 

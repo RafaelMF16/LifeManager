@@ -32,6 +32,7 @@ namespace LifeManager.Infrastructure.Postgres
         public DbSet<GameLedgerEntry> GameLedgerEntries { get; set; }
         public DbSet<Habit> Habits { get; set; }
         public DbSet<HabitCheckIn> HabitCheckIns { get; set; }
+        public DbSet<HabitProgressEntry> HabitProgressEntries { get; set; }
         public DbSet<Reward> Rewards { get; set; }
         public DbSet<RewardRedemption> RewardRedemptions { get; set; }
         public DbSet<StatementImport> StatementImports { get; set; }

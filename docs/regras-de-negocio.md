@@ -21,6 +21,7 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
   - [Cadastro de hábitos](#cadastro-de-hábitos)
   - [Frequências](#frequências)
   - [Check-in (hábitos para construir)](#check-in-hábitos-para-construir)
+  - [Meta diária (hábitos mensuráveis)](#meta-diária-hábitos-mensuráveis)
   - [Recaídas (hábitos para evitar)](#recaídas-hábitos-para-evitar)
   - [Ofensiva, marcos e proteções](#ofensiva-marcos-e-proteções)
   - [Fechamento do dia](#fechamento-do-dia)
@@ -266,6 +267,7 @@ Cada usuário tem um personagem com **nível, XP, HP, moedas e proteções de of
 - **Excluir = arquivar:** o hábito sai da lista e deixa de ser cobrado, mas o histórico é mantido. Um hábito arquivado não pode ser editado.
 - **Restaurar** volta o hábito à lista com a **ofensiva zerada**. Os dias em que ele ficou arquivado nunca são cobrados. Se já existir um hábito ativo com o mesmo nome, a restauração é recusada.
 - Mudanças na frequência valem a partir do próximo dia avaliado.
+- **Meta diária:** opcional, só em hábitos para construir. Veja [Meta diária](#meta-diária-hábitos-mensuráveis).
 
 ### Frequências
 
@@ -288,6 +290,26 @@ Os dois tipos de hábito aceitam as três frequências, mas o significado muda:
 - **Recompensa:** moedas da dificuldade com o bônus de ofensiva (já contando o dia marcado), o XP da dificuldade e +1 HP.
 - **Hábito "vezes por semana"** que já bateu a meta da semana: o check-in é aceito, mas **não rende nada**.
 - **Desfazer** devolve exatamente o que foi ganho (moedas, XP, marco e proteção, veja abaixo). A exceção é o HP: o desfazer nunca derruba o jogador, então o HP para em 1.
+
+### Meta diária (hábitos mensuráveis)
+
+Um hábito para construir pode ter uma **meta diária** de quantidade ("2.000 ml de água", "20 páginas"). Em vez de marcar o dia com um toque, o usuário **registra o progresso** ao longo do dia.
+
+- **A meta tem três partes:**
+  - **valor:** número inteiro de 1 a 100.000;
+  - **unidade:** obrigatória, até 15 caracteres (ex.: "ml", "páginas", "min");
+  - **incremento:** opcional, de 1 até o valor da meta (o botão rápido "+250").
+- Só números inteiros: quem precisa de fração escolhe uma unidade menor ("m" em vez de "km").
+- Hábitos para evitar **não** têm meta.
+- **Registro de progresso:** um valor de 1 a 100.000, nas mesmas condições do check-in (hábito ativo, dia agendado, a partir do início, **só hoje ou ontem**). No máximo **50 registros por dia**.
+- **Bater a meta:** quando a soma do dia chega à meta, o dia recebe o **check-in normal**, com a mesma recompensa, ofensiva, marco e proteção. A regra do hábito semanal vale igual: depois da meta da semana, o dia conta mas não rende.
+- **Passar da meta** não rende nada a mais: o registro é guardado, mas o dia já foi pago.
+- **Remover um registro** (hoje ou ontem): se a soma cair abaixo da meta, o check-in do dia é **desfeito** como no desfazer normal (devolve tudo; o HP para em 1).
+- Um hábito com meta **não aceita o check-in de um toque**. **Desfazer o check-in** dele apaga também os registros do dia, e o dia recomeça do zero.
+- **Progresso parcial não vale nada:** no fechamento do dia, um dia abaixo da meta é cobrado como **falha** (ou usa uma proteção), igual a um dia sem nada. Os registros ficam guardados.
+- **Mudar a meta** (inclusive tirar ou pôr) não conclui nem desfaz nenhum dia sozinho: a meta nova vale a partir do próximo registro ou remoção. Os dias já concluídos ficam como estão.
+  - Um hábito que vira mensurável com o dia de hoje já feito continua feito. Remover um registro com a soma abaixo da meta desfaz esse dia.
+  - Um hábito que volta a ser de um toque mantém os registros antigos, que passam a ser ignorados.
 
 ### Recaídas (hábitos para evitar)
 
@@ -345,7 +367,9 @@ Um processo do servidor roda a cada hora (e ao iniciar a API) e **fecha os dias 
 ### Estatísticas e extrato
 
 **Detalhe do hábito**
-- **Mapa das últimas 13 semanas** (91 dias). Cada dia tem um estado: antes do início, folga, feito, dia limpo, protegido, falhou, recaída, pendente ou sem registro. Uma falha nunca é deduzida: só aparece o que foi registrado.
+- **Mapa das últimas 13 semanas** (91 dias). Cada dia tem um estado: antes do início, folga, feito, dia limpo, protegido, falhou, recaída, pendente, sem registro ou **parcial**. Uma falha nunca é deduzida: só aparece o que foi registrado.
+- **Dia parcial:** um dia com progresso registrado, mas sem check-in, aparece como "parcial" em vez de "falhou", "pendente" ou "sem registro" (também hoje em andamento). Um dia protegido continua "protegido". É só a forma de mostrar: a consistência e a cobrança não mudam.
+- Cada dia com registros traz a **quantidade do dia**, comparada com a meta atual do hábito (a meta não é guardada por dia).
 - **Consistência:**
   - Hábitos diários e de dias fixos: parte dos dias agendados dos últimos 30 dias que foram cumpridos (dias protegidos ficam fora da conta).
   - Hábitos semanais: parte das últimas 4 semanas fechadas que bateram a meta ou ficaram dentro do limite.
@@ -493,6 +517,17 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 | `Habit.CheckInNotFound` | NotFound | Desfazer um check-in que não existe |
 | `Habit.AlreadyRelapsed` | Conflict | O dia já tem recaída |
 | `Habit.RelapseNotFound` | NotFound | Desfazer uma recaída que não existe |
+| `Habit.InvalidTargetValue` | Validation | Meta diária fora de 1 a 100.000 |
+| `Habit.TargetUnitRequired` | Validation | Meta diária sem unidade |
+| `Habit.TargetUnitTooLong` | Validation | Unidade com mais de 15 caracteres |
+| `Habit.InvalidTargetStep` | Validation | Incremento fora de 1 até o valor da meta |
+| `Habit.InvalidTargetCombination` | Validation | Unidade ou incremento informados sem meta |
+| `Habit.TargetNotAllowed` | Validation | Meta diária num hábito para evitar |
+| `Habit.NotMeasurable` | Validation | Registro de progresso num hábito sem meta |
+| `Habit.InvalidProgressValue` | Validation | Registro de progresso fora de 1 a 100.000 |
+| `Habit.TooManyProgressEntries` | Validation | Mais de 50 registros de progresso no dia |
+| `Habit.ProgressRequired` | Validation | Check-in de um toque num hábito com meta |
+| `Habit.ProgressEntryNotFound` | NotFound | Remover um registro de progresso que não existe (ou de outro hábito) |
 | `PlayerProfile.StreakFreezesFull` | Conflict | O jogador já tem o máximo de proteções |
 | `PlayerProfile.NoStreakFreeze` | Conflict | Uso de proteção sem ter nenhuma |
 

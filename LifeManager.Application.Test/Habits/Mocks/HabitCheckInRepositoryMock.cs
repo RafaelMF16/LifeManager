@@ -82,6 +82,9 @@ namespace LifeManager.Application.Test.Habits.Mocks
 
             _checkIns.Remove(checkIn);
 
+            if (habit.Target is not null)
+                HabitProgressEntrySingleton.Instance.RemoveAll(entry => entry.HabitId == habit.Id && entry.Date == date);
+
             var profile = Copy(_profiles[profileIndex]);
             var effects = decide(new HabitCheckInContext(profile, SuccessDates(habit.Id!), FailedDates(habit.Id!), checkIn));
 
@@ -90,11 +93,11 @@ namespace LifeManager.Application.Test.Habits.Mocks
             return Task.FromResult<HabitCheckInEffects?>(effects);
         }
 
-        private HashSet<DateOnly> FailedDates(HabitId habitId)
+        internal HashSet<DateOnly> FailedDates(HabitId habitId)
             => [.. _checkIns.Where(checkIn => checkIn.HabitId == habitId && checkIn.Status == HabitCheckInStatus.Relapse).Select(checkIn => checkIn.Date)];
 
         /// <summary>Like PlayerWallet.LockAsync: creates the default profile if missing.</summary>
-        private int LockProfile(UserId userId)
+        internal int LockProfile(UserId userId)
         {
             var index = _profiles.FindIndex(profile => profile.UserId == userId);
             if (index >= 0)
@@ -107,10 +110,10 @@ namespace LifeManager.Application.Test.Habits.Mocks
             return _profiles.Count - 1;
         }
 
-        private HashSet<DateOnly> SuccessDates(HabitId habitId)
+        internal HashSet<DateOnly> SuccessDates(HabitId habitId)
             => [.. _checkIns.Where(checkIn => checkIn.HabitId == habitId && checkIn.IsSuccess).Select(checkIn => checkIn.Date)];
 
-        private void Save(Habit habit, int profileIndex, PlayerProfile profile, HabitCheckInEffects effects)
+        internal void Save(Habit habit, int profileIndex, PlayerProfile profile, HabitCheckInEffects effects)
         {
             foreach (var entry in effects.Entries)
             {
@@ -126,7 +129,7 @@ namespace LifeManager.Application.Test.Habits.Mocks
                 _habits[habitIndex] = HabitRepositoryMock.ToDetachedCopy(habit);
         }
 
-        private static PlayerProfile Copy(PlayerProfile profile)
+        internal static PlayerProfile Copy(PlayerProfile profile)
             => PlayerProfile.FromPersistence(
                 profile.Id!.Value,
                 profile.UserId.Value,

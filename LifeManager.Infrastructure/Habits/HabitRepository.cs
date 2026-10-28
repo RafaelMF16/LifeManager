@@ -93,6 +93,9 @@ namespace LifeManager.Infrastructure.Habits
                     .SetProperty(storedHabit => storedHabit.FrequencyType, habit.FrequencyType)
                     .SetProperty(storedHabit => storedHabit.WeekDays, habit.WeekDays)
                     .SetProperty(storedHabit => storedHabit.TimesPerWeek, habit.TimesPerWeek)
+                    .SetProperty(storedHabit => storedHabit.TargetValue, habit.TargetValue)
+                    .SetProperty(storedHabit => storedHabit.TargetUnit, habit.TargetUnit)
+                    .SetProperty(storedHabit => storedHabit.TargetStep, habit.TargetStep)
                     .SetProperty(storedHabit => storedHabit.ArchivedAt, habit.ArchivedAt)
                     .SetProperty(storedHabit => storedHabit.CurrentStreak, habit.CurrentStreak)
                     .SetProperty(storedHabit => storedHabit.EvaluatedUntil, habit.EvaluatedUntil), cancellationToken);

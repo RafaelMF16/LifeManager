@@ -58,7 +58,7 @@ namespace LifeManager.Infrastructure.Habits
             var effects = decide(new HabitCheckInContext(profile, successDates, failedDates, Removed: null));
 
             _dbContext.HabitCheckIns.Add(HabitCheckIn.Judged(habit, date, status, createdAt, effects.Applied, effects.FreezeAwarded));
-            await SaveAsync(habit, profile, effects, cancellationToken);
+            await SaveAsync(_dbContext, habit, profile, effects, cancellationToken);
 
             await databaseTransaction.CommitAsync(cancellationToken);
 
@@ -85,13 +85,20 @@ namespace LifeManager.Infrastructure.Habits
 
             _dbContext.HabitCheckIns.Remove(checkIn);
 
+            if (habit.Target is not null)
+            {
+                await _dbContext.HabitProgressEntries
+                    .Where(entry => entry.HabitId == habit.Id && entry.Date == date)
+                    .ExecuteDeleteAsync(cancellationToken);
+            }
+
             var (successDates, failedDates) = await GetHistoryAsync(_dbContext, habit.Id!, cancellationToken);
             successDates.Remove(date);
             failedDates.Remove(date);
 
             var effects = decide(new HabitCheckInContext(profile, successDates, failedDates, checkIn));
 
-            await SaveAsync(habit, profile, effects, cancellationToken);
+            await SaveAsync(_dbContext, habit, profile, effects, cancellationToken);
 
             await databaseTransaction.CommitAsync(cancellationToken);
 
@@ -119,13 +126,21 @@ namespace LifeManager.Infrastructure.Habits
                 [.. days.Where(day => day.Status == HabitCheckInStatus.Relapse).Select(day => day.Date)]);
         }
 
-        /// <summary>Saves the pending check-in change with the ledger and profile, then the habit's streak.</summary>
-        private async Task SaveAsync(Habit habit, PlayerProfile profile, HabitCheckInEffects effects, CancellationToken cancellationToken)
+        /// <summary>
+        /// Saves the pending check-in change with the ledger and profile, then the habit's streak. Shared with
+        /// <see cref="HabitProgressRepository"/>, whose progress can complete or undo a check-in.
+        /// </summary>
+        internal static async Task SaveAsync(
+            LifeManagerDbContext dbContext,
+            Habit habit,
+            PlayerProfile profile,
+            HabitCheckInEffects effects,
+            CancellationToken cancellationToken)
         {
-            await PlayerWallet.SaveAsync(_dbContext, profile, effects.Entries, cancellationToken);
+            await PlayerWallet.SaveAsync(dbContext, profile, effects.Entries, cancellationToken);
 
             habit.SetStreak(effects.CurrentStreak);
-            await _dbContext.Habits
+            await dbContext.Habits
                 .Where(storedHabit => storedHabit.Id == habit.Id)
                 .ExecuteUpdateAsync(setters => setters
                     .SetProperty(storedHabit => storedHabit.CurrentStreak, habit.CurrentStreak)

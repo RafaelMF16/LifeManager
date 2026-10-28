@@ -51,7 +51,11 @@ namespace LifeManager.Domain.Habits.Interfaces
             Func<HabitCheckInContext, HabitCheckInEffects> decide,
             CancellationToken cancellationToken);
 
-        /// <summary>The same transaction for an undo: deletes the <paramref name="status"/> day, then stores what <paramref name="decide"/> returns.</summary>
+        /// <summary>
+        /// The same transaction for an undo: deletes the <paramref name="status"/> day, then stores what
+        /// <paramref name="decide"/> returns. On a habit with a daily target it also deletes the day's progress entries,
+        /// so undoing its check-in starts the day over.
+        /// </summary>
         /// <returns>Null, with nothing written, when the habit has no <paramref name="status"/> day on <paramref name="date"/>.</returns>
         Task<HabitCheckInEffects?> RemoveAsync(
             Habit habit,

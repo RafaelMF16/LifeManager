@@ -19,6 +19,12 @@ namespace LifeManager.Domain.Habits.Enums
         Clean = 6,
         Frozen = 7,
         Missed = 8,
-        Relapse = 9
+        Relapse = 9,
+
+        /// <summary>
+        /// Progress was logged towards the daily target but the day isn't done: missed, not judged yet, or still in
+        /// progress. Only how the day reads; it still counts as whatever its record says.
+        /// </summary>
+        Partial = 10
     }
 }

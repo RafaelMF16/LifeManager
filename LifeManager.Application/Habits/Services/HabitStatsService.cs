@@ -10,10 +10,15 @@ using LifeManager.Domain.Users.ValueObjects;
 namespace LifeManager.Application.Habits.Services
 {
     /// <summary>A habit's history for its details screen: the heatmap, the recent consistency and the days kept.</summary>
-    public class HabitStatsService(IHabitRepository habitRepository, IHabitCheckInRepository habitCheckInRepository, AppClock appClock)
+    public class HabitStatsService(
+        IHabitRepository habitRepository,
+        IHabitCheckInRepository habitCheckInRepository,
+        IHabitProgressRepository habitProgressRepository,
+        AppClock appClock)
     {
         private readonly IHabitRepository _habitRepository = habitRepository;
         private readonly IHabitCheckInRepository _habitCheckInRepository = habitCheckInRepository;
+        private readonly IHabitProgressRepository _habitProgressRepository = habitProgressRepository;
         private readonly AppClock _appClock = appClock;
 
         /// <remarks>Archived habits too: their history stays.</remarks>
@@ -26,11 +31,14 @@ namespace LifeManager.Application.Habits.Services
             var today = _appClock.Today();
             var checkIns = await _habitCheckInRepository.GetByHabitAsync(habit.Id!, HabitStats.HistoryStart(today), today, cancellationToken);
             var totalKept = await _habitCheckInRepository.CountKeptAsync(habit.Id!, cancellationToken);
+            // Read even when the habit has no target now: the days it had one keep their amounts.
+            var amounts = await _habitProgressRepository.GetDailyTotalsAsync(
+                habit.Id!, today.AddDays(-(HabitStats.HeatmapDays - 1)), today, cancellationToken);
 
             return new HabitStatsDto(
                 HabitResponseDto.From(habit),
                 today,
-                [.. HabitStats.Days(habit, checkIns, today).Select(day => new HabitDayDto(day.Date, day.State))],
+                [.. HabitStats.Days(habit, checkIns, today, amounts).Select(day => new HabitDayDto(day.Date, day.State, day.Amount))],
                 HabitConsistencyDto.From(HabitStats.Consistency(habit, checkIns, today)),
                 totalKept);
         }

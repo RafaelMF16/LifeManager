@@ -32,6 +32,7 @@ namespace LifeManager.Application.Test.Habits
 
             HabitSingleton.Instance.Clear();
             HabitCheckInSingleton.Instance.Clear();
+            HabitProgressEntrySingleton.Instance.Clear();
             GameLedgerEntrySingleton.Instance.Clear();
         }
 
@@ -133,6 +134,23 @@ namespace LifeManager.Application.Test.Habits
             var result = await _ledgerService.GetPagedAsync(new GameLedgerListQueryDto { PageSize = PageRequest.MaxPageSize + 1 }, UserId, CancellationToken.None);
 
             Assert.False(result.IsSuccess);
+        }
+    
+        [Fact]
+        public async Task GetAsync_ShouldReturnAPartialClosedDayWithItsAmount()
+        {
+            var habit = SeedHabit();
+            var partialDay = Today.AddDays(-3);
+            SeedDay(habit, partialDay, HabitCheckInStatus.Missed);
+            HabitProgressEntrySingleton.Instance.Add(HabitProgressEntry.FromPersistence(1, habit.Id!.Value, UserId.Value, partialDay, 12, CreatedAt));
+            HabitProgressEntrySingleton.Instance.Add(HabitProgressEntry.FromPersistence(2, habit.Id!.Value, UserId.Value, partialDay, 3, CreatedAt));
+
+            var result = await _statsService.GetAsync(habit.Id!.Value, UserId, CancellationToken.None);
+
+            var day = result.Value!.Days.Single(stored => stored.Date == partialDay);
+            Assert.Equal(HabitDayState.Partial, day.State);
+            Assert.Equal(15, day.Amount);
+            Assert.Null(result.Value.Days.Single(stored => stored.Date == Today.AddDays(-4)).Amount);
         }
     }
 }

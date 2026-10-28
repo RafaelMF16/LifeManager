@@ -393,6 +393,16 @@ namespace LifeManager.Infrastructure.Migrations
                     b.Property<DateOnly>("StartDate")
                         .HasColumnType("date");
 
+                    b.Property<int?>("TargetStep")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TargetUnit")
+                        .HasMaxLength(15)
+                        .HasColumnType("character varying(15)");
+
+                    b.Property<int?>("TargetValue")
+                        .HasColumnType("integer");
+
                     b.Property<int?>("TimesPerWeek")
                         .HasColumnType("integer");
 
@@ -468,6 +478,38 @@ namespace LifeManager.Infrastructure.Migrations
                     b.HasIndex("UserId", "Date");
 
                     b.ToTable("HabitCheckIns");
+                });
+
+            modelBuilder.Entity("LifeManager.Domain.Habits.HabitProgressEntry", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<int>("HabitId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Value")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HabitId", "Date");
+
+                    b.HasIndex("UserId", "Date");
+
+                    b.ToTable("HabitProgressEntries");
                 });
 
             modelBuilder.Entity("LifeManager.Domain.Habits.PlayerProfile", b =>
@@ -1110,6 +1152,21 @@ namespace LifeManager.Infrastructure.Migrations
                 });
 
             modelBuilder.Entity("LifeManager.Domain.Habits.HabitCheckIn", b =>
+                {
+                    b.HasOne("LifeManager.Domain.Habits.Habit", null)
+                        .WithMany()
+                        .HasForeignKey("HabitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("LifeManager.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LifeManager.Domain.Habits.HabitProgressEntry", b =>
                 {
                     b.HasOne("LifeManager.Domain.Habits.Habit", null)
                         .WithMany()
