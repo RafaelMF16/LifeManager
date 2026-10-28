@@ -1,3 +1,4 @@
+using LifeManager.Domain.GameItems.Enums;
 using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.Habits.ValueObjects;
 using LifeManager.Domain.Rewards.ValueObjects;
@@ -48,6 +49,9 @@ namespace LifeManager.Domain.Habits
         /// <summary>The reward behind the change (a redemption or its undo), when there is one.</summary>
         public RewardId? RewardId { get; }
 
+        /// <summary>The game item behind the change (a purchase or its undo), when there is one.</summary>
+        public GameItemKind? ItemKind { get; }
+
         private GameLedgerEntry(
             UserId userId,
             GameLedgerEntryKind kind,
@@ -58,7 +62,8 @@ namespace LifeManager.Domain.Habits
             int hpDelta,
             string? description,
             HabitId? habitId,
-            RewardId? rewardId)
+            RewardId? rewardId,
+            GameItemKind? itemKind)
         {
             UserId = userId;
             Kind = kind;
@@ -70,13 +75,14 @@ namespace LifeManager.Domain.Habits
             Description = description;
             HabitId = habitId;
             RewardId = rewardId;
+            ItemKind = itemKind;
         }
 
         /// <summary>
         /// The entries for one <see cref="PlayerProfile.Apply"/>: the <paramref name="kind"/> entry with the applied
         /// delta, then a <see cref="GameLedgerEntryKind.LevelUp"/> entry when the HP was refilled by a new level and a
         /// <see cref="GameLedgerEntryKind.Knockout"/> entry when the player was knocked out. Every entry carries
-        /// <paramref name="habitId"/> and <paramref name="rewardId"/>.
+        /// <paramref name="habitId"/>, <paramref name="rewardId"/> and <paramref name="itemKind"/>.
         /// </summary>
         public static IReadOnlyList<GameLedgerEntry> FromOutcome(
             UserId userId,
@@ -86,19 +92,20 @@ namespace LifeManager.Domain.Habits
             string? description,
             GameOutcome outcome,
             HabitId? habitId = null,
-            RewardId? rewardId = null)
+            RewardId? rewardId = null,
+            GameItemKind? itemKind = null)
         {
             var applied = outcome.Applied;
             var entries = new List<GameLedgerEntry>
             {
-                new(userId, kind, occurredOn, createdAt, applied.Coins, applied.Xp, applied.Hp, Truncate(description), habitId, rewardId)
+                new(userId, kind, occurredOn, createdAt, applied.Coins, applied.Xp, applied.Hp, Truncate(description), habitId, rewardId, itemKind)
             };
 
             if (outcome.LeveledUp)
-                entries.Add(new GameLedgerEntry(userId, GameLedgerEntryKind.LevelUp, occurredOn, createdAt, 0, 0, outcome.LevelUpHpRestored, null, habitId, rewardId));
+                entries.Add(new GameLedgerEntry(userId, GameLedgerEntryKind.LevelUp, occurredOn, createdAt, 0, 0, outcome.LevelUpHpRestored, null, habitId, rewardId, itemKind));
 
             if (outcome.KnockedOut)
-                entries.Add(new GameLedgerEntry(userId, GameLedgerEntryKind.Knockout, occurredOn, createdAt, -outcome.KnockoutCoinsLost, 0, outcome.KnockoutHpRestored, null, habitId, rewardId));
+                entries.Add(new GameLedgerEntry(userId, GameLedgerEntryKind.Knockout, occurredOn, createdAt, -outcome.KnockoutCoinsLost, 0, outcome.KnockoutHpRestored, null, habitId, rewardId, itemKind));
 
             return entries;
         }

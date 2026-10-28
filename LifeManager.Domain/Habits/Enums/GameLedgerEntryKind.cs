@@ -12,6 +12,7 @@ namespace LifeManager.Domain.Habits.Enums
         Knockout = 7,
         Undo = 8,
         FreezeUsed = 9,
-        LevelUp = 10
+        LevelUp = 10,
+        ItemPurchased = 11
     }
 }

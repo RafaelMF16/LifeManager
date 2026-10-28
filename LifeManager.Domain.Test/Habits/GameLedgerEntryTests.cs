@@ -1,3 +1,4 @@
+using LifeManager.Domain.GameItems.Enums;
 using LifeManager.Domain.Habits;
 using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.Users.ValueObjects;
@@ -113,6 +114,29 @@ namespace LifeManager.Domain.Test.Habits
             var entry = GameLedgerEntry.FromOutcome(UserId, GameLedgerEntryKind.HabitDone, Day, Now, "   ", outcome).Single();
 
             Assert.Null(entry.Description);
+        }
+
+        [Fact]
+        public void FromOutcome_ShouldCarryTheItemKind_OnEveryEntry()
+        {
+            var outcome = Profile(totalXp: 0, hp: 1).Apply(new GameDelta(Coins: 0, Xp: 0, Hp: -1));
+
+            var entries = GameLedgerEntry.FromOutcome(UserId, GameLedgerEntryKind.ItemPurchased, Day, Now, null, outcome, itemKind: GameItemKind.HpPotion);
+
+            Assert.Equal(2, entries.Count);
+            Assert.All(entries, entry => Assert.Equal(GameItemKind.HpPotion, entry.ItemKind));
+            Assert.Null(entries[0].HabitId);
+            Assert.Null(entries[0].RewardId);
+        }
+
+        [Fact]
+        public void FromOutcome_ShouldLeaveTheItemKindEmpty_ByDefault()
+        {
+            var outcome = Profile().Apply(new GameDelta(Coins: 5, Xp: 0, Hp: 0));
+
+            var entry = GameLedgerEntry.FromOutcome(UserId, GameLedgerEntryKind.HabitDone, Day, Now, null, outcome).Single();
+
+            Assert.Null(entry.ItemKind);
         }
     }
 }
