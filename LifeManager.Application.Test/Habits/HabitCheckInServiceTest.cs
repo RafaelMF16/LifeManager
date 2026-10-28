@@ -31,6 +31,7 @@ namespace LifeManager.Application.Test.Habits
 
             HabitSingleton.Instance.Clear();
             HabitCheckInSingleton.Instance.Clear();
+            HabitProgressEntrySingleton.Instance.Clear();
             PlayerProfileSingleton.Instance.Clear();
             GameLedgerEntrySingleton.Instance.Clear();
         }
@@ -517,6 +518,96 @@ namespace LifeManager.Application.Test.Habits
 
             // The 7th day: +10% on 20 coins.
             Assert.Equal(22, item.CoinsPreview);
+        }
+
+        private static Habit SeedMeasured(int target = 2000, DateOnly? startDate = null)
+        {
+            var habit = Habit.FromPersistence(
+                HabitSingleton.Instance.Count + 1, UserId.Value, "Drink water", null, null, HabitKind.Positive, HabitDifficulty.Easy,
+                HabitFrequencyType.Daily, HabitWeekDays.None, null, startDate ?? StartDate, CreatedAt, archivedAt: null,
+                currentStreak: 0, longestStreak: 0, evaluatedUntil: Today.AddDays(-2),
+                targetValue: target, targetUnit: "ml", targetStep: 250);
+            HabitSingleton.Instance.Add(habit);
+
+            return habit;
+        }
+
+        private static void SeedEntry(Habit habit, DateOnly date, int value)
+            => HabitProgressEntrySingleton.Instance.Add(HabitProgressEntry.FromPersistence(
+                HabitProgressEntrySingleton.Instance.Count + 1, habit.Id!.Value, habit.UserId.Value, date, value,
+                CreatedAt.AddMinutes(HabitProgressEntrySingleton.Instance.Count)));
+
+        [Fact]
+        public async Task CheckInAsync_ShouldRequireProgress_WhenTheHabitHasATarget()
+        {
+            var habit = SeedMeasured();
+
+            var result = await CheckIn(habit);
+
+            Assert.Equal(HabitErrors.ProgressRequired, result.Error);
+            Assert.Empty(HabitCheckInSingleton.Instance);
+        }
+
+        [Fact]
+        public async Task UndoCheckInAsync_ShouldClearTheDaysProgress_WhenTheHabitHasATarget()
+        {
+            var habit = SeedMeasured();
+            SeedDone(habit, Today);
+            SeedEntry(habit, Today, 1500);
+            SeedEntry(habit, Today, 500);
+            SeedEntry(habit, Yesterday, 250);
+
+            var result = await _service.UndoCheckInAsync(habit.Id!.Value, Today, UserId, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.False(result.Value.Done);
+            var kept = Assert.Single(HabitProgressEntrySingleton.Instance);
+            Assert.Equal(Yesterday, kept.Date);
+        }
+
+        [Fact]
+        public async Task UndoCheckInAsync_ShouldKeepTheDaysEntries_WhenTheHabitHasNoTarget()
+        {
+            var habit = SeedHabit();
+            SeedDone(habit, Today);
+            // Logged while the habit still had a target.
+            HabitProgressEntrySingleton.Instance.Add(HabitProgressEntry.FromPersistence(1, habit.Id!.Value, UserId.Value, Today, 10, CreatedAt));
+
+            await _service.UndoCheckInAsync(habit.Id!.Value, Today, UserId, CancellationToken.None);
+
+            Assert.Single(HabitProgressEntrySingleton.Instance);
+        }
+
+        [Fact]
+        public async Task GetTodayAsync_ShouldCarryTheTargetProgressAndEntries_OfTodayAndYesterday()
+        {
+            var habit = SeedMeasured();
+            SeedEntry(habit, Today, 250);
+            SeedEntry(habit, Today, 500);
+            SeedEntry(habit, Yesterday, 1000);
+
+            var result = await _service.GetTodayAsync(UserId, CancellationToken.None);
+
+            var today = Assert.Single(result.Value!.Today);
+            Assert.Equal(new HabitTargetDto(2000, "ml", 250), today.Target);
+            Assert.Equal(750, today.Progress);
+            Assert.Equal([250, 500], today.Entries.Select(entry => entry.Value));
+            var yesterday = Assert.Single(result.Value.YesterdayPending);
+            Assert.Equal(1000, yesterday.Progress);
+            Assert.Equal(1000, Assert.Single(yesterday.Entries).Value);
+        }
+
+        [Fact]
+        public async Task GetTodayAsync_ShouldReturnNoTargetOrProgress_ForAOneTapHabit()
+        {
+            SeedHabit();
+
+            var result = await _service.GetTodayAsync(UserId, CancellationToken.None);
+
+            var item = Assert.Single(result.Value!.Today);
+            Assert.Null(item.Target);
+            Assert.Equal(0, item.Progress);
+            Assert.Empty(item.Entries);
         }
     }
 }

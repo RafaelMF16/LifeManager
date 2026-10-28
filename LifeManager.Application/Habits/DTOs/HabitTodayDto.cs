@@ -45,6 +45,9 @@ namespace LifeManager.Application.Habits.DTOs
     /// <param name="CoinsPreview">
     /// Coins a check-in would earn now (0 once a times-per-week target is met); an estimate from the stored streak.
     /// </param>
+    /// <param name="Target">The daily target; null for a habit checked in with one tap.</param>
+    /// <param name="Progress">The total logged on the day of the list the habit is in; 0 without entries.</param>
+    /// <param name="Entries">That day's entries, oldest first.</param>
     public record HabitTodayItemDto(
         int Id,
         string Name,
@@ -56,5 +59,8 @@ namespace LifeManager.Application.Habits.DTOs
         int LongestStreak,
         bool Done,
         int? WeekDoneCount,
-        int CoinsPreview);
+        int CoinsPreview,
+        HabitTargetDto? Target,
+        int Progress,
+        IReadOnlyList<HabitProgressEntryDto> Entries);
 }

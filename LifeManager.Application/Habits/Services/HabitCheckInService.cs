@@ -12,11 +12,13 @@ namespace LifeManager.Application.Habits.Services
 {
     /// <summary>
     /// The day's checklist: checking a habit in earns its coins (with the streak bonus), XP and a little HP; undoing
-    /// gives back exactly what it earned. Only today and yesterday can change; older days are the day close's job.
+    /// gives back exactly what it earned. Only today and yesterday can change; older days are the day close's job. A
+    /// habit with a daily target is checked in by logging progress (<see cref="HabitProgressService"/>) instead.
     /// </summary>
     public class HabitCheckInService(
         IHabitRepository habitRepository,
         IHabitCheckInRepository habitCheckInRepository,
+        IHabitProgressRepository habitProgressRepository,
         AppClock appClock,
         TimeProvider timeProvider)
     {
@@ -25,6 +27,7 @@ namespace LifeManager.Application.Habits.Services
 
         private readonly IHabitRepository _habitRepository = habitRepository;
         private readonly IHabitCheckInRepository _habitCheckInRepository = habitCheckInRepository;
+        private readonly IHabitProgressRepository _habitProgressRepository = habitProgressRepository;
         private readonly AppClock _appClock = appClock;
         private readonly TimeProvider _timeProvider = timeProvider;
 
@@ -40,6 +43,9 @@ namespace LifeManager.Application.Habits.Services
             var recentStart = today.AddDays(-RecentMissDays);
             var from = recentStart < weekStart ? recentStart : weekStart;
             var checkIns = await _habitCheckInRepository.GetByUserIdAsync(userId, from, today, cancellationToken);
+            var entriesByHabitAndDay = (await _habitProgressRepository.GetByUserIdAsync(userId, yesterday, today, cancellationToken))
+                .GroupBy(entry => (entry.HabitId.Value, entry.Date))
+                .ToDictionary(group => group.Key, group => (IReadOnlyList<HabitProgressEntry>)[.. group]);
 
             var activeHabitIds = habits.Concat(habitsToAvoid).Select(habit => habit.Id!.Value).ToHashSet();
             var recentMisses = checkIns
@@ -62,12 +68,12 @@ namespace LifeManager.Application.Habits.Services
                 var successDates = successDatesByHabit.GetValueOrDefault(habit.Id!.Value) ?? [];
 
                 if (habit.EnsureCanCheckIn(today, today).IsSuccess)
-                    todayItems.Add(ToTodayItem(habit, today, successDates));
+                    todayItems.Add(ToTodayItem(habit, today, successDates, DayEntries(entriesByHabitAndDay, habit, today)));
 
                 if (habit.EnsureCanCheckIn(yesterday, today).IsSuccess
                     && !successDates.Contains(yesterday)
                     && !IsWeekTargetMet(habit, successDates, yesterday))
-                    yesterdayPending.Add(ToTodayItem(habit, yesterday, successDates));
+                    yesterdayPending.Add(ToTodayItem(habit, yesterday, successDates, DayEntries(entriesByHabitAndDay, habit, yesterday)));
             }
 
             var relapseDatesByHabit = checkIns
@@ -124,6 +130,9 @@ namespace LifeManager.Application.Habits.Services
             var canCheckIn = habit.EnsureCanCheckIn(date, today);
             if (!canCheckIn.IsSuccess)
                 return canCheckIn.Error;
+
+            if (habit.Target is not null)
+                return HabitErrors.ProgressRequired;
 
             var now = _timeProvider.GetUtcNow();
             PlayerProfile? profile = null;
@@ -240,7 +249,13 @@ namespace LifeManager.Application.Habits.Services
             => habit.FrequencyType == HabitFrequencyType.TimesPerWeek
                 && StreakCalculator.CountInWeek(successDates, date) >= habit.TimesPerWeek;
 
-        private static HabitTodayItemDto ToTodayItem(Habit habit, DateOnly date, IReadOnlySet<DateOnly> successDates)
+        private static IReadOnlyList<HabitProgressEntry> DayEntries(
+            IReadOnlyDictionary<(int HabitId, DateOnly Date), IReadOnlyList<HabitProgressEntry>> entriesByHabitAndDay,
+            Habit habit,
+            DateOnly date)
+            => entriesByHabitAndDay.GetValueOrDefault((habit.Id!.Value, date)) ?? [];
+
+        private static HabitTodayItemDto ToTodayItem(Habit habit, DateOnly date, IReadOnlySet<DateOnly> successDates, IReadOnlyList<HabitProgressEntry> entries)
         {
             var done = successDates.Contains(date);
             var weekly = habit.FrequencyType == HabitFrequencyType.TimesPerWeek;
@@ -264,7 +279,10 @@ namespace LifeManager.Application.Habits.Services
                 habit.LongestStreak,
                 done,
                 weekDoneCount,
-                coinsPreview);
+                coinsPreview,
+                HabitTargetDto.From(habit.Target),
+                entries.Sum(entry => entry.Value),
+                [.. entries.Select(HabitProgressEntryDto.From)]);
         }
     }
 }

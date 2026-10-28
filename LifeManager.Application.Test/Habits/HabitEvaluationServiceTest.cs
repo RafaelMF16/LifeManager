@@ -28,6 +28,7 @@ namespace LifeManager.Application.Test.Habits
 
             HabitSingleton.Instance.Clear();
             HabitCheckInSingleton.Instance.Clear();
+            HabitProgressEntrySingleton.Instance.Clear();
             PlayerProfileSingleton.Instance.Clear();
             GameLedgerEntrySingleton.Instance.Clear();
         }
@@ -86,6 +87,26 @@ namespace LifeManager.Application.Test.Habits
             Assert.Equal(-8, entry.HpDelta);
             Assert.Equal(habit.Id, entry.HabitId);
             Assert.Equal(LastClosedDay, Stored(habit).EvaluatedUntil);
+        }
+
+        [Fact]
+        public async Task EvaluateUserAsync_ShouldRecordAMiss_WhenADayOfAHabitWithATargetStayedPartial()
+        {
+            SeedProfile();
+            var habit = Habit.FromPersistence(
+                1, UserId.Value, "Drink water", null, null, HabitKind.Positive, HabitDifficulty.Medium,
+                HabitFrequencyType.Daily, HabitWeekDays.None, null, new DateOnly(2026, 9, 1), CreatedAt, archivedAt: null,
+                currentStreak: 5, longestStreak: 5, evaluatedUntil: LastClosedDay.AddDays(-1),
+                targetValue: 2000, targetUnit: "ml", targetStep: 250);
+            HabitSingleton.Instance.Add(habit);
+            HabitProgressEntrySingleton.Instance.Add(HabitProgressEntry.FromPersistence(1, habit.Id!.Value, UserId.Value, LastClosedDay, 1500, CreatedAt));
+
+            await Evaluate();
+
+            var checkIn = Assert.Single(HabitCheckInSingleton.Instance);
+            Assert.Equal((LastClosedDay, HabitCheckInStatus.Missed), (checkIn.Date, checkIn.Status));
+            Assert.Equal(GameRules.MaxHp - 8, Profile().Hp);
+            Assert.Single(HabitProgressEntrySingleton.Instance);
         }
 
         [Fact]

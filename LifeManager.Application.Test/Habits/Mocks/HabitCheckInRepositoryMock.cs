@@ -82,6 +82,9 @@ namespace LifeManager.Application.Test.Habits.Mocks
 
             _checkIns.Remove(checkIn);
 
+            if (habit.Target is not null)
+                HabitProgressEntrySingleton.Instance.RemoveAll(entry => entry.HabitId == habit.Id && entry.Date == date);
+
             var profile = Copy(_profiles[profileIndex]);
             var effects = decide(new HabitCheckInContext(profile, SuccessDates(habit.Id!), FailedDates(habit.Id!), checkIn));
 

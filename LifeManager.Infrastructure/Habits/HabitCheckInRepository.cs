@@ -85,6 +85,13 @@ namespace LifeManager.Infrastructure.Habits
 
             _dbContext.HabitCheckIns.Remove(checkIn);
 
+            if (habit.Target is not null)
+            {
+                await _dbContext.HabitProgressEntries
+                    .Where(entry => entry.HabitId == habit.Id && entry.Date == date)
+                    .ExecuteDeleteAsync(cancellationToken);
+            }
+
             var (successDates, failedDates) = await GetHistoryAsync(_dbContext, habit.Id!, cancellationToken);
             successDates.Remove(date);
             failedDates.Remove(date);
