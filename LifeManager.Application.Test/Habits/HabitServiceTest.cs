@@ -201,6 +201,78 @@ namespace LifeManager.Application.Test.Habits
         }
 
         [Fact]
+        public async Task CreateAsync_ShouldKeepTheDailyTarget_WhenOneIsGiven()
+        {
+            var dto = new HabitDto("Drink water", null, null, HabitKind.Positive, HabitDifficulty.Easy, HabitFrequencyType.Daily, null, null,
+                TargetValue: 2000, TargetUnit: " ml ", TargetStep: 250);
+
+            var result = await _habitService.CreateAsync(dto, FirstUserId, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(2000, result.Value.TargetValue);
+            Assert.Equal("ml", result.Value.TargetUnit);
+            Assert.Equal(250, result.Value.TargetStep);
+            var habit = Assert.Single(HabitSingleton.Instance);
+            Assert.Equal(2000, habit.Target!.Value);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldReturnNoTarget_WhenNoneIsGiven()
+        {
+            var result = await _habitService.CreateAsync(Daily(), FirstUserId, CancellationToken.None);
+
+            Assert.Null(result.Value.TargetValue);
+            Assert.Null(result.Value.TargetUnit);
+            Assert.Null(result.Value.TargetStep);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldReturnValidationError_WhenHabitToAvoidHasTarget()
+        {
+            var dto = new HabitDto("Coffee", null, null, HabitKind.Negative, HabitDifficulty.Easy, HabitFrequencyType.Daily, null, null,
+                TargetValue: 2, TargetUnit: "cups");
+
+            var result = await _habitService.CreateAsync(dto, FirstUserId, CancellationToken.None);
+
+            Assert.Equal(HabitErrors.TargetNotAllowed, result.Error);
+            Assert.Empty(HabitSingleton.Instance);
+        }
+
+        [Fact]
+        public async Task UpdateAsync_ShouldAddAndRemoveTheDailyTarget()
+        {
+            var created = await CreateHabit("Read");
+
+            var measured = await _habitService.UpdateAsync(created.Id,
+                new HabitUpdateDto("Read", null, null, HabitDifficulty.Easy, HabitFrequencyType.Daily, null, null,
+                    TargetValue: 20, TargetUnit: "pages", TargetStep: 5),
+                FirstUserId, CancellationToken.None);
+
+            Assert.True(measured.IsSuccess);
+            Assert.Equal(20, measured.Value.TargetValue);
+            Assert.Equal(20, HabitSingleton.Instance.Single().TargetValue);
+
+            var binary = await _habitService.UpdateAsync(created.Id, UpdateDaily(), FirstUserId, CancellationToken.None);
+
+            Assert.True(binary.IsSuccess);
+            Assert.Null(binary.Value.TargetValue);
+            Assert.Null(HabitSingleton.Instance.Single().Target);
+        }
+
+        [Fact]
+        public async Task UpdateAsync_ShouldReturnValidationError_WhenTargetIsInvalid()
+        {
+            var created = await CreateHabit("Read");
+
+            var result = await _habitService.UpdateAsync(created.Id,
+                new HabitUpdateDto("Read", null, null, HabitDifficulty.Easy, HabitFrequencyType.Daily, null, null, TargetValue: 0, TargetUnit: "pages"),
+                FirstUserId, CancellationToken.None);
+
+            Assert.Equal(HabitErrors.InvalidTargetValue, result.Error);
+            Assert.Null(HabitSingleton.Instance.Single().Target);
+        }
+
+        [Fact]
         public async Task UpdateAsync_ShouldChangeValues_WhenValuesAreValid()
         {
             var created = await CreateHabit("Read");

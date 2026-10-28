@@ -128,6 +128,9 @@ namespace LifeManager.Application.Test.Habits.Mocks
                 habit.ArchivedAt,
                 habit.CurrentStreak,
                 habit.LongestStreak,
-                habit.EvaluatedUntil);
+                habit.EvaluatedUntil,
+                habit.TargetValue,
+                habit.TargetUnit,
+                habit.TargetStep);
     }
 }

@@ -41,6 +41,11 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
             builder.Property(habit => habit.WeekDays).IsRequired();
             builder.Property(habit => habit.TimesPerWeek);
 
+            // The daily target: all three null for a one-tap habit.
+            builder.Property(habit => habit.TargetValue);
+            builder.Property(habit => habit.TargetUnit).HasMaxLength(HabitTarget.UnitMaxLength);
+            builder.Property(habit => habit.TargetStep);
+
             builder.Property(habit => habit.StartDate).IsRequired();
             builder.Property(habit => habit.CreatedAt).IsRequired();
             builder.Property(habit => habit.ArchivedAt);
@@ -49,6 +54,7 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
             builder.Property(habit => habit.EvaluatedUntil).IsRequired();
 
             builder.Ignore(habit => habit.Frequency);
+            builder.Ignore(habit => habit.Target);
             builder.Ignore(habit => habit.IsArchived);
 
             // Names are unique among the user's active habits only: an archived habit frees its name.

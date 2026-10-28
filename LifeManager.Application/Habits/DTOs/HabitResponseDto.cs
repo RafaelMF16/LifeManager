@@ -5,6 +5,7 @@ namespace LifeManager.Application.Habits.DTOs
 {
     /// <param name="WeekDays">Monday first; empty unless the frequency is <see cref="HabitFrequencyType.WeekDays"/>.</param>
     /// <param name="ArchivedAt">Null while the habit is active.</param>
+    /// <param name="TargetValue">The daily target; null, with its unit and step, for a one-tap habit.</param>
     public record HabitResponseDto(
         int Id,
         string Name,
@@ -18,7 +19,10 @@ namespace LifeManager.Application.Habits.DTOs
         DateOnly StartDate,
         int CurrentStreak,
         int LongestStreak,
-        DateTimeOffset? ArchivedAt)
+        DateTimeOffset? ArchivedAt,
+        int? TargetValue,
+        string? TargetUnit,
+        int? TargetStep)
     {
         public static HabitResponseDto From(Habit habit)
             => new(
@@ -34,6 +38,9 @@ namespace LifeManager.Application.Habits.DTOs
                 habit.StartDate,
                 habit.CurrentStreak,
                 habit.LongestStreak,
-                habit.ArchivedAt);
+                habit.ArchivedAt,
+                habit.TargetValue,
+                habit.TargetUnit,
+                habit.TargetStep);
     }
 }

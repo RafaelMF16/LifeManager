@@ -393,6 +393,16 @@ namespace LifeManager.Infrastructure.Migrations
                     b.Property<DateOnly>("StartDate")
                         .HasColumnType("date");
 
+                    b.Property<int?>("TargetStep")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TargetUnit")
+                        .HasMaxLength(15)
+                        .HasColumnType("character varying(15)");
+
+                    b.Property<int?>("TargetValue")
+                        .HasColumnType("integer");
+
                     b.Property<int?>("TimesPerWeek")
                         .HasColumnType("integer");
 
