@@ -3,7 +3,8 @@ using LifeManager.Domain.Habits.Enums;
 namespace LifeManager.Domain.Habits
 {
     /// <summary>One day of a habit's history.</summary>
-    public record HabitDay(DateOnly Date, HabitDayState State);
+    /// <param name="Amount">The day's total progress; null when nothing was logged.</param>
+    public record HabitDay(DateOnly Date, HabitDayState State, int? Amount = null);
 
     public enum HabitConsistencyUnit
     {
@@ -41,12 +42,42 @@ namespace LifeManager.Domain.Habits
             return heatmapStart < weeksStart ? heatmapStart : weeksStart;
         }
 
-        /// <summary>The last <paramref name="days"/> days, oldest first.</summary>
-        public static IReadOnlyList<HabitDay> Days(Habit habit, IReadOnlyCollection<HabitCheckIn> checkIns, DateOnly today, int days = HeatmapDays)
+        /// <summary>
+        /// The last <paramref name="days"/> days, oldest first. A day with progress (<paramref name="amounts"/>) that isn't
+        /// done, frozen or otherwise settled reads as <see cref="HabitDayState.Partial"/>.
+        /// </summary>
+        /// <param name="amounts">The days' total progress; days without any are left out.</param>
+        public static IReadOnlyList<HabitDay> Days(
+            Habit habit,
+            IReadOnlyCollection<HabitCheckIn> checkIns,
+            DateOnly today,
+            IReadOnlyDictionary<DateOnly, int>? amounts = null,
+            int days = HeatmapDays)
         {
             var byDate = checkIns.ToDictionary(checkIn => checkIn.Date, checkIn => checkIn.Status);
 
-            return [.. Enumerable.Range(0, days).Select(offset => today.AddDays(offset - (days - 1))).Select(date => new HabitDay(date, State(habit, byDate, date, today)))];
+            return
+            [
+                .. Enumerable.Range(0, days)
+                    .Select(offset => today.AddDays(offset - (days - 1)))
+                    .Select(date => Day(habit, byDate, amounts, date, today))
+            ];
+        }
+
+        private static HabitDay Day(
+            Habit habit,
+            IReadOnlyDictionary<DateOnly, HabitCheckInStatus> byDate,
+            IReadOnlyDictionary<DateOnly, int>? amounts,
+            DateOnly date,
+            DateOnly today)
+        {
+            var state = State(habit, byDate, date, today);
+            if (amounts is null || !amounts.TryGetValue(date, out var amount) || amount <= 0)
+                return new HabitDay(date, state);
+
+            var partial = state is HabitDayState.Missed or HabitDayState.Pending or HabitDayState.None;
+
+            return new HabitDay(date, partial ? HabitDayState.Partial : state, amount);
         }
 
         /// <summary>

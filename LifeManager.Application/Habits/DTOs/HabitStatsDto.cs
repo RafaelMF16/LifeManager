@@ -14,7 +14,8 @@ namespace LifeManager.Application.Habits.DTOs
         HabitConsistencyDto Consistency,
         int TotalKept);
 
-    public record HabitDayDto(DateOnly Date, HabitDayState State);
+    /// <param name="Amount">The day's total progress towards the daily target; null when nothing was logged.</param>
+    public record HabitDayDto(DateOnly Date, HabitDayState State, int? Amount);
 
     /// <param name="Percent">Null while nothing was judged yet.</param>
     public record HabitConsistencyDto(int Achieved, int Due, int? Percent, HabitConsistencyUnit Unit)
