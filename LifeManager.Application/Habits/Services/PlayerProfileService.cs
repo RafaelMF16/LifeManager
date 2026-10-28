@@ -8,15 +8,17 @@ using LifeManager.Domain.Users.ValueObjects;
 namespace LifeManager.Application.Habits.Services
 {
     /// <summary>
-    /// The profile page: the player's appearance. Nothing here moves coins, XP or HP, so it never goes through
+    /// The profile page: the player's appearance and lifetime numbers. Nothing here moves coins, XP or HP, so it never goes through
     /// <see cref="PlayerWalletService"/> nor writes the ledger.
     /// </summary>
     public class PlayerProfileService(
         IPlayerProfileRepository playerProfileRepository,
-        IAchievementRepository achievementRepository)
+        IAchievementRepository achievementRepository,
+        IPlayerStatsRepository playerStatsRepository)
     {
         private readonly IPlayerProfileRepository _playerProfileRepository = playerProfileRepository;
         private readonly IAchievementRepository _achievementRepository = achievementRepository;
+        private readonly IPlayerStatsRepository _playerStatsRepository = playerStatsRepository;
 
         /// <summary>
         /// Picks the avatar and the title. The title is checked against the stored unlocks without syncing first: the
@@ -36,5 +38,8 @@ namespace LifeManager.Application.Habits.Services
 
             return PlayerProfileResponseDto.From(profile);
         }
+
+        public async Task<PlayerStatsDto> GetStatsAsync(UserId userId, CancellationToken cancellationToken)
+            => PlayerStatsDto.From(await _playerStatsRepository.GetStatsAsync(userId, cancellationToken));
     }
 }

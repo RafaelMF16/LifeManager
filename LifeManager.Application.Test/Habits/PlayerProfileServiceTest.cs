@@ -6,7 +6,11 @@ using LifeManager.Domain.Achievements;
 using LifeManager.Domain.Achievements.Enums;
 using LifeManager.Domain.Habits;
 using LifeManager.Domain.Habits.Enums;
+using LifeManager.Domain.GameItems.Enums;
 using LifeManager.Domain.Habits.Errors;
+using LifeManager.Domain.Habits.ValueObjects;
+using LifeManager.Domain.Rewards;
+using LifeManager.Domain.Rewards.ValueObjects;
 using LifeManager.Domain.Users.ValueObjects;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -41,6 +45,28 @@ namespace LifeManager.Application.Test.Habits
         private static void SeedUnlock(AchievementCode code)
             => AchievementUnlockSingleton.Instance.Add(AchievementUnlock.FromPersistence(
                 AchievementUnlockSingleton.Instance.Count + 1, UserId.Value, code, Today, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow));
+
+        private static void SeedHabit(int id, int longestStreak, HabitFrequencyType frequencyType = HabitFrequencyType.Daily)
+            => HabitSingleton.Instance.Add(Habit.FromPersistence(
+                id, UserId.Value, $"Habit {id}", null, null, HabitKind.Positive, HabitDifficulty.Easy, frequencyType, HabitWeekDays.None,
+                frequencyType == HabitFrequencyType.TimesPerWeek ? 3 : null, Today.AddDays(-100),
+                new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero), null, 0, longestStreak, Today.AddDays(-1)));
+
+        private static void SeedCheckIn(int habitId, DateOnly date, HabitCheckInStatus status = HabitCheckInStatus.Done)
+            => HabitCheckInSingleton.Instance.Add(HabitCheckIn.FromPersistence(
+                HabitCheckInSingleton.Instance.Count + 1, habitId, UserId.Value, date, status, DateTimeOffset.UnixEpoch, 0, 0, 0));
+
+        private static void SeedLedger(
+            GameLedgerEntryKind kind, int coins, DateOnly on, bool knockout = false,
+            HabitId? habitId = null, RewardId? rewardId = null, GameItemKind? itemKind = null)
+        {
+            var outcome = new GameOutcome(new GameDelta(coins, 0, 0), 0, 0, knockout, knockout ? 7 : 0, knockout ? GameRules.MaxHp : 0);
+            foreach (var entry in GameLedgerEntry.FromOutcome(UserId, kind, on, DateTimeOffset.UnixEpoch, null, outcome, habitId, rewardId, itemKind))
+            {
+                entry.AssignId(GameLedgerEntrySingleton.Instance.Count + 1);
+                GameLedgerEntrySingleton.Instance.Add(entry);
+            }
+        }
 
         private Task<Domain.Shared.Results.Result<PlayerProfileResponseDto>> UpdateAsync(PlayerAvatar avatar, AchievementCode? title)
             => _playerProfileService.UpdateAppearanceAsync(new UpdateAppearanceRequestDto(avatar, title), UserId, CancellationToken.None);
@@ -110,6 +136,52 @@ namespace LifeManager.Application.Test.Habits
 
             Assert.Equal(PlayerAvatar.Cat, profile.Avatar);
             Assert.Null(profile.Title);
+        }
+
+        [Fact]
+        public async Task GetStatsAsync_ShouldCountTheWholeHistory()
+        {
+            SeedHabit(1, longestStreak: 9);
+            SeedHabit(2, longestStreak: 2, HabitFrequencyType.TimesPerWeek);
+            SeedCheckIn(1, Today.AddDays(-3));
+            SeedCheckIn(1, Today.AddDays(-2));
+            SeedCheckIn(2, Today.AddDays(-2));
+            SeedCheckIn(2, Today.AddDays(-1), HabitCheckInStatus.Clean);
+            SeedCheckIn(2, Today, HabitCheckInStatus.Missed);
+            SeedUnlock(AchievementCode.CheckIns10);
+            RewardRedemptionSingleton.Instance.Add(RewardRedemption.FromPersistence(1, 1, UserId.Value, "Game", null, 30, Today, DateTimeOffset.UnixEpoch, null));
+
+            SeedLedger(GameLedgerEntryKind.HabitDone, 10, Today.AddDays(-40), habitId: new HabitId(1));
+            SeedLedger(GameLedgerEntryKind.HabitDone, 10, Today.AddDays(-3), habitId: new HabitId(1));
+            SeedLedger(GameLedgerEntryKind.Undo, -10, Today.AddDays(-3), habitId: new HabitId(1));
+            SeedLedger(GameLedgerEntryKind.AchievementUnlocked, 25, Today);
+            SeedLedger(GameLedgerEntryKind.RewardRedeemed, -30, Today, rewardId: new RewardId(1));
+            SeedLedger(GameLedgerEntryKind.ItemPurchased, -40, Today, itemKind: GameItemKind.HpPotion);
+            SeedLedger(GameLedgerEntryKind.Undo, 40, Today, itemKind: GameItemKind.HpPotion);
+            SeedLedger(GameLedgerEntryKind.HabitMissed, -5, Today, knockout: true, habitId: new HabitId(2));
+
+            var stats = await _playerProfileService.GetStatsAsync(UserId, CancellationToken.None);
+
+            Assert.Equal(3, stats.CheckIns);
+            Assert.Equal(1, stats.CleanDays);
+            Assert.Equal(14, stats.LongestStreakDays);
+            Assert.Equal(2, stats.MostKeptDaysInOneHabit);
+            Assert.Equal(3, stats.ActiveDays);
+            Assert.Equal(2, stats.HabitsCreated);
+            Assert.Equal(1, stats.Redemptions);
+            Assert.Equal(35, stats.CoinsEarned);
+            Assert.Equal(30, stats.CoinsSpent);
+            Assert.Equal(1, stats.Knockouts);
+            Assert.Equal(1, stats.AchievementsUnlocked);
+            Assert.Equal(Today.AddDays(-40), stats.PlayingSince);
+        }
+
+        [Fact]
+        public async Task GetStatsAsync_ShouldReturnZeros_ForANewPlayer()
+        {
+            var stats = await _playerProfileService.GetStatsAsync(UserId, CancellationToken.None);
+
+            Assert.Equal(new PlayerStatsDto(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, null), stats);
         }
     }
 }

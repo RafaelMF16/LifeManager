@@ -22,5 +22,10 @@ namespace LifeManager.WebApi.Habits.Controllers
         [HttpPut("Appearance")]
         public async Task<IActionResult> UpdateAppearance(UpdateAppearanceRequestDto request, CancellationToken cancellationToken)
             => (await _playerProfileService.UpdateAppearanceAsync(request, User.GetUserId(), cancellationToken)).Match(Ok);
+
+        /// <summary>The player's lifetime numbers.</summary>
+        [HttpGet("Stats")]
+        public async Task<IActionResult> GetStats(CancellationToken cancellationToken)
+            => Ok(await _playerProfileService.GetStatsAsync(User.GetUserId(), cancellationToken));
     }
 }

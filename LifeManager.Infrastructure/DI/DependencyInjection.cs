@@ -64,6 +64,7 @@ namespace LifeManager.Infrastructure.DI
             services.AddScoped<IRewardRedemptionRepository, RewardRedemptionRepository>();
             services.AddScoped<IGameItemPurchaseRepository, GameItemPurchaseRepository>();
             services.AddScoped<IAchievementRepository, AchievementRepository>();
+            services.AddScoped<IPlayerStatsRepository, PlayerStatsRepository>();
             services.AddScoped<IStatementImportRepository, StatementImportRepository>();
             services.AddScoped<ICategorizationRuleRepository, CategorizationRuleRepository>();
             services.AddScoped<IAccountHolderRepository, AccountHolderRepository>();
