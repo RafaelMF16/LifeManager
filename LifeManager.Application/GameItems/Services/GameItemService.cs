@@ -4,6 +4,7 @@ using LifeManager.Application.Shared.Time;
 using LifeManager.Domain.GameItems;
 using LifeManager.Domain.GameItems.Errors;
 using LifeManager.Domain.GameItems.Interfaces;
+using LifeManager.Domain.GameItems.ValueObjects;
 using LifeManager.Domain.Habits;
 using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.Habits.Interfaces;
@@ -81,6 +82,42 @@ namespace LifeManager.Application.GameItems.Services
                 return failure!;
 
             return new GameItemPurchaseResultDto(GameItemPurchaseResponseDto.From(purchase!, today), WalletChangeDto.From(profile, outcome!));
+        }
+
+        /// <summary>Gives the price back and takes the item back, the same day only (see <see cref="GameItemCatalog.Undo"/>).</summary>
+        public async Task<Result<GameItemPurchaseResultDto>> UndoAsync(int purchaseId, UserId userId, CancellationToken cancellationToken)
+        {
+            var purchase = await _gameItemPurchaseRepository.GetByIdAsync(new GameItemPurchaseId(purchaseId), userId, cancellationToken);
+            if (purchase is null)
+                return GameItemErrors.PurchaseNotFound;
+
+            var today = _appClock.Today();
+            var now = _timeProvider.GetUtcNow();
+
+            var undoResult = purchase.Undo(today, now);
+            if (!undoResult.IsSuccess)
+                return undoResult.Error;
+
+            Error? failure = null;
+            GameOutcome? outcome = null;
+
+            var profile = await _gameItemPurchaseRepository.UndoAsync(purchase, lockedProfile =>
+            {
+                var takenBack = GameItemCatalog.Undo(purchase.Kind, purchase.CostPaid, purchase.HpRestored, lockedProfile);
+                if (!takenBack.IsSuccess)
+                {
+                    failure = takenBack.Error;
+                    return null;
+                }
+
+                outcome = takenBack.Value;
+                return GameLedgerEntry.FromOutcome(userId, GameLedgerEntryKind.Undo, today, now, null, outcome, itemKind: purchase.Kind);
+            }, cancellationToken);
+
+            if (profile is null)
+                return failure ?? GameItemErrors.AlreadyUndone;
+
+            return new GameItemPurchaseResultDto(GameItemPurchaseResponseDto.From(purchase, today), WalletChangeDto.From(profile, outcome!));
         }
     }
 }

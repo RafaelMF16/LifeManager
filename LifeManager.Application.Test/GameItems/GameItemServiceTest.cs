@@ -1,5 +1,7 @@
 using LifeManager.Application.GameItems.DTOs;
 using LifeManager.Application.GameItems.Services;
+using LifeManager.Application.Habits.Services;
+using LifeManager.Application.Rewards.Services;
 using LifeManager.Application.Test.Configurations;
 using LifeManager.Application.Test.Configurations.SingletonLists;
 using LifeManager.Domain.GameItems;
@@ -7,6 +9,7 @@ using LifeManager.Domain.GameItems.Enums;
 using LifeManager.Domain.GameItems.Errors;
 using LifeManager.Domain.Habits;
 using LifeManager.Domain.Habits.Enums;
+using LifeManager.Domain.Habits.ValueObjects;
 using LifeManager.Domain.Shared.Results;
 using LifeManager.Domain.Users.ValueObjects;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,6 +35,9 @@ namespace LifeManager.Application.Test.GameItems
             _timeProvider.SetToday(Today);
 
             GameItemPurchaseSingleton.Instance.Clear();
+            HabitSingleton.Instance.Clear();
+            HabitCheckInSingleton.Instance.Clear();
+            HabitProgressEntrySingleton.Instance.Clear();
             PlayerProfileSingleton.Instance.Clear();
             GameLedgerEntrySingleton.Instance.Clear();
         }
@@ -63,6 +69,8 @@ namespace LifeManager.Application.Test.GameItems
         private static PlayerProfile Profile() => PlayerProfileSingleton.Instance.Single(profile => profile.UserId == UserId);
 
         private Task<Result<GameItemPurchaseResultDto>> Buy(string item) => _service.PurchaseAsync(item, UserId, CancellationToken.None);
+
+        private Task<Result<GameItemPurchaseResultDto>> Undo(int purchaseId) => _service.UndoAsync(purchaseId, UserId, CancellationToken.None);
 
         [Fact]
         public async Task PurchaseAsync_ShouldChargeHealAndRecordIt_WhenBuyingAPotion()
@@ -297,6 +305,155 @@ namespace LifeManager.Application.Test.GameItems
             Assert.Equal(GameItemAvailability.InsufficientCoins, response.Items[1].Availability);
             Assert.Empty(response.TodayPurchases);
             Assert.Empty(PlayerProfileSingleton.Instance);
+        }
+
+        [Fact]
+        public async Task UndoAsync_ShouldRefundAndTakeTheHealBack_WhenUndoingAPotion()
+        {
+            SeedProfile(coins: 100, hp: 70);
+            var purchase = (await Buy("HpPotion")).Value.Purchase;
+
+            var result = await Undo(purchase.Id);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(100, Profile().Coins);
+            Assert.Equal(70, Profile().Hp);
+            Assert.Equal(40, result.Value.Wallet.CoinsDelta);
+            Assert.Equal(-25, result.Value.Wallet.HpDelta);
+            Assert.True(result.Value.Purchase.IsUndone);
+            Assert.False(result.Value.Purchase.CanUndo);
+            Assert.True(GameItemPurchaseSingleton.Instance.Single().IsUndone);
+
+            var undo = GameLedgerEntrySingleton.Instance.Last();
+            Assert.Equal(GameLedgerEntryKind.Undo, undo.Kind);
+            Assert.Equal(GameItemKind.HpPotion, undo.ItemKind);
+            Assert.Null(undo.HabitId);
+            Assert.Equal(0, GameLedgerEntrySingleton.Instance.Sum(entry => entry.CoinsDelta));
+            Assert.Equal(0, GameLedgerEntrySingleton.Instance.Sum(entry => entry.HpDelta));
+        }
+
+        [Fact]
+        public async Task UndoAsync_ShouldStopAtOneHp_WhenTheHealWasAlreadySpent()
+        {
+            SeedProfile(coins: 100, hp: 70);
+            var purchase = (await Buy("HpPotion")).Value.Purchase;
+            Profile().Apply(new GameDelta(0, 0, -85));
+
+            var result = await Undo(purchase.Id);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(1, Profile().Hp);
+            Assert.Equal(-9, result.Value.Wallet.HpDelta);
+            Assert.False(result.Value.Wallet.KnockedOut);
+        }
+
+        [Fact]
+        public async Task UndoAsync_ShouldRefundAndRemoveTheFreeze_WhenUndoingAStreakFreeze()
+        {
+            SeedProfile(coins: 200);
+            var purchase = (await Buy("StreakFreeze")).Value.Purchase;
+
+            var result = await Undo(purchase.Id);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(200, Profile().Coins);
+            Assert.Equal(0, Profile().StreakFreezes);
+        }
+
+        [Fact]
+        public async Task UndoAsync_ShouldFreeTheLimitAgain()
+        {
+            SeedProfile(coins: 500);
+            var purchase = (await Buy("StreakFreeze")).Value.Purchase;
+            Assert.Equal(GameItemErrors.WeeklyLimitReached, (await Buy("StreakFreeze")).Error);
+
+            await Undo(purchase.Id);
+            var again = await Buy("StreakFreeze");
+
+            Assert.True(again.IsSuccess);
+        }
+
+        [Fact]
+        public async Task UndoAsync_ShouldReturnItemAlreadyUsed_WhenTheDayCloseSpentTheBoughtFreeze()
+        {
+            // The day close judges up to the day before yesterday: Monday the 26th, missed.
+            var habit = Habit.FromPersistence(
+                1, UserId.Value, "Habit", null, null, HabitKind.Positive, HabitDifficulty.Easy,
+                HabitFrequencyType.Daily, HabitWeekDays.None, null, new DateOnly(2026, 9, 1),
+                new DateTimeOffset(2026, 9, 1, 12, 0, 0, TimeSpan.Zero), null,
+                currentStreak: 5, longestStreak: 5, evaluatedUntil: new DateOnly(2026, 10, 25));
+            HabitSingleton.Instance.Add(habit);
+            SeedProfile(coins: 200);
+            var purchase = (await Buy("StreakFreeze")).Value.Purchase;
+
+            await ServiceProvider.GetRequiredService<HabitEvaluationService>().EvaluateUserAsync(UserId, CancellationToken.None);
+
+            var monday = HabitCheckInSingleton.Instance.Single(checkIn => checkIn.Date == new DateOnly(2026, 10, 26));
+            Assert.Equal(HabitCheckInStatus.Frozen, monday.Status);
+            Assert.Equal(0, Profile().StreakFreezes);
+            Assert.Equal(GameRules.MaxHp, Profile().Hp);
+
+            var result = await Undo(purchase.Id);
+
+            Assert.Equal(GameItemErrors.ItemAlreadyUsed, result.Error);
+            Assert.Equal(50, Profile().Coins);
+            Assert.False(GameItemPurchaseSingleton.Instance.Single().IsUndone);
+        }
+
+        [Fact]
+        public async Task UndoAsync_ShouldReturnUndoOutsideWindow_OnALaterDay()
+        {
+            SeedProfile(coins: 100, hp: 50);
+            var purchase = SeedPurchase(GameItemKind.HpPotion, Today.AddDays(-1));
+
+            var result = await Undo(purchase.Id!.Value);
+
+            Assert.Equal(GameItemErrors.UndoOutsideWindow, result.Error);
+            Assert.Equal(100, Profile().Coins);
+        }
+
+        [Fact]
+        public async Task UndoAsync_ShouldReturnAlreadyUndone_WhenUndoneTwice()
+        {
+            SeedProfile(coins: 100, hp: 50);
+            var purchase = (await Buy("HpPotion")).Value.Purchase;
+            await Undo(purchase.Id);
+
+            var result = await Undo(purchase.Id);
+
+            Assert.Equal(GameItemErrors.AlreadyUndone, result.Error);
+            Assert.Equal(100, Profile().Coins);
+        }
+
+        [Fact]
+        public async Task UndoAsync_ShouldReturnPurchaseNotFound_ForAnotherUsersPurchase()
+        {
+            SeedProfile(coins: 100, hp: 50);
+            var purchase = SeedPurchase(GameItemKind.HpPotion, Today, userId: OtherUserId);
+
+            var result = await Undo(purchase.Id!.Value);
+
+            Assert.Equal(GameItemErrors.PurchaseNotFound, result.Error);
+        }
+
+        [Fact]
+        public async Task EarningPace_ShouldIgnorePurchasesAndTheirUndos()
+        {
+            SeedProfile(coins: 500, hp: 50);
+            var outcome = new GameOutcome(new GameDelta(70, 0, 0), 0, 0, false, 0, 0);
+            var earned = GameLedgerEntry.FromOutcome(UserId, GameLedgerEntryKind.HabitDone, Today.AddDays(-6), Today.ToDateTime(TimeOnly.MinValue), null, outcome, habitId: new HabitId(1))[0];
+            earned.AssignId(1);
+            GameLedgerEntrySingleton.Instance.Add(earned);
+            var rewardRedemptionService = ServiceProvider.GetRequiredService<RewardRedemptionService>();
+            var before = await rewardRedemptionService.GetEarningPaceAsync(UserId, CancellationToken.None);
+
+            var potion = (await Buy("HpPotion")).Value.Purchase;
+            await Buy("StreakFreeze");
+            await Undo(potion.Id);
+            var after = await rewardRedemptionService.GetEarningPaceAsync(UserId, CancellationToken.None);
+
+            Assert.Equal(10m, before.AverageDailyCoins);
+            Assert.Equal(before, after);
         }
 
         private static void AssertNothingChanged(int coins)

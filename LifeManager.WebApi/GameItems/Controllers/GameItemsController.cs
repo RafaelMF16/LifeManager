@@ -21,5 +21,10 @@ namespace LifeManager.WebApi.GameItems.Controllers
         [HttpPost("{kind}/Purchase")]
         public async Task<IActionResult> Purchase(string kind, CancellationToken cancellationToken)
             => (await _gameItemService.PurchaseAsync(kind, User.GetUserId(), cancellationToken)).Match(Ok);
+
+        /// <summary>Refunds a purchase and takes the item back; only on the day it was made.</summary>
+        [HttpDelete("Purchases/{purchaseId:int}")]
+        public async Task<IActionResult> UndoPurchase(int purchaseId, CancellationToken cancellationToken)
+            => (await _gameItemService.UndoAsync(purchaseId, User.GetUserId(), cancellationToken)).Match(Ok);
     }
 }
