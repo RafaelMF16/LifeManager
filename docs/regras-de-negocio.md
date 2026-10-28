@@ -27,6 +27,7 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
   - [Fechamento do dia](#fechamento-do-dia)
   - [Estatísticas e extrato](#estatísticas-e-extrato)
   - [Conquistas](#conquistas)
+  - [Perfil do jogador](#perfil-do-jogador)
 - [Loja de recompensas](#loja-de-recompensas)
   - [Itens de jogo](#itens-de-jogo)
 - [Apêndice: códigos de erro](#apêndice-códigos-de-erro)
@@ -421,6 +422,22 @@ São **16 conquistas fixas**, em três níveis: **bronze, prata e ouro**. Cada u
 - **Aviso:** cada conquista nova aparece uma vez ("Conquista desbloqueada"), em qualquer aparelho.
 - O bônus de conquista **não** entra no ritmo de ganho da loja.
 
+### Perfil do jogador
+
+A página de perfil mostra quem o jogador é no jogo e o caminho que já fez.
+
+- **Aparência:**
+  - **avatar:** um de 12 ícones fixos, todos liberados (o padrão é o gato);
+  - **título:** o de qualquer conquista **desbloqueada**, ou nenhum. Como a conquista nunca é perdida, o título escolhido vale para sempre;
+  - trocar é de graça, sem limite, e não entra no extrato.
+- **Estatísticas** (o histórico inteiro, hábitos arquivados incluídos; as que existem nas conquistas usam a mesma conta):
+  - check-ins feitos, dias limpos, melhor ofensiva (semana = 7 dias) e mais dias cumpridos de um hábito;
+  - dias ativos (dias com algum dia cumprido), hábitos criados e resgates não desfeitos;
+  - **moedas ganhas:** com hábitos, pela regra do ritmo de ganho (um check-in desfeito devolve as suas), mais os bônus de conquista;
+  - **moedas gastas:** resgates e itens de jogo, sem os que foram desfeitos;
+  - nocautes, conquistas desbloqueadas e "jogando desde" (o dia do primeiro lançamento do extrato).
+- **Evolução:** o XP total e o saldo de moedas ao fim de cada dia de jogo, nos últimos 30, 90 (padrão) ou 365 dias, até hoje. Sai do extrato: cada dia soma tudo o que veio antes, então o último ponto é o perfil de agora, e um dia sem movimento repete o anterior.
+
 ## Loja de recompensas
 
 O próprio usuário cadastra as recompensas e as compra com as moedas ganhas nos hábitos.
@@ -583,6 +600,9 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 | `Habit.ProgressEntryNotFound` | NotFound | Remover um registro de progresso que não existe (ou de outro hábito) |
 | `PlayerProfile.StreakFreezesFull` | Conflict | O jogador já tem o máximo de proteções |
 | `PlayerProfile.NoStreakFreeze` | Conflict | Uso de proteção sem ter nenhuma |
+| `PlayerProfile.UnknownAvatar` | Validation | Avatar fora da lista fixa |
+| `PlayerProfile.TitleLocked` | Validation | Título de uma conquista não desbloqueada |
+| `PlayerProfile.UnknownEvolutionRange` | Validation | Período da evolução que não é `Month`, `Quarter` nem `Year` |
 
 ### Loja
 
