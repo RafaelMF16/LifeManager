@@ -11,6 +11,8 @@ using LifeManager.Application.Test.RecurringTransactions.Mocks;
 using LifeManager.Application.Test.BudgetPlans.Mocks;
 using LifeManager.Application.Test.Habits.Mocks;
 using LifeManager.Application.Test.Rewards.Mocks;
+using LifeManager.Application.Test.GameItems.Mocks;
+using LifeManager.Domain.GameItems.Interfaces;
 using LifeManager.Application.Test.StatementImports.Mocks;
 using LifeManager.Domain.StatementImports.Interfaces;
 using LifeManager.Domain.Categorization.Interfaces;
@@ -59,6 +61,7 @@ namespace LifeManager.Application.Test.Configurations
             services.AddScoped<IGameLedgerRepository, GameLedgerRepositoryMock>();
             services.AddScoped<IRewardRepository, RewardRepositoryMock>();
             services.AddScoped<IRewardRedemptionRepository, RewardRedemptionRepositoryMock>();
+            services.AddScoped<IGameItemPurchaseRepository, GameItemPurchaseRepositoryMock>();
             services.AddScoped<IStatementImportRepository, StatementImportRepositoryMock>();
             services.AddScoped<ICategorizationRuleRepository, CategorizationRuleRepositoryMock>();
             services.AddScoped<IAccountHolderRepository, AccountHolderRepositoryMock>();
