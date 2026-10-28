@@ -38,6 +38,14 @@ namespace LifeManager.Domain.Habits
 
         public HabitFrequency Frequency => HabitFrequency.FromPersistence(FrequencyType, WeekDays, TimesPerWeek);
 
+        // The daily target is stored as plain columns too (all null without one); Target rebuilds the value object.
+        public int? TargetValue { get; private set; }
+        public string? TargetUnit { get; private set; }
+        public int? TargetStep { get; private set; }
+
+        /// <summary>Null for a habit checked in with one tap; set for one completed by logging progress up to it.</summary>
+        public HabitTarget? Target => HabitTarget.FromPersistence(TargetValue, TargetUnit, TargetStep);
+
         /// <summary>First day the habit counts on.</summary>
         public DateOnly StartDate { get; }
 
@@ -68,7 +76,10 @@ namespace LifeManager.Domain.Habits
             DateTimeOffset? archivedAt,
             int currentStreak,
             int longestStreak,
-            DateOnly evaluatedUntil)
+            DateOnly evaluatedUntil,
+            int? targetValue,
+            string? targetUnit,
+            int? targetStep)
         {
             UserId = userId;
             Name = name;
@@ -86,9 +97,13 @@ namespace LifeManager.Domain.Habits
             CurrentStreak = currentStreak;
             LongestStreak = longestStreak;
             EvaluatedUntil = evaluatedUntil;
+            TargetValue = targetValue;
+            TargetUnit = targetUnit;
+            TargetStep = targetStep;
         }
 
         /// <param name="today">The user's current date: the habit starts counting on it.</param>
+        /// <param name="targetValue">The daily target; null (with no unit or step) for a habit checked in with one tap.</param>
         public static Result<Habit> Create(
             int idUser,
             string? name,
@@ -100,12 +115,15 @@ namespace LifeManager.Domain.Habits
             HabitWeekDays weekDays,
             int? timesPerWeek,
             DateOnly today,
-            DateTimeOffset now)
+            DateTimeOffset now,
+            int? targetValue = null,
+            string? targetUnit = null,
+            int? targetStep = null)
         {
             if (!Enum.IsDefined(kind))
                 return HabitErrors.InvalidKind;
 
-            var valuesResult = Validate(kind, name, description, trigger, difficulty, frequencyType, weekDays, timesPerWeek);
+            var valuesResult = Validate(kind, name, description, trigger, difficulty, frequencyType, weekDays, timesPerWeek, targetValue, targetUnit, targetStep);
             if (!valuesResult.IsSuccess)
                 return valuesResult.Error;
 
@@ -126,12 +144,16 @@ namespace LifeManager.Domain.Habits
                 archivedAt: null,
                 currentStreak: 0,
                 longestStreak: 0,
-                evaluatedUntil: today.AddDays(-1));
+                evaluatedUntil: today.AddDays(-1),
+                values.Target?.Value,
+                values.Target?.Unit,
+                values.Target?.Step);
         }
 
         /// <summary>
         /// Changes everything but the kind. A new frequency applies from the next day judged; days already judged stay
-        /// as they were.
+        /// as they were. A new target (or none) applies from the next progress logged or removed: it never completes or
+        /// undoes a day by itself.
         /// </summary>
         public Result<Habit> Update(
             string? name,
@@ -140,12 +162,15 @@ namespace LifeManager.Domain.Habits
             HabitDifficulty difficulty,
             HabitFrequencyType frequencyType,
             HabitWeekDays weekDays,
-            int? timesPerWeek)
+            int? timesPerWeek,
+            int? targetValue = null,
+            string? targetUnit = null,
+            int? targetStep = null)
         {
             if (IsArchived)
                 return HabitErrors.Archived;
 
-            var valuesResult = Validate(Kind, name, description, trigger, difficulty, frequencyType, weekDays, timesPerWeek);
+            var valuesResult = Validate(Kind, name, description, trigger, difficulty, frequencyType, weekDays, timesPerWeek, targetValue, targetUnit, targetStep);
             if (!valuesResult.IsSuccess)
                 return valuesResult.Error;
 
@@ -159,6 +184,9 @@ namespace LifeManager.Domain.Habits
             FrequencyType = values.Frequency.Type;
             WeekDays = values.Frequency.WeekDays;
             TimesPerWeek = values.Frequency.TimesPerWeek;
+            TargetValue = values.Target?.Value;
+            TargetUnit = values.Target?.Unit;
+            TargetStep = values.Target?.Step;
 
             return this;
         }
@@ -265,7 +293,10 @@ namespace LifeManager.Domain.Habits
             DateTimeOffset? archivedAt,
             int currentStreak,
             int longestStreak,
-            DateOnly evaluatedUntil)
+            DateOnly evaluatedUntil,
+            int? targetValue = null,
+            string? targetUnit = null,
+            int? targetStep = null)
         {
             var habit = new Habit(
                 new UserId(idUser),
@@ -282,7 +313,10 @@ namespace LifeManager.Domain.Habits
                 archivedAt,
                 currentStreak,
                 longestStreak,
-                evaluatedUntil);
+                evaluatedUntil,
+                targetValue,
+                targetUnit,
+                targetStep);
             habit.AssignId(id);
 
             return habit;
@@ -301,7 +335,10 @@ namespace LifeManager.Domain.Habits
             HabitDifficulty difficulty,
             HabitFrequencyType frequencyType,
             HabitWeekDays weekDays,
-            int? timesPerWeek)
+            int? timesPerWeek,
+            int? targetValue,
+            string? targetUnit,
+            int? targetStep)
         {
             var nameResult = HabitName.Create(name);
             if (!nameResult.IsSuccess)
@@ -322,14 +359,22 @@ namespace LifeManager.Domain.Habits
             if (!frequencyResult.IsSuccess)
                 return frequencyResult.Error;
 
-            return new ValidatedValues(nameResult.Value, descriptionResult.Value, triggerResult.Value, frequencyResult.Value);
+            var targetResult = HabitTarget.Create(targetValue, targetUnit, targetStep);
+            if (!targetResult.IsSuccess)
+                return targetResult.Error;
+
+            if (targetResult.Value is not null && kind != HabitKind.Positive)
+                return HabitErrors.TargetNotAllowed;
+
+            return new ValidatedValues(nameResult.Value, descriptionResult.Value, triggerResult.Value, frequencyResult.Value, targetResult.Value);
         }
 
         private record ValidatedValues(
             HabitName Name,
             HabitDescription? Description,
             HabitTrigger? Trigger,
-            HabitFrequency Frequency);
+            HabitFrequency Frequency,
+            HabitTarget? Target);
 
         public override bool Equals(object? obj)
         {
