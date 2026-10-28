@@ -53,6 +53,7 @@ namespace LifeManager.Infrastructure.DI
             services.AddScoped<IPlayerProfileRepository, PlayerProfileRepository>();
             services.AddScoped<IHabitRepository, HabitRepository>();
             services.AddScoped<IHabitCheckInRepository, HabitCheckInRepository>();
+            services.AddScoped<IHabitProgressRepository, HabitProgressRepository>();
             services.AddScoped<IHabitEvaluationRepository, HabitEvaluationRepository>();
             services.AddScoped<IGameLedgerRepository, GameLedgerRepository>();
             services.AddScoped<IRewardRepository, RewardRepository>();
