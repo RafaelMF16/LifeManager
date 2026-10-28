@@ -30,6 +30,15 @@ namespace LifeManager.Domain.Habits
         public const int FreezeEvery = 7;
         public const int MaxStreakFreezes = 2;
 
+        /// <summary>Shop item: a streak freeze, bought at most this many times per Monday-to-Sunday week.</summary>
+        public const int StreakFreezePrice = 150;
+        public const int MaxStreakFreezePurchasesPerWeek = 1;
+
+        /// <summary>Shop item: an HP potion heals this much (never past <see cref="MaxHp"/>), at most this many per day.</summary>
+        public const int HpPotionPrice = 40;
+        public const int HpPotionRestore = 25;
+        public const int MaxHpPotionsPerDay = 3;
+
         /// <summary>Coin bonus per <see cref="FreezeEvery"/> streak days, capped at <see cref="MaxStreakBonusSteps"/> steps (+50%).</summary>
         public const decimal StreakBonusStep = 0.1m;
         public const int MaxStreakBonusSteps = 5;

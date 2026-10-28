@@ -1,3 +1,4 @@
+using LifeManager.Domain.GameItems.Errors;
 using LifeManager.Domain.Habits.Errors;
 using LifeManager.Domain.Habits.ValueObjects;
 using LifeManager.Domain.Shared.Results;
@@ -108,6 +109,16 @@ namespace LifeManager.Domain.Habits
         {
             if (StreakFreezes <= 0)
                 return PlayerProfileErrors.NoStreakFreeze;
+
+            StreakFreezes--;
+            return Result.Success();
+        }
+
+        /// <summary>Takes back a freeze bought in the shop; refused once the day close already used it.</summary>
+        public Result RemoveStreakFreeze()
+        {
+            if (StreakFreezes <= 0)
+                return GameItemErrors.ItemAlreadyUsed;
 
             StreakFreezes--;
             return Result.Success();

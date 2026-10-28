@@ -1,3 +1,4 @@
+using LifeManager.Domain.GameItems.Errors;
 using LifeManager.Domain.Habits;
 using LifeManager.Domain.Habits.Errors;
 using LifeManager.Domain.Users.ValueObjects;
@@ -223,6 +224,28 @@ namespace LifeManager.Domain.Test.Habits
 
             Assert.False(result.IsSuccess);
             Assert.Equal(PlayerProfileErrors.NoStreakFreeze, result.Error);
+            Assert.Equal(0, profile.StreakFreezes);
+        }
+
+        [Fact]
+        public void RemoveStreakFreeze_ShouldRemoveOne_WhenThePlayerHasAny()
+        {
+            var profile = Profile(streakFreezes: 1);
+
+            var result = profile.RemoveStreakFreeze();
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(0, profile.StreakFreezes);
+        }
+
+        [Fact]
+        public void RemoveStreakFreeze_ShouldReturnItemAlreadyUsed_WhenThePlayerHasNone()
+        {
+            var profile = Profile(streakFreezes: 0);
+
+            var result = profile.RemoveStreakFreeze();
+
+            Assert.Equal(GameItemErrors.ItemAlreadyUsed, result.Error);
             Assert.Equal(0, profile.StreakFreezes);
         }
     }
