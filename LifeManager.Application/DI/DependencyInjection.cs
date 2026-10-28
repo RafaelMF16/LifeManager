@@ -1,3 +1,4 @@
+using LifeManager.Application.Achievements.Services;
 ﻿using LifeManager.Application.AccountHolders.Services;
 using LifeManager.Application.Auth.Services;
 using LifeManager.Application.BudgetPlans.Services;
@@ -50,6 +51,7 @@ namespace LifeManager.Application.DI
             services.AddScoped<RewardService>();
             services.AddScoped<RewardRedemptionService>();
             services.AddScoped<GameItemService>();
+            services.AddScoped<AchievementService>();
             services.AddScoped<StatementImportService>();
             services.AddScoped<StatementImportRowService>();
 

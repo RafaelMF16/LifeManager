@@ -1,3 +1,5 @@
+using LifeManager.Application.Test.Achievements.Mocks;
+using LifeManager.Domain.Achievements.Interfaces;
 using LifeManager.Application.Test.AccountHolders.Mocks;
 using LifeManager.Domain.AccountHolders.Interfaces;
 using LifeManager.Application.Auth.Emails;
@@ -62,6 +64,7 @@ namespace LifeManager.Application.Test.Configurations
             services.AddScoped<IRewardRepository, RewardRepositoryMock>();
             services.AddScoped<IRewardRedemptionRepository, RewardRedemptionRepositoryMock>();
             services.AddScoped<IGameItemPurchaseRepository, GameItemPurchaseRepositoryMock>();
+            services.AddScoped<IAchievementRepository, AchievementRepositoryMock>();
             services.AddScoped<IStatementImportRepository, StatementImportRepositoryMock>();
             services.AddScoped<ICategorizationRuleRepository, CategorizationRuleRepositoryMock>();
             services.AddScoped<IAccountHolderRepository, AccountHolderRepositoryMock>();
