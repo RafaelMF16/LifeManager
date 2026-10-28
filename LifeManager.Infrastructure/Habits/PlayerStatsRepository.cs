@@ -73,5 +73,24 @@ namespace LifeManager.Infrastructure.Habits
                 row.AchievementsUnlocked,
                 row.PlayingSince);
         }
+
+        public async Task<PlayerLedgerHistory> GetLedgerHistoryAsync(UserId userId, DateOnly start, DateOnly end, CancellationToken cancellationToken)
+        {
+            var ledger = _dbContext.GameLedgerEntries.Where(entry => entry.UserId == userId);
+
+            var before = await ledger
+                .Where(entry => entry.OccurredOn < start)
+                .GroupBy(entry => 1)
+                .Select(entries => new PlayerTotals(entries.Sum(entry => entry.XpDelta), entries.Sum(entry => entry.CoinsDelta)))
+                .SingleOrDefaultAsync(cancellationToken);
+
+            var days = await ledger
+                .Where(entry => entry.OccurredOn >= start && entry.OccurredOn <= end)
+                .GroupBy(entry => entry.OccurredOn)
+                .Select(entries => new PlayerDayDelta(entries.Key, entries.Sum(entry => entry.XpDelta), entries.Sum(entry => entry.CoinsDelta)))
+                .ToListAsync(cancellationToken);
+
+            return new PlayerLedgerHistory(before ?? new PlayerTotals(0, 0), days);
+        }
     }
 }

@@ -1,5 +1,6 @@
 using LifeManager.Application.Habits.DTOs;
 using LifeManager.Application.Habits.Services;
+using LifeManager.Domain.Habits.Enums;
 using LifeManager.WebApi.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -27,5 +28,10 @@ namespace LifeManager.WebApi.Habits.Controllers
         [HttpGet("Stats")]
         public async Task<IActionResult> GetStats(CancellationToken cancellationToken)
             => Ok(await _playerProfileService.GetStatsAsync(User.GetUserId(), cancellationToken));
+
+        /// <summary>XP and coins day by day over the range (<c>Month</c>, <c>Quarter</c> by default, or <c>Year</c>).</summary>
+        [HttpGet("Evolution")]
+        public async Task<IActionResult> GetEvolution([FromQuery] EvolutionRange range = EvolutionRange.Quarter, CancellationToken cancellationToken = default)
+            => (await _playerProfileService.GetEvolutionAsync(range, User.GetUserId(), cancellationToken)).Match(Ok);
     }
 }

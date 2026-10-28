@@ -183,5 +183,44 @@ namespace LifeManager.Application.Test.Habits
 
             Assert.Equal(new PlayerStatsDto(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, null), stats);
         }
+
+        [Fact]
+        public async Task GetEvolutionAsync_ShouldEndTodayAtTheProfileTotals_StartingFromWhatCameBefore()
+        {
+            await _playerWalletService.ApplyAsync(UserId, GameLedgerEntryKind.HabitDone, new GameDelta(10, 20, 0), Today.AddDays(-60), "Read", CancellationToken.None);
+            await _playerWalletService.ApplyAsync(UserId, GameLedgerEntryKind.HabitDone, new GameDelta(5, 15, 0), Today.AddDays(-2), "Read", CancellationToken.None);
+            await _playerWalletService.ApplyAsync(UserId, GameLedgerEntryKind.RewardRedeemed, new GameDelta(-8, 0, 0), Today, "Game", CancellationToken.None);
+
+            var result = await _playerProfileService.GetEvolutionAsync(EvolutionRange.Month, UserId, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            var points = result.Value!.Points;
+            Assert.Equal(EvolutionRange.Month, result.Value.Range);
+            Assert.Equal(30, points.Count);
+            Assert.Equal(new EvolutionPointDto(Today.AddDays(-29), 20, 10), points[0]);
+            Assert.Equal(new EvolutionPointDto(Today.AddDays(-2), 35, 15), points[^3]);
+
+            var profile = PlayerProfileSingleton.Instance.Single();
+            Assert.Equal(new EvolutionPointDto(Today, profile.TotalXp, profile.Coins), points[^1]);
+        }
+
+        [Theory]
+        [InlineData(EvolutionRange.Quarter, 90)]
+        [InlineData(EvolutionRange.Year, 365)]
+        public async Task GetEvolutionAsync_ShouldGiveOnePointPerDayOfTheRange(EvolutionRange range, int days)
+        {
+            var result = await _playerProfileService.GetEvolutionAsync(range, UserId, CancellationToken.None);
+
+            Assert.Equal(days, result.Value!.Points.Count);
+            Assert.Equal(Today, result.Value.Points[^1].Date);
+        }
+
+        [Fact]
+        public async Task GetEvolutionAsync_ShouldRefuseARangeOutsideTheList()
+        {
+            var result = await _playerProfileService.GetEvolutionAsync((EvolutionRange)9, UserId, CancellationToken.None);
+
+            Assert.Equal(PlayerProfileErrors.UnknownEvolutionRange, result.Error);
+        }
     }
 }

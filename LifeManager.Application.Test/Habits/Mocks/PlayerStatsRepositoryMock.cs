@@ -42,5 +42,19 @@ namespace LifeManager.Application.Test.Habits.Mocks
                 AchievementUnlockSingleton.Instance.Count(unlock => unlock.UserId == userId),
                 ledger.Count == 0 ? null : ledger.Min(entry => entry.OccurredOn)));
         }
+
+        public Task<PlayerLedgerHistory> GetLedgerHistoryAsync(UserId userId, DateOnly start, DateOnly end, CancellationToken cancellationToken)
+        {
+            var ledger = GameLedgerEntrySingleton.Instance.Where(entry => entry.UserId == userId).ToList();
+            var before = ledger.Where(entry => entry.OccurredOn < start).ToList();
+            var days = ledger
+                .Where(entry => entry.OccurredOn >= start && entry.OccurredOn <= end)
+                .GroupBy(entry => entry.OccurredOn)
+                .Select(entries => new PlayerDayDelta(entries.Key, entries.Sum(entry => entry.XpDelta), entries.Sum(entry => entry.CoinsDelta)))
+                .ToList();
+
+            return Task.FromResult(new PlayerLedgerHistory(
+                new PlayerTotals(before.Sum(entry => entry.XpDelta), before.Sum(entry => entry.CoinsDelta)), days));
+        }
     }
 }
