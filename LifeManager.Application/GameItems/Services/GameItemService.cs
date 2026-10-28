@@ -71,7 +71,7 @@ namespace LifeManager.Application.GameItems.Services
                 }
 
                 outcome = purchaseResult.Value.Outcome;
-                purchase = GameItemPurchase.Create(userId, kind, GameItemCatalog.Price(kind), purchaseResult.Value.HpRestored, today, now);
+                purchase = GameItemPurchase.Create(userId, kind, purchaseResult.Value.CostPaid, purchaseResult.Value.HpRestored, today, now);
 
                 return new GameItemPurchaseDecision(
                     purchase,

@@ -5,8 +5,8 @@ using LifeManager.Domain.Shared.Results;
 
 namespace LifeManager.Domain.GameItems
 {
-    /// <summary>What a purchase changed: the applied outcome and the HP the potion actually healed (0 for a freeze).</summary>
-    public record GameItemPurchaseOutcome(GameOutcome Outcome, int HpRestored);
+    /// <summary>What a purchase changed: the applied outcome, the price charged and the HP the potion actually healed (0 for a freeze).</summary>
+    public record GameItemPurchaseOutcome(GameOutcome Outcome, int CostPaid, int HpRestored);
 
     /// <summary>
     /// The shop's fixed game items and their rules (numbers in <see cref="GameRules"/>). Pure: the caller passes the
@@ -105,8 +105,9 @@ namespace LifeManager.Domain.GameItems
                     return added.Error;
             }
 
-            var outcome = profile.Apply(new GameDelta(-Price(kind), 0, hpRestored));
-            return new GameItemPurchaseOutcome(outcome, hpRestored);
+            var price = Price(kind);
+            var outcome = profile.Apply(new GameDelta(-price, 0, hpRestored));
+            return new GameItemPurchaseOutcome(outcome, price, hpRestored);
         }
 
         /// <summary>

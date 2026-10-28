@@ -65,6 +65,7 @@ namespace LifeManager.Domain.Test.GameItems
             Assert.True(result.IsSuccess);
             Assert.Equal(new GameDelta(-40, 0, 25), result.Value.Outcome.Applied);
             Assert.Equal(25, result.Value.HpRestored);
+            Assert.Equal(40, result.Value.CostPaid);
             Assert.Equal(95, profile.Hp);
             Assert.Equal(60, profile.Coins);
         }
@@ -92,6 +93,7 @@ namespace LifeManager.Domain.Test.GameItems
             Assert.True(result.IsSuccess);
             Assert.Equal(new GameDelta(-150, 0, 0), result.Value.Outcome.Applied);
             Assert.Equal(0, result.Value.HpRestored);
+            Assert.Equal(150, result.Value.CostPaid);
             Assert.Equal(2, profile.StreakFreezes);
             Assert.Equal(50, profile.Coins);
         }

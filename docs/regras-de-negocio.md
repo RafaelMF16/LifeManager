@@ -414,7 +414,7 @@ Além das recompensas do usuário, a loja vende dois **itens de jogo** fixos, qu
 - A compra fica no **extrato** como "item comprado", com as moedas pagas e o HP curado.
 - **Desfazer uma compra:** só **no mesmo dia** e só uma vez. O preço volta integralmente e o limite é liberado de novo.
   - **Poção:** a cura é retirada, mas o HP para em 1 (o desfazer nunca derruba o jogador).
-  - **Proteção:** só se o jogador ainda tiver alguma guardada. Se o fechamento do dia já a usou, o desfazer é recusado.
+  - **Proteção:** só se o jogador ainda tiver alguma guardada. Se o fechamento do dia já a usou, o desfazer é recusado. As proteções não guardam a origem: o desfazer tira uma das guardadas, seja a comprada ou uma ganha pela ofensiva. O saldo final é o mesmo de quem nunca comprou.
 
 ## Apêndice: códigos de erro
 
