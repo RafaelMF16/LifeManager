@@ -1,3 +1,4 @@
+using LifeManager.Domain.GameItems.Enums;
 using LifeManager.Domain.Habits;
 using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.Shared.Paging;
@@ -16,7 +17,8 @@ namespace LifeManager.Application.Habits.DTOs
 
     /// <summary>One line of the player's statement.</summary>
     /// <param name="OccurredOn">The game day it belongs to, <c>yyyy-MM-dd</c>.</param>
-    /// <param name="Description">The habit or reward name as it was then; null for level-ups and knockouts.</param>
+    /// <param name="Description">The habit or reward name as it was then; null for level-ups, knockouts and game items.</param>
+    /// <param name="ItemKind">The game item behind a purchase or its undo, which the frontend names in the player's language.</param>
     public record GameLedgerEntryResponseDto(
         int Id,
         GameLedgerEntryKind Kind,
@@ -27,7 +29,8 @@ namespace LifeManager.Application.Habits.DTOs
         int HpDelta,
         string? Description,
         int? HabitId,
-        int? RewardId)
+        int? RewardId,
+        GameItemKind? ItemKind)
     {
         public static GameLedgerEntryResponseDto From(GameLedgerEntry entry)
             => new(
@@ -40,6 +43,7 @@ namespace LifeManager.Application.Habits.DTOs
                 entry.HpDelta,
                 entry.Description,
                 entry.HabitId?.Value,
-                entry.RewardId?.Value);
+                entry.RewardId?.Value,
+                entry.ItemKind);
     }
 }

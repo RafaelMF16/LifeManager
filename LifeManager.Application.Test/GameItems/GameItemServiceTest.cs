@@ -1,4 +1,5 @@
 using LifeManager.Application.GameItems.DTOs;
+using LifeManager.Application.Habits.DTOs;
 using LifeManager.Application.GameItems.Services;
 using LifeManager.Application.Habits.Services;
 using LifeManager.Application.Rewards.Services;
@@ -454,6 +455,26 @@ namespace LifeManager.Application.Test.GameItems
 
             Assert.Equal(10m, before.AverageDailyCoins);
             Assert.Equal(before, after);
+        }
+
+        [Fact]
+        public async Task Ledger_ShouldNameTheItem_OnPurchasesAndTheirUndosOnly()
+        {
+            SeedProfile(coins: 100, hp: 50);
+            var outcome = new GameOutcome(new GameDelta(5, 0, 0), 0, 0, false, 0, 0);
+            var habitUndo = GameLedgerEntry.FromOutcome(UserId, GameLedgerEntryKind.Undo, Today, Today.ToDateTime(TimeOnly.MinValue), "Read", outcome, habitId: new HabitId(1))[0];
+            habitUndo.AssignId(1);
+            GameLedgerEntrySingleton.Instance.Add(habitUndo);
+            var potion = (await Buy("HpPotion")).Value.Purchase;
+            await Undo(potion.Id);
+
+            var ledger = await ServiceProvider.GetRequiredService<GameLedgerService>()
+                .GetPagedAsync(new GameLedgerListQueryDto(), UserId, CancellationToken.None);
+
+            var byKind = ledger.Value!.Items.ToDictionary(entry => entry.Id);
+            Assert.Null(byKind[1].ItemKind);
+            Assert.All(ledger.Value.Items.Where(entry => entry.Id != 1), entry => Assert.Equal(GameItemKind.HpPotion, entry.ItemKind));
+            Assert.Equal(3, ledger.Value.Items.Count);
         }
 
         private static void AssertNothingChanged(int coins)
