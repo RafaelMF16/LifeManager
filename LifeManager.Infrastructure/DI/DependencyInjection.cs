@@ -1,3 +1,5 @@
+using LifeManager.Domain.Achievements.Interfaces;
+using LifeManager.Infrastructure.Achievements;
 using LifeManager.Domain.AccountHolders.Interfaces;
 using LifeManager.Infrastructure.AccountHolders;
 using LifeManager.Domain.Auth.Interfaces;
@@ -61,6 +63,7 @@ namespace LifeManager.Infrastructure.DI
             services.AddScoped<IRewardRepository, RewardRepository>();
             services.AddScoped<IRewardRedemptionRepository, RewardRedemptionRepository>();
             services.AddScoped<IGameItemPurchaseRepository, GameItemPurchaseRepository>();
+            services.AddScoped<IAchievementRepository, AchievementRepository>();
             services.AddScoped<IStatementImportRepository, StatementImportRepository>();
             services.AddScoped<ICategorizationRuleRepository, CategorizationRuleRepository>();
             services.AddScoped<IAccountHolderRepository, AccountHolderRepository>();

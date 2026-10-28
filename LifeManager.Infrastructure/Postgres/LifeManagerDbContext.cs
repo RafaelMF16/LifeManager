@@ -1,3 +1,4 @@
+using LifeManager.Domain.Achievements;
 using LifeManager.Domain.AccountHolders;
 using LifeManager.Domain.Auth;
 using LifeManager.Domain.BudgetPlans;
@@ -37,6 +38,7 @@ namespace LifeManager.Infrastructure.Postgres
         public DbSet<Reward> Rewards { get; set; }
         public DbSet<RewardRedemption> RewardRedemptions { get; set; }
         public DbSet<GameItemPurchase> GameItemPurchases { get; set; }
+        public DbSet<AchievementUnlock> AchievementUnlocks { get; set; }
         public DbSet<StatementImport> StatementImports { get; set; }
         public DbSet<StatementImportRow> StatementImportRows { get; set; }
         public DbSet<CategorizationRule> CategorizationRules { get; set; }
