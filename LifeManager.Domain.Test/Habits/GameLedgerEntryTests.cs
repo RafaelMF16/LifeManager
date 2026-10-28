@@ -1,3 +1,4 @@
+using LifeManager.Domain.Achievements.Enums;
 using LifeManager.Domain.GameItems.Enums;
 using LifeManager.Domain.Habits;
 using LifeManager.Domain.Habits.Enums;
@@ -137,6 +138,28 @@ namespace LifeManager.Domain.Test.Habits
             var entry = GameLedgerEntry.FromOutcome(UserId, GameLedgerEntryKind.HabitDone, Day, Now, null, outcome).Single();
 
             Assert.Null(entry.ItemKind);
+        }
+
+        [Fact]
+        public void FromOutcome_ShouldCarryTheAchievementCode_OnEveryEntry()
+        {
+            var outcome = Profile(totalXp: 90).Apply(new GameDelta(Coins: 25, Xp: 50, Hp: 0));
+
+            var entries = GameLedgerEntry.FromOutcome(UserId, GameLedgerEntryKind.AchievementUnlocked, Day, Now, null, outcome, achievementCode: AchievementCode.CheckIns10);
+
+            Assert.Equal([GameLedgerEntryKind.AchievementUnlocked, GameLedgerEntryKind.LevelUp], entries.Select(entry => entry.Kind));
+            Assert.All(entries, entry => Assert.Equal(AchievementCode.CheckIns10, entry.AchievementCode));
+            Assert.Null(entries[0].ItemKind);
+        }
+
+        [Fact]
+        public void FromOutcome_ShouldLeaveTheAchievementCodeEmpty_ByDefault()
+        {
+            var outcome = Profile().Apply(new GameDelta(Coins: 5, Xp: 0, Hp: 0));
+
+            var entry = GameLedgerEntry.FromOutcome(UserId, GameLedgerEntryKind.HabitDone, Day, Now, null, outcome).Single();
+
+            Assert.Null(entry.AchievementCode);
         }
     }
 }

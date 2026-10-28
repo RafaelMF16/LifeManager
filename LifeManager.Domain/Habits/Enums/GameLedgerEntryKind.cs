@@ -13,6 +13,7 @@ namespace LifeManager.Domain.Habits.Enums
         Undo = 8,
         FreezeUsed = 9,
         LevelUp = 10,
-        ItemPurchased = 11
+        ItemPurchased = 11,
+        AchievementUnlocked = 12
     }
 }
