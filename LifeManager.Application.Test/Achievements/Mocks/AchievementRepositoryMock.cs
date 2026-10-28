@@ -1,5 +1,6 @@
 using LifeManager.Application.Test.Configurations.SingletonLists;
 using LifeManager.Domain.Achievements;
+using LifeManager.Domain.Achievements.Enums;
 using LifeManager.Domain.Achievements.Interfaces;
 using LifeManager.Domain.Habits;
 using LifeManager.Domain.Habits.Enums;
@@ -10,7 +11,7 @@ namespace LifeManager.Application.Test.Achievements.Mocks
     /// <summary>
     /// Mirrors AchievementRepository over the singletons: the progress is the same counts as its SELECT, and unlocking
     /// locks (default profile if missing), reads again, decides, then writes the unlocks, the ledger and the profile, or
-    /// nothing. <see cref="UnlockCalls"/> tells whether a sync took the lock.
+    /// nothing. <see cref="UnlockCalls"/> tells whether a sync took the lock; <see cref="BeforeLockedRead"/> plays a race.
     /// </summary>
     public class AchievementRepositoryMock : IAchievementRepository
     {
@@ -19,6 +20,9 @@ namespace LifeManager.Application.Test.Achievements.Mocks
         private readonly GameLedgerEntrySingleton _ledger = GameLedgerEntrySingleton.Instance;
 
         public static int UnlockCalls { get; set; }
+
+        /// <summary>Runs after the lock and before the reads under it: lets a test play another sync that won the race.</summary>
+        public static Action? BeforeLockedRead { get; set; }
 
         public Task<AchievementProgress> GetProgressAsync(UserId userId, CancellationToken cancellationToken)
             => Task.FromResult(Progress(userId));
@@ -32,6 +36,7 @@ namespace LifeManager.Application.Test.Achievements.Mocks
             CancellationToken cancellationToken)
         {
             UnlockCalls++;
+            BeforeLockedRead?.Invoke();
             var profileIndex = LockProfile(userId);
             var profile = Copy(_profiles[profileIndex]);
 
@@ -59,9 +64,9 @@ namespace LifeManager.Application.Test.Achievements.Mocks
             return Task.FromResult(decision.Unlocks);
         }
 
-        public Task MarkSeenAsync(UserId userId, DateTimeOffset now, CancellationToken cancellationToken)
+        public Task MarkSeenAsync(UserId userId, IReadOnlyCollection<AchievementCode> codes, DateTimeOffset now, CancellationToken cancellationToken)
         {
-            foreach (var unlock in _unlocks.Where(unlock => unlock.UserId == userId))
+            foreach (var unlock in _unlocks.Where(unlock => unlock.UserId == userId && codes.Contains(unlock.Code)))
                 unlock.MarkSeen(now);
 
             return Task.CompletedTask;

@@ -25,21 +25,25 @@ namespace LifeManager.Application.Achievements.Services
         /// Unlocks what's new, paying the bonuses. Reads without the lock first, so a read with nothing new costs no
         /// lock; the unlock reads everything again under it.
         /// </summary>
-        /// <returns>The achievements unlocked by this call, in catalog order.</returns>
-        public async Task<IReadOnlyList<AchievementUnlock>> SyncAsync(UserId userId, CancellationToken cancellationToken)
+        public async Task<AchievementSyncResult> SyncAsync(UserId userId, CancellationToken cancellationToken)
         {
             var progress = await _achievementRepository.GetProgressAsync(userId, cancellationToken);
             var unlocks = await _achievementRepository.GetUnlocksAsync(userId, cancellationToken);
             if (AchievementCatalog.NewlyUnlocked(progress, Codes(unlocks)).Count == 0)
-                return [];
+                return new AchievementSyncResult(progress, unlocks, []);
 
             var today = _appClock.Today();
             var now = _timeProvider.GetUtcNow();
 
-            return await _achievementRepository.UnlockAsync(userId, (lockedProfile, lockedProgress, lockedUnlocks) =>
+            // decide always runs, so these end up as what the lock saw, plus what it added.
+            var finalProgress = progress;
+            IReadOnlyList<AchievementUnlock> lockedUnlocks = unlocks;
+
+            var newUnlocks = await _achievementRepository.UnlockAsync(userId, (lockedProfile, lockedProgress, storedUnlocks) =>
             {
-                var unlocked = new HashSet<AchievementCode>(Codes(lockedUnlocks));
-                var newUnlocks = new List<AchievementUnlock>();
+                lockedUnlocks = [.. storedUnlocks];
+                var unlocked = new HashSet<AchievementCode>(Codes(storedUnlocks));
+                var created = new List<AchievementUnlock>();
                 var entries = new List<GameLedgerEntry>();
 
                 // A bonus's XP can reach a level achievement, so look again until nothing is new: each turn unlocks at
@@ -50,7 +54,7 @@ namespace LifeManager.Application.Achievements.Services
                     foreach (var code in codes)
                     {
                         var outcome = lockedProfile.Apply(AchievementCatalog.Bonus(AchievementCatalog.Tier(code)));
-                        newUnlocks.Add(AchievementUnlock.Create(userId, code, today, now));
+                        created.Add(AchievementUnlock.Create(userId, code, today, now));
                         entries.AddRange(GameLedgerEntry.FromOutcome(
                             userId, GameLedgerEntryKind.AchievementUnlocked, today, now, null, outcome, achievementCode: code));
                         unlocked.Add(code);
@@ -59,36 +63,34 @@ namespace LifeManager.Application.Achievements.Services
                     current = current with { Level = lockedProfile.Level };
                 }
 
-                return newUnlocks.Count == 0 ? null : new AchievementUnlockDecision(newUnlocks, entries);
+                finalProgress = current;
+                return created.Count == 0 ? null : new AchievementUnlockDecision(created, entries);
             }, cancellationToken);
+
+            return new AchievementSyncResult(finalProgress, [.. lockedUnlocks, .. newUnlocks], newUnlocks);
         }
 
         /// <summary>Syncs, then lists the whole catalog with the player's progress and unlock dates.</summary>
         public async Task<AchievementsResponseDto> GetAsync(UserId userId, CancellationToken cancellationToken)
         {
-            await SyncAsync(userId, cancellationToken);
-
-            var progress = await _achievementRepository.GetProgressAsync(userId, cancellationToken);
-            var unlocks = (await _achievementRepository.GetUnlocksAsync(userId, cancellationToken)).ToDictionary(unlock => unlock.Code);
+            var sync = await SyncAsync(userId, cancellationToken);
+            var unlocks = sync.Unlocks.ToDictionary(unlock => unlock.Code);
 
             var achievements = AchievementCatalog.All
-                .Select(code => AchievementDto.From(code, progress, unlocks.GetValueOrDefault(code)))
+                .Select(code => AchievementDto.From(code, sync.Progress, unlocks.GetValueOrDefault(code)))
                 .ToList();
 
             return new AchievementsResponseDto(achievements, unlocks.Count, AchievementCatalog.All.Count);
         }
 
-        /// <summary>The unlocks the player hasn't been shown yet, in catalog order.</summary>
-        public async Task<IReadOnlyList<NewAchievementDto>> GetUnseenAsync(UserId userId, CancellationToken cancellationToken)
-        {
-            var unlocks = await _achievementRepository.GetUnlocksAsync(userId, cancellationToken);
-
-            return [.. unlocks.Where(unlock => !unlock.IsSeen).OrderBy(unlock => unlock.Code).Select(NewAchievementDto.From)];
-        }
-
-        /// <summary>Marks every unlock as shown, so the frontend stops the player for them only once, on any device.</summary>
-        public Task MarkSeenAsync(UserId userId, CancellationToken cancellationToken)
-            => _achievementRepository.MarkSeenAsync(userId, _timeProvider.GetUtcNow(), cancellationToken);
+        /// <summary>
+        /// Marks the <paramref name="codes"/> the frontend showed as seen, so it stops the player for them only once, on
+        /// any device. Only those: an unlock that came in meanwhile (from another tab) still gets its moment.
+        /// </summary>
+        public Task MarkSeenAsync(UserId userId, IReadOnlyCollection<AchievementCode> codes, CancellationToken cancellationToken)
+            => codes.Count == 0
+                ? Task.CompletedTask
+                : _achievementRepository.MarkSeenAsync(userId, codes, _timeProvider.GetUtcNow(), cancellationToken);
 
         private static IReadOnlyCollection<AchievementCode> Codes(IEnumerable<AchievementUnlock> unlocks)
             => [.. unlocks.Select(unlock => unlock.Code)];

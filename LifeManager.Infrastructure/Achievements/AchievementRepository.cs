@@ -1,4 +1,5 @@
 using LifeManager.Domain.Achievements;
+using LifeManager.Domain.Achievements.Enums;
 using LifeManager.Domain.Achievements.Interfaces;
 using LifeManager.Domain.Habits;
 using LifeManager.Domain.Habits.Enums;
@@ -51,10 +52,10 @@ namespace LifeManager.Infrastructure.Achievements
             return decision.Unlocks;
         }
 
-        public async Task MarkSeenAsync(UserId userId, DateTimeOffset now, CancellationToken cancellationToken)
+        public async Task MarkSeenAsync(UserId userId, IReadOnlyCollection<AchievementCode> codes, DateTimeOffset now, CancellationToken cancellationToken)
         {
             await _dbContext.AchievementUnlocks
-                .Where(unlock => unlock.UserId == userId && unlock.SeenAt == null)
+                .Where(unlock => unlock.UserId == userId && unlock.SeenAt == null && codes.Contains(unlock.Code))
                 .ExecuteUpdateAsync(setters => setters.SetProperty(unlock => unlock.SeenAt, now), cancellationToken);
         }
 

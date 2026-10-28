@@ -1,3 +1,4 @@
+using LifeManager.Domain.Achievements.Enums;
 using LifeManager.Domain.Habits;
 using LifeManager.Domain.Users.ValueObjects;
 
@@ -26,7 +27,7 @@ namespace LifeManager.Domain.Achievements.Interfaces
             Func<PlayerProfile, AchievementProgress, IReadOnlyCollection<AchievementUnlock>, AchievementUnlockDecision?> decide,
             CancellationToken cancellationToken);
 
-        /// <summary>Marks every unseen unlock of the user as seen at <paramref name="now"/>.</summary>
-        Task MarkSeenAsync(UserId userId, DateTimeOffset now, CancellationToken cancellationToken);
+        /// <summary>Marks the user's unseen unlocks of <paramref name="codes"/> as seen at <paramref name="now"/>.</summary>
+        Task MarkSeenAsync(UserId userId, IReadOnlyCollection<AchievementCode> codes, DateTimeOffset now, CancellationToken cancellationToken);
     }
 }

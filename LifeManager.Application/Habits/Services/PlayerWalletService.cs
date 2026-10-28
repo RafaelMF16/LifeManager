@@ -30,14 +30,13 @@ namespace LifeManager.Application.Habits.Services
         /// </summary>
         public async Task<PlayerProfileResponseDto> GetProfileAsync(UserId userId, CancellationToken cancellationToken)
         {
-            await _achievementService.SyncAsync(userId, cancellationToken);
-            var newAchievements = await _achievementService.GetUnseenAsync(userId, cancellationToken);
+            var achievements = await _achievementService.SyncAsync(userId, cancellationToken);
 
             var profile = await _playerProfileRepository.GetByUserIdAsync(userId, cancellationToken)
                 ?? PlayerProfile.CreateDefault(userId);
             var lastKnockout = await _gameLedgerRepository.GetLatestAsync(userId, GameLedgerEntryKind.Knockout, cancellationToken);
 
-            return PlayerProfileResponseDto.From(profile, LastKnockoutDto.From(lastKnockout), newAchievements);
+            return PlayerProfileResponseDto.From(profile, LastKnockoutDto.From(lastKnockout), achievements.Unseen());
         }
 
         /// <param name="occurredOn">The game day the change belongs to (e.g. the check-in's date).</param>

@@ -1,3 +1,4 @@
+using LifeManager.Application.Achievements.DTOs;
 using LifeManager.Application.Achievements.Services;
 using LifeManager.WebApi.Extensions;
 using Microsoft.AspNetCore.Authorization;
@@ -17,11 +18,11 @@ namespace LifeManager.WebApi.Achievements.Controllers
         public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
             => Ok(await _achievementService.GetAsync(User.GetUserId(), cancellationToken));
 
-        /// <summary>Marks every unlock the player was shown as seen; calling it again changes nothing.</summary>
+        /// <summary>Marks the unlocks the player was shown as seen; calling it again changes nothing.</summary>
         [HttpPost("Seen")]
-        public async Task<IActionResult> MarkSeen(CancellationToken cancellationToken)
+        public async Task<IActionResult> MarkSeen(MarkAchievementsSeenRequestDto request, CancellationToken cancellationToken)
         {
-            await _achievementService.MarkSeenAsync(User.GetUserId(), cancellationToken);
+            await _achievementService.MarkSeenAsync(User.GetUserId(), request.Codes ?? [], cancellationToken);
             return NoContent();
         }
     }

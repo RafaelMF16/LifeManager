@@ -37,6 +37,7 @@ namespace LifeManager.Application.Test.Achievements
             PlayerProfileSingleton.Instance.Clear();
             GameLedgerEntrySingleton.Instance.Clear();
             AchievementRepositoryMock.UnlockCalls = 0;
+            AchievementRepositoryMock.BeforeLockedRead = null;
         }
 
         private static void SeedProfile(int totalXp = 0, int coins = 0, UserId? userId = null)
@@ -107,7 +108,9 @@ namespace LifeManager.Application.Test.Achievements
         private static IEnumerable<GameLedgerEntry> Ledger(GameLedgerEntryKind kind)
             => GameLedgerEntrySingleton.Instance.Where(entry => entry.UserId == UserId && entry.Kind == kind);
 
-        private Task<IReadOnlyList<AchievementUnlock>> Sync(UserId? userId = null) => _service.SyncAsync(userId ?? UserId, CancellationToken.None);
+        /// <summary>The unlocks this sync added.</summary>
+        private async Task<IReadOnlyList<AchievementUnlock>> Sync(UserId? userId = null)
+            => (await _service.SyncAsync(userId ?? UserId, CancellationToken.None)).NewlyUnlocked;
 
         [Fact]
         public async Task SyncAsync_ShouldPayTheBonusAndRecordIt_WhenAnAchievementIsReached()
@@ -368,8 +371,8 @@ namespace LifeManager.Application.Test.Achievements
 
             await playerWalletService.GetProfileAsync(UserId, CancellationToken.None);
             var again = await playerWalletService.GetProfileAsync(UserId, CancellationToken.None);
-            await _service.MarkSeenAsync(UserId, CancellationToken.None);
-            await _service.MarkSeenAsync(UserId, CancellationToken.None);
+            await _service.MarkSeenAsync(UserId, [AchievementCode.CheckIns10], CancellationToken.None);
+            await _service.MarkSeenAsync(UserId, [AchievementCode.CheckIns10], CancellationToken.None);
             var seen = await playerWalletService.GetProfileAsync(UserId, CancellationToken.None);
 
             Assert.Single(again.NewAchievements);
@@ -391,10 +394,57 @@ namespace LifeManager.Application.Test.Achievements
             await Sync();
             await Sync(OtherUserId);
 
-            await _service.MarkSeenAsync(UserId, CancellationToken.None);
+            await _service.MarkSeenAsync(UserId, [AchievementCode.CheckIns10], CancellationToken.None);
 
             Assert.True(AchievementUnlockSingleton.Instance.Single(unlock => unlock.UserId == UserId).IsSeen);
             Assert.False(AchievementUnlockSingleton.Instance.Single(unlock => unlock.UserId == OtherUserId).IsSeen);
+        }
+
+        [Fact]
+        public async Task MarkSeenAsync_ShouldLeaveAnUnlockTheMomentDidNotShowUnseen()
+        {
+            SeedProfile();
+            SeedHabit(1);
+            SeedCheckIns(1, 10);
+            await Sync();
+            SeedRedemption();
+            await Sync();
+
+            await _service.MarkSeenAsync(UserId, [AchievementCode.CheckIns10], CancellationToken.None);
+            var profile = await ServiceProvider.GetRequiredService<PlayerWalletService>().GetProfileAsync(UserId, CancellationToken.None);
+
+            Assert.Equal([AchievementCode.Redemptions1], profile.NewAchievements.Select(achievement => achievement.Code));
+        }
+
+        [Fact]
+        public async Task SyncAsync_ShouldPayNothing_WhenAnotherSyncWonTheRaceForTheLock()
+        {
+            SeedProfile(coins: 5);
+            SeedHabit(1);
+            SeedCheckIns(1, 10);
+            AchievementRepositoryMock.BeforeLockedRead = () => AchievementUnlockSingleton.Instance.Add(AchievementUnlock.FromPersistence(
+                1, UserId.Value, AchievementCode.CheckIns10, Today, DateTimeOffset.UnixEpoch, null));
+
+            var result = await _service.SyncAsync(UserId, CancellationToken.None);
+
+            Assert.Equal(1, AchievementRepositoryMock.UnlockCalls);
+            Assert.Empty(result.NewlyUnlocked);
+            Assert.Equal([AchievementCode.CheckIns10], result.Unlocks.Select(unlock => unlock.Code));
+            Assert.Equal(5, Profile().Coins);
+            Assert.Empty(Ledger(GameLedgerEntryKind.AchievementUnlocked));
+        }
+
+        [Fact]
+        public async Task SyncAsync_ShouldReturnTheProgressWithTheLevelTheBonusesReached()
+        {
+            SeedProfile(totalXp: GameRules.TotalXpForLevel(5) - 40);
+            SeedHabit(1);
+            SeedCheckIns(1, 10);
+
+            var result = await _service.SyncAsync(UserId, CancellationToken.None);
+
+            Assert.Equal(5, result.Progress.Level);
+            Assert.Equal([AchievementCode.CheckIns10, AchievementCode.Level5], result.Unlocks.Select(unlock => unlock.Code));
         }
 
         [Fact]
