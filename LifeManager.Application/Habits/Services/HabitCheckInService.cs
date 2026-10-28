@@ -133,11 +133,9 @@ namespace LifeManager.Application.Habits.Services
             var effects = await _habitCheckInRepository.RecordAsync(habit, date, HabitCheckInStatus.Done, now, context =>
             {
                 profile = context.Profile;
-                var streakBefore = StreakCalculator.Current(habit, Without(context.SuccessDates, date), context.FailedDates, today);
-                var streak = StreakCalculator.Current(habit, context.SuccessDates, context.FailedDates, today);
-                completion = HabitRewards.ApplyCompletion(habit, context.Profile, GameLedgerEntryKind.HabitDone, date, now, streakBefore, streak, context.SuccessDates);
+                (var dayEffects, completion) = CompleteDay(habit, context.Profile, date, now, context.SuccessDates, context.FailedDates, today);
 
-                return new HabitCheckInEffects(streak, completion.Applied, completion.Outcome, completion.Entries, completion.FreezesEarned > 0);
+                return dayEffects;
             }, cancellationToken);
 
             if (effects is null)
@@ -155,13 +153,60 @@ namespace LifeManager.Application.Habits.Services
                 completion.FreezesEarned);
         }
 
-        private static HashSet<DateOnly> Without(IReadOnlySet<DateOnly> dates, DateOnly date)
-            => [.. dates.Where(day => day != date)];
+        /// <summary>
+        /// Applies a completed day to the locked profile: the reward with its streak bonus, milestone and freeze. Shared by
+        /// a check-in and by progress reaching the day's target.
+        /// </summary>
+        /// <param name="successDates">The habit's success days, <paramref name="date"/> included.</param>
+        internal static (HabitCheckInEffects Effects, HabitCompletion Completion) CompleteDay(
+            Habit habit,
+            PlayerProfile profile,
+            DateOnly date,
+            DateTimeOffset now,
+            IReadOnlySet<DateOnly> successDates,
+            IReadOnlySet<DateOnly> failedDates,
+            DateOnly today)
+        {
+            var streakBefore = StreakCalculator.Current(habit, Without(successDates, date), failedDates, today);
+            var streak = StreakCalculator.Current(habit, successDates, failedDates, today);
+            var completion = HabitRewards.ApplyCompletion(habit, profile, GameLedgerEntryKind.HabitDone, date, now, streakBefore, streak, successDates);
+
+            return (new HabitCheckInEffects(streak, completion.Applied, completion.Outcome, completion.Entries, completion.FreezesEarned > 0), completion);
+        }
 
         /// <summary>
-        /// Gives back what the check-in earned, milestone coins and the streak freeze it earned included (if the player
-        /// still holds one). The HP it healed is taken back only down to 1: an undo never knocks the player out.
+        /// Gives back what <paramref name="removed"/> earned to the locked profile, milestone coins and the streak freeze it
+        /// earned included (if the player still holds one). The HP it healed is taken back only down to 1: an undo never
+        /// knocks the player out. Shared by an undone check-in and by progress falling below the day's target.
         /// </summary>
+        /// <param name="successDates">The habit's success days, without <paramref name="removed"/>'s.</param>
+        internal static HabitCheckInEffects UndoDay(
+            Habit habit,
+            PlayerProfile profile,
+            HabitCheckIn removed,
+            DateTimeOffset now,
+            IReadOnlySet<DateOnly> successDates,
+            IReadOnlySet<DateOnly> failedDates,
+            DateOnly today)
+        {
+            var streak = StreakCalculator.Current(habit, successDates, failedDates, today);
+
+            var awarded = removed.Awarded;
+            var hpToTakeBack = Math.Min(awarded.Hp, Math.Max(profile.Hp - 1, 0));
+            var outcome = profile.Apply(new GameDelta(-awarded.Coins, -awarded.Xp, -hpToTakeBack));
+            var entries = GameLedgerEntry.FromOutcome(habit.UserId, GameLedgerEntryKind.Undo, removed.Date, now, habit.Name.Value, outcome, habit.Id);
+
+            // A freeze the player already spent is gone: nothing to take back.
+            if (removed.FreezeAwarded)
+                profile.UseStreakFreeze();
+
+            return new HabitCheckInEffects(streak, outcome.Applied, outcome, entries);
+        }
+
+        internal static HashSet<DateOnly> Without(IReadOnlySet<DateOnly> dates, DateOnly date)
+            => [.. dates.Where(day => day != date)];
+
+        /// <summary>Gives back what the check-in earned (<see cref="UndoDay"/>).</summary>
         public async Task<Result<HabitCheckInResultDto>> UndoCheckInAsync(int id, DateOnly date, UserId userId, CancellationToken cancellationToken)
         {
             var habit = await _habitRepository.GetByIdAsync(new HabitId(id), userId, cancellationToken);
@@ -180,19 +225,8 @@ namespace LifeManager.Application.Habits.Services
             var effects = await _habitCheckInRepository.RemoveAsync(habit, date, HabitCheckInStatus.Done, context =>
             {
                 profile = context.Profile;
-                var streak = StreakCalculator.Current(habit, context.SuccessDates, context.FailedDates, today);
 
-                var removed = context.Removed!;
-                var awarded = removed.Awarded;
-                var hpToTakeBack = Math.Min(awarded.Hp, Math.Max(context.Profile.Hp - 1, 0));
-                var outcome = context.Profile.Apply(new GameDelta(-awarded.Coins, -awarded.Xp, -hpToTakeBack));
-                var entries = GameLedgerEntry.FromOutcome(habit.UserId, GameLedgerEntryKind.Undo, date, now, habit.Name.Value, outcome, habit.Id);
-
-                // A freeze the player already spent is gone: nothing to take back.
-                if (removed.FreezeAwarded)
-                    context.Profile.UseStreakFreeze();
-
-                return new HabitCheckInEffects(streak, outcome.Applied, outcome, entries);
+                return UndoDay(habit, context.Profile, context.Removed!, now, context.SuccessDates, context.FailedDates, today);
             }, cancellationToken);
 
             if (effects is null)

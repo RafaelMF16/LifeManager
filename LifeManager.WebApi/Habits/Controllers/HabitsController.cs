@@ -12,11 +12,13 @@ namespace LifeManager.WebApi.Habits.Controllers
     public class HabitsController(
         HabitService habitService,
         HabitCheckInService habitCheckInService,
+        HabitProgressService habitProgressService,
         HabitRelapseService habitRelapseService,
         HabitStatsService habitStatsService) : Controller
     {
         private readonly HabitService _habitService = habitService;
         private readonly HabitCheckInService _habitCheckInService = habitCheckInService;
+        private readonly HabitProgressService _habitProgressService = habitProgressService;
         private readonly HabitRelapseService _habitRelapseService = habitRelapseService;
         private readonly HabitStatsService _habitStatsService = habitStatsService;
 
@@ -37,6 +39,16 @@ namespace LifeManager.WebApi.Habits.Controllers
         [HttpDelete("{id:int}/CheckIns/{date}")]
         public async Task<IActionResult> UndoCheckIn(int id, DateOnly date, CancellationToken cancellationToken)
             => (await _habitCheckInService.UndoCheckInAsync(id, date, User.GetUserId(), cancellationToken)).Match(Ok);
+
+        /// <summary>Logs an amount towards a habit's daily target, today or yesterday; reaching it checks the day in.</summary>
+        [HttpPost("{id:int}/Progress")]
+        public async Task<IActionResult> AddProgress(int id, [FromBody] HabitProgressDto progressDto, CancellationToken cancellationToken)
+            => (await _habitProgressService.AddAsync(id, progressDto, User.GetUserId(), cancellationToken)).Match(Ok);
+
+        /// <summary>Removes one logged amount; falling below the target undoes the day's check-in.</summary>
+        [HttpDelete("{id:int}/Progress/{entryId:int}")]
+        public async Task<IActionResult> RemoveProgress(int id, int entryId, CancellationToken cancellationToken)
+            => (await _habitProgressService.RemoveAsync(id, entryId, User.GetUserId(), cancellationToken)).Match(Ok);
 
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken)
