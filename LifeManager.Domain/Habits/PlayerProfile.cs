@@ -1,4 +1,6 @@
+using LifeManager.Domain.Achievements.Enums;
 using LifeManager.Domain.GameItems.Errors;
+using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.Habits.Errors;
 using LifeManager.Domain.Habits.ValueObjects;
 using LifeManager.Domain.Shared.Results;
@@ -23,6 +25,12 @@ namespace LifeManager.Domain.Habits
         public int Coins { get; private set; }
         public int StreakFreezes { get; private set; }
 
+        /// <summary>How the player looks; only changes through <see cref="ChangeAppearance"/>.</summary>
+        public PlayerAvatar Avatar { get; private set; } = PlayerAvatar.Cat;
+
+        /// <summary>The unlocked achievement whose title the player shows; null for none.</summary>
+        public AchievementCode? Title { get; private set; }
+
         /// <summary>XP earned since the current level started.</summary>
         public int XpInLevel => TotalXp - GameRules.TotalXpForLevel(Level);
 
@@ -45,9 +53,15 @@ namespace LifeManager.Domain.Habits
             => new(userId, totalXp: 0, hp: GameRules.MaxHp, maxHp: GameRules.MaxHp, coins: 0, streakFreezes: 0);
 
         /// <summary>Rehydrates a stored profile without going through the game, so tests can seed any state.</summary>
-        internal static PlayerProfile FromPersistence(int id, int idUser, int totalXp, int hp, int maxHp, int coins, int streakFreezes)
+        internal static PlayerProfile FromPersistence(
+            int id, int idUser, int totalXp, int hp, int maxHp, int coins, int streakFreezes,
+            PlayerAvatar avatar = PlayerAvatar.Cat, AchievementCode? title = null)
         {
-            var profile = new PlayerProfile(new UserId(idUser), totalXp, hp, maxHp, coins, streakFreezes);
+            var profile = new PlayerProfile(new UserId(idUser), totalXp, hp, maxHp, coins, streakFreezes)
+            {
+                Avatar = avatar,
+                Title = title
+            };
             profile.AssignId(id);
 
             return profile;
@@ -121,6 +135,20 @@ namespace LifeManager.Domain.Habits
                 return GameItemErrors.ItemAlreadyUsed;
 
             StreakFreezes--;
+            return Result.Success();
+        }
+
+        /// <summary>
+        /// Picks the avatar and the title; <paramref name="title"/> must be one of the <paramref name="unlocked"/>
+        /// achievements (or null for none). Nothing changes when it isn't.
+        /// </summary>
+        public Result ChangeAppearance(PlayerAvatar avatar, AchievementCode? title, IEnumerable<AchievementCode> unlocked)
+        {
+            if (title is { } code && !unlocked.Contains(code))
+                return PlayerProfileErrors.TitleLocked;
+
+            Avatar = avatar;
+            Title = title;
             return Result.Success();
         }
 
