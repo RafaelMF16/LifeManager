@@ -1,3 +1,4 @@
+using LifeManager.Application.Achievements.Services;
 using LifeManager.Application.Habits.DTOs;
 using LifeManager.Domain.Habits;
 using LifeManager.Domain.Habits.Enums;
@@ -14,23 +15,29 @@ namespace LifeManager.Application.Habits.Services
     public class PlayerWalletService(
         IPlayerProfileRepository playerProfileRepository,
         IGameLedgerRepository gameLedgerRepository,
+        AchievementService achievementService,
         TimeProvider timeProvider)
     {
         private readonly IPlayerProfileRepository _playerProfileRepository = playerProfileRepository;
         private readonly IGameLedgerRepository _gameLedgerRepository = gameLedgerRepository;
+        private readonly AchievementService _achievementService = achievementService;
         private readonly TimeProvider _timeProvider = timeProvider;
 
         /// <summary>
         /// The stored profile, or a new player's one (not saved: the profile is created on its first change), with the
-        /// latest knockout.
+        /// latest knockout. Syncs the achievements first, so the profile already has their bonuses and lists the ones
+        /// the player hasn't been shown.
         /// </summary>
         public async Task<PlayerProfileResponseDto> GetProfileAsync(UserId userId, CancellationToken cancellationToken)
         {
+            await _achievementService.SyncAsync(userId, cancellationToken);
+            var newAchievements = await _achievementService.GetUnseenAsync(userId, cancellationToken);
+
             var profile = await _playerProfileRepository.GetByUserIdAsync(userId, cancellationToken)
                 ?? PlayerProfile.CreateDefault(userId);
             var lastKnockout = await _gameLedgerRepository.GetLatestAsync(userId, GameLedgerEntryKind.Knockout, cancellationToken);
 
-            return PlayerProfileResponseDto.From(profile, LastKnockoutDto.From(lastKnockout));
+            return PlayerProfileResponseDto.From(profile, LastKnockoutDto.From(lastKnockout), newAchievements);
         }
 
         /// <param name="occurredOn">The game day the change belongs to (e.g. the check-in's date).</param>

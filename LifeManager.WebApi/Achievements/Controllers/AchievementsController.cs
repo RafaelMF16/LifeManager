@@ -16,5 +16,13 @@ namespace LifeManager.WebApi.Achievements.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
             => Ok(await _achievementService.GetAsync(User.GetUserId(), cancellationToken));
+
+        /// <summary>Marks every unlock the player was shown as seen; calling it again changes nothing.</summary>
+        [HttpPost("Seen")]
+        public async Task<IActionResult> MarkSeen(CancellationToken cancellationToken)
+        {
+            await _achievementService.MarkSeenAsync(User.GetUserId(), cancellationToken);
+            return NoContent();
+        }
     }
 }

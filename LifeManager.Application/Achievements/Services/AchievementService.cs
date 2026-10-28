@@ -78,6 +78,18 @@ namespace LifeManager.Application.Achievements.Services
             return new AchievementsResponseDto(achievements, unlocks.Count, AchievementCatalog.All.Count);
         }
 
+        /// <summary>The unlocks the player hasn't been shown yet, in catalog order.</summary>
+        public async Task<IReadOnlyList<NewAchievementDto>> GetUnseenAsync(UserId userId, CancellationToken cancellationToken)
+        {
+            var unlocks = await _achievementRepository.GetUnlocksAsync(userId, cancellationToken);
+
+            return [.. unlocks.Where(unlock => !unlock.IsSeen).OrderBy(unlock => unlock.Code).Select(NewAchievementDto.From)];
+        }
+
+        /// <summary>Marks every unlock as shown, so the frontend stops the player for them only once, on any device.</summary>
+        public Task MarkSeenAsync(UserId userId, CancellationToken cancellationToken)
+            => _achievementRepository.MarkSeenAsync(userId, _timeProvider.GetUtcNow(), cancellationToken);
+
         private static IReadOnlyCollection<AchievementCode> Codes(IEnumerable<AchievementUnlock> unlocks)
             => [.. unlocks.Select(unlock => unlock.Code)];
     }

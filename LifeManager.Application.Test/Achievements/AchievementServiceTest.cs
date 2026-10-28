@@ -1,4 +1,5 @@
 using LifeManager.Application.Achievements.Services;
+using LifeManager.Application.Habits.Services;
 using LifeManager.Application.Rewards.Services;
 using LifeManager.Application.Test.Achievements.Mocks;
 using LifeManager.Application.Test.Configurations;
@@ -332,6 +333,81 @@ namespace LifeManager.Application.Test.Achievements
             var result = await _service.GetAsync(UserId, CancellationToken.None);
 
             Assert.Equal(10, result.Achievements.Single(achievement => achievement.Code == AchievementCode.CheckIns10).Progress);
+        }
+
+        [Fact]
+        public async Task GetProfileAsync_ShouldSyncAndListTheUnseenAchievements()
+        {
+            SeedProfile(totalXp: GameRules.TotalXpForLevel(3));
+            SeedHabit(1, longestStreak: 8);
+            SeedHabit(2);
+            SeedCheckIns(1, 60);
+            SeedCheckIns(2, 60);
+            var playerWalletService = ServiceProvider.GetRequiredService<PlayerWalletService>();
+
+            var profile = await playerWalletService.GetProfileAsync(UserId, CancellationToken.None);
+
+            Assert.Equal(150, profile.Coins);
+            Assert.Equal(
+                [AchievementCode.CheckIns10, AchievementCode.CheckIns100, AchievementCode.Streak7],
+                profile.NewAchievements.Select(achievement => achievement.Code));
+            var silver = profile.NewAchievements[1];
+            Assert.Equal(AchievementTier.Silver, silver.Tier);
+            Assert.Equal(100, silver.CoinsBonus);
+            Assert.Equal(150, silver.XpBonus);
+        }
+
+        [Fact]
+        public async Task GetProfileAsync_ShouldNotPayAgainNorListThemOnceSeen()
+        {
+            SeedProfile();
+            SeedHabit(1);
+            SeedCheckIns(1, 10);
+            var playerWalletService = ServiceProvider.GetRequiredService<PlayerWalletService>();
+
+            await playerWalletService.GetProfileAsync(UserId, CancellationToken.None);
+            var again = await playerWalletService.GetProfileAsync(UserId, CancellationToken.None);
+            await _service.MarkSeenAsync(UserId, CancellationToken.None);
+            await _service.MarkSeenAsync(UserId, CancellationToken.None);
+            var seen = await playerWalletService.GetProfileAsync(UserId, CancellationToken.None);
+
+            Assert.Single(again.NewAchievements);
+            Assert.Equal(25, again.Coins);
+            Assert.Empty(seen.NewAchievements);
+            Assert.Equal(25, seen.Coins);
+            Assert.True(Assert.Single(AchievementUnlockSingleton.Instance).IsSeen);
+        }
+
+        [Fact]
+        public async Task MarkSeenAsync_ShouldOnlyTouchTheUsersOwnUnlocks()
+        {
+            SeedProfile();
+            SeedProfile(userId: OtherUserId);
+            SeedHabit(1);
+            SeedHabit(2, userId: OtherUserId);
+            SeedCheckIns(1, 10);
+            SeedCheckIns(2, 10, userId: OtherUserId);
+            await Sync();
+            await Sync(OtherUserId);
+
+            await _service.MarkSeenAsync(UserId, CancellationToken.None);
+
+            Assert.True(AchievementUnlockSingleton.Instance.Single(unlock => unlock.UserId == UserId).IsSeen);
+            Assert.False(AchievementUnlockSingleton.Instance.Single(unlock => unlock.UserId == OtherUserId).IsSeen);
+        }
+
+        [Fact]
+        public async Task WalletChanges_ShouldCarryNoNewAchievements()
+        {
+            SeedProfile();
+            SeedHabit(1);
+            SeedCheckIns(1, 10);
+            await Sync();
+            var playerWalletService = ServiceProvider.GetRequiredService<PlayerWalletService>();
+
+            var change = await playerWalletService.ApplyAsync(UserId, GameLedgerEntryKind.HabitDone, new GameDelta(5, 0, 0), Today, null, CancellationToken.None);
+
+            Assert.Empty(change.Profile.NewAchievements);
         }
 
         [Fact]
