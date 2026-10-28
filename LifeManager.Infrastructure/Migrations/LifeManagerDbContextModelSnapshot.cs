@@ -294,6 +294,42 @@ namespace LifeManager.Infrastructure.Migrations
                     b.ToTable("CategorizationRules");
                 });
 
+            modelBuilder.Entity("LifeManager.Domain.GameItems.GameItemPurchase", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CostPaid")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("HpRestored")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("PurchasedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("PurchasedOn")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset?>("UndoneAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "PurchasedOn");
+
+                    b.ToTable("GameItemPurchases");
+                });
+
             modelBuilder.Entity("LifeManager.Domain.Habits.GameLedgerEntry", b =>
                 {
                     b.Property<int>("Id")
@@ -316,6 +352,9 @@ namespace LifeManager.Infrastructure.Migrations
                         .HasColumnType("integer");
 
                     b.Property<int>("HpDelta")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ItemKind")
                         .HasColumnType("integer");
 
                     b.Property<int>("Kind")
@@ -1116,6 +1155,15 @@ namespace LifeManager.Infrastructure.Migrations
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.Cascade);
 
+                    b.HasOne("LifeManager.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LifeManager.Domain.GameItems.GameItemPurchase", b =>
+                {
                     b.HasOne("LifeManager.Domain.Users.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")

@@ -3,6 +3,7 @@ using LifeManager.Domain.Auth;
 using LifeManager.Domain.BudgetPlans;
 using LifeManager.Domain.Categories;
 using LifeManager.Domain.Categorization;
+using LifeManager.Domain.GameItems;
 using LifeManager.Domain.Habits;
 using LifeManager.Domain.Rewards;
 using LifeManager.Domain.MonthlySummaries;
@@ -35,6 +36,7 @@ namespace LifeManager.Infrastructure.Postgres
         public DbSet<HabitProgressEntry> HabitProgressEntries { get; set; }
         public DbSet<Reward> Rewards { get; set; }
         public DbSet<RewardRedemption> RewardRedemptions { get; set; }
+        public DbSet<GameItemPurchase> GameItemPurchases { get; set; }
         public DbSet<StatementImport> StatementImports { get; set; }
         public DbSet<StatementImportRow> StatementImportRows { get; set; }
         public DbSet<CategorizationRule> CategorizationRules { get; set; }
