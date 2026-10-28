@@ -28,6 +28,12 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
             builder.Property(entry => entry.Description)
                 .HasMaxLength(GameLedgerEntry.DescriptionMaxLength);
 
+            // A game item isn't a row: the catalog lives in code, so this is just the item's number.
+            builder.Property(entry => entry.ItemKind);
+
+            // The same for an achievement: the catalog lives in code.
+            builder.Property(entry => entry.AchievementCode);
+
             // The statement lists a user's entries newest first.
             builder.HasIndex(entry => new { entry.UserId, entry.CreatedAt, entry.Id });
 

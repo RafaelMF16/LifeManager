@@ -24,6 +24,12 @@ namespace LifeManager.Application.Test.Habits
             PlayerProfileSingleton.Instance.Clear();
             GameLedgerEntrySingleton.Instance.Clear();
 
+            // Reading the profile syncs the achievements, so another test's history mustn't unlock any here.
+            AchievementUnlockSingleton.Instance.Clear();
+            HabitSingleton.Instance.Clear();
+            HabitCheckInSingleton.Instance.Clear();
+            RewardRedemptionSingleton.Instance.Clear();
+
             ((FakeTimeProvider)ServiceProvider.GetRequiredService<TimeProvider>()).SetToday(Today);
         }
 

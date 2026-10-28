@@ -1,8 +1,10 @@
+using LifeManager.Application.Achievements.Services;
 ﻿using LifeManager.Application.AccountHolders.Services;
 using LifeManager.Application.Auth.Services;
 using LifeManager.Application.BudgetPlans.Services;
 using LifeManager.Application.Categories.Services;
 using LifeManager.Application.FinanceDashboard.Services;
+using LifeManager.Application.GameItems.Services;
 using LifeManager.Application.Habits.Services;
 using LifeManager.Application.MonthlySummaries.Services;
 using LifeManager.Application.RecurringTransactions.Services;
@@ -48,6 +50,8 @@ namespace LifeManager.Application.DI
             services.AddScoped<GameLedgerService>();
             services.AddScoped<RewardService>();
             services.AddScoped<RewardRedemptionService>();
+            services.AddScoped<GameItemService>();
+            services.AddScoped<AchievementService>();
             services.AddScoped<StatementImportService>();
             services.AddScoped<StatementImportRowService>();
 

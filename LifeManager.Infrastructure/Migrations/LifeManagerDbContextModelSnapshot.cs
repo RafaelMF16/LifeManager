@@ -50,6 +50,37 @@ namespace LifeManager.Infrastructure.Migrations
                     b.ToTable("AccountHolders");
                 });
 
+            modelBuilder.Entity("LifeManager.Domain.Achievements.AchievementUnlock", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Code")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("SeenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("UnlockedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("UnlockedOn")
+                        .HasColumnType("date");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Code")
+                        .IsUnique();
+
+                    b.ToTable("AchievementUnlocks");
+                });
+
             modelBuilder.Entity("LifeManager.Domain.Auth.EmailCooldown", b =>
                 {
                     b.Property<string>("Email")
@@ -294,6 +325,42 @@ namespace LifeManager.Infrastructure.Migrations
                     b.ToTable("CategorizationRules");
                 });
 
+            modelBuilder.Entity("LifeManager.Domain.GameItems.GameItemPurchase", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CostPaid")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("HpRestored")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("PurchasedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("PurchasedOn")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset?>("UndoneAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "PurchasedOn");
+
+                    b.ToTable("GameItemPurchases");
+                });
+
             modelBuilder.Entity("LifeManager.Domain.Habits.GameLedgerEntry", b =>
                 {
                     b.Property<int>("Id")
@@ -301,6 +368,9 @@ namespace LifeManager.Infrastructure.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("AchievementCode")
+                        .HasColumnType("integer");
 
                     b.Property<int>("CoinsDelta")
                         .HasColumnType("integer");
@@ -316,6 +386,9 @@ namespace LifeManager.Infrastructure.Migrations
                         .HasColumnType("integer");
 
                     b.Property<int>("HpDelta")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ItemKind")
                         .HasColumnType("integer");
 
                     b.Property<int>("Kind")
@@ -1032,6 +1105,15 @@ namespace LifeManager.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("LifeManager.Domain.Achievements.AchievementUnlock", b =>
+                {
+                    b.HasOne("LifeManager.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("LifeManager.Domain.Auth.PasswordResetToken", b =>
                 {
                     b.HasOne("LifeManager.Domain.Users.User", null)
@@ -1116,6 +1198,15 @@ namespace LifeManager.Infrastructure.Migrations
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.Cascade);
 
+                    b.HasOne("LifeManager.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LifeManager.Domain.GameItems.GameItemPurchase", b =>
+                {
                     b.HasOne("LifeManager.Domain.Users.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")

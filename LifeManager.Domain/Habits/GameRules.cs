@@ -30,6 +30,36 @@ namespace LifeManager.Domain.Habits
         public const int FreezeEvery = 7;
         public const int MaxStreakFreezes = 2;
 
+        /// <summary>Shop item: a streak freeze, bought at most this many times per Monday-to-Sunday week.</summary>
+        public const int StreakFreezePrice = 150;
+        public const int MaxStreakFreezePurchasesPerWeek = 1;
+
+        /// <summary>Shop item: an HP potion heals this much (never past <see cref="MaxHp"/>), at most this many per day.</summary>
+        public const int HpPotionPrice = 40;
+        public const int HpPotionRestore = 25;
+        public const int MaxHpPotionsPerDay = 3;
+
+        /// <summary>Achievement thresholds, bronze first (see <c>AchievementCatalog</c>).</summary>
+        public static readonly IReadOnlyList<int> CheckInAchievements = [10, 100, 500];
+        public static readonly IReadOnlyList<int> StreakAchievements = [7, 30, 100];
+        public static readonly IReadOnlyList<int> LevelAchievements = [5, 10, 25];
+        public static readonly IReadOnlyList<int> RedemptionAchievements = [1, 10];
+        public static readonly IReadOnlyList<int> CleanDayAchievements = [10, 50, 200];
+
+        /// <summary>Days done or clean after the first knockout for the comeback achievement.</summary>
+        public const int ComebackKeptDays = 10;
+
+        /// <summary>Days done or clean of one habit for it to count as automatic (the same 66 as the stats).</summary>
+        public const int AutomaticHabitKeptDays = 66;
+
+        /// <summary>One-off bonus an achievement pays when unlocked, by tier.</summary>
+        public const int BronzeAchievementCoins = 25;
+        public const int BronzeAchievementXp = 50;
+        public const int SilverAchievementCoins = 100;
+        public const int SilverAchievementXp = 150;
+        public const int GoldAchievementCoins = 300;
+        public const int GoldAchievementXp = 400;
+
         /// <summary>Coin bonus per <see cref="FreezeEvery"/> streak days, capped at <see cref="MaxStreakBonusSteps"/> steps (+50%).</summary>
         public const decimal StreakBonusStep = 0.1m;
         public const int MaxStreakBonusSteps = 5;
