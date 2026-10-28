@@ -26,6 +26,7 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
   - [Ofensiva, marcos e proteções](#ofensiva-marcos-e-proteções)
   - [Fechamento do dia](#fechamento-do-dia)
   - [Estatísticas e extrato](#estatísticas-e-extrato)
+  - [Conquistas](#conquistas)
 - [Loja de recompensas](#loja-de-recompensas)
   - [Itens de jogo](#itens-de-jogo)
 - [Apêndice: códigos de erro](#apêndice-códigos-de-erro)
@@ -378,13 +379,47 @@ Um processo do servidor roda a cada hora (e ao iniciar a API) e **fecha os dias 
 - Hábitos arquivados também têm estatísticas.
 
 **Extrato** (histórico)
-- Lista toda mudança em moedas, XP e HP, da mais recente para a mais antiga: hábito cumprido, falha, recaída, dia limpo, marco, resgate, item comprado, nocaute, desfeito, proteção usada e subida de nível.
+- Lista toda mudança em moedas, XP e HP, da mais recente para a mais antiga: hábito cumprido, falha, recaída, dia limpo, marco, resgate, item comprado, conquista, nocaute, desfeito, proteção usada e subida de nível.
 - Pode ser filtrado por hábito.
 
 **Tela "Hoje"**
 - Mostra os hábitos para construir agendados para hoje e os de **ontem que ficaram pendentes**. Um hábito semanal só aparece como pendente enquanto a meta da semana não foi batida.
 - Mostra os hábitos para evitar em vigor hoje e os que estão **liberados** hoje.
 - Se houve alguma falha nos últimos 7 dias, o app pode mostrar uma mensagem de boas-vindas de volta.
+
+### Conquistas
+
+São **16 conquistas fixas**, em três níveis: **bronze, prata e ouro**. Cada uma é ganha **uma vez só**, paga um **bônus único** e libera um **título**.
+
+| Família | Bronze | Prata | Ouro |
+|---|---|---|---|
+| **Check-ins** (hábitos para construir feitos) | 10 | 100 | 500 |
+| **Ofensiva** (maior recorde de algum hábito, em dias) | 7 | 30 | 100 |
+| **Nível** | 5 | 10 | 25 |
+| **Resgates** na loja | 1 | 10 | — |
+| **Dias limpos** (hábitos para evitar) | 10 | 50 | 200 |
+| **Volta por cima**: dias cumpridos depois do primeiro nocaute | — | 10 | — |
+| **Piloto automático**: dias cumpridos de um mesmo hábito | — | — | 66 |
+
+**Bônus por nível**
+
+| Nível | Moedas | XP |
+|---|---|---|
+| Bronze | 25 | 50 |
+| Prata | 100 | 150 |
+| Ouro | 300 | 400 |
+
+- **Como conta:**
+  - vale o **histórico inteiro**, incluindo hábitos arquivados;
+  - "dias cumpridos" são os feitos e os dias limpos, a mesma conta do "rumo ao automático";
+  - nos hábitos semanais, cada semana de ofensiva vale 7 dias;
+  - um check-in desfeito ou um resgate desfeito deixa de contar;
+  - compras de itens de jogo não contam como resgate.
+- **Para sempre:** desfazer o check-in, arquivar o hábito ou perder XP **não** tira a conquista nem o bônus.
+- **Bônus:** entra no extrato como "conquista". Se o XP do bônus subir o nível, a subida vem com HP cheio, como sempre, e pode liberar uma conquista de nível na mesma hora.
+- **Quando é ganha:** sempre que o perfil do jogador é lido, o que o app faz ao abrir e depois de toda mudança. Uma conquista que o fechamento do dia liberou de madrugada aparece quando o jogador abre o app, com a data desse dia.
+- **Aviso:** cada conquista nova aparece uma vez ("Conquista desbloqueada"), em qualquer aparelho.
+- O bônus de conquista **não** entra no ritmo de ganho da loja.
 
 ## Loja de recompensas
 
@@ -397,7 +432,7 @@ O próprio usuário cadastra as recompensas e as compra com as moedas ganhas nos
 - **Resgatar** desconta o preço das moedas. O saldo é conferido no momento do resgate: sem moedas suficientes, nada acontece.
 - O resgate guarda o nome, o ícone e o **preço pago**. Mudar a recompensa depois não altera o histórico.
 - **Desfazer um resgate:** só **no mesmo dia** do resgate e só uma vez. O preço pago volta integralmente.
-- **Ritmo de ganho:** a loja mostra quantos dias de hábitos cada recompensa custa, com base na média de moedas por dia ganhas com hábitos nos **últimos 14 dias**. Resgates, compras de itens e nocautes não entram nessa média.
+- **Ritmo de ganho:** a loja mostra quantos dias de hábitos cada recompensa custa, com base na média de moedas por dia ganhas com hábitos nos **últimos 14 dias**. Resgates, compras de itens, bônus de conquistas e nocautes não entram nessa média.
 
 ### Itens de jogo
 
