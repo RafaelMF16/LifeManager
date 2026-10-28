@@ -28,6 +28,12 @@ namespace LifeManager.Domain.Habits.Errors
 
         public static readonly Error NotAvoidable = Error.Validation("Habit.NotAvoidable", "Only a habit to avoid has relapses");
 
+        public static readonly Error NotMeasurable = Error.Validation("Habit.NotMeasurable", "Only a habit with a daily target takes progress");
+        public static readonly Error InvalidProgressValue = Error.Validation("Habit.InvalidProgressValue", "Progress must be between 1 and 100000");
+        public static readonly Error TooManyProgressEntries = Error.Validation("Habit.TooManyProgressEntries", "A day takes at most 50 progress entries");
+        public static readonly Error ProgressRequired = Error.Validation("Habit.ProgressRequired", "A habit with a daily target is completed by logging progress");
+        public static readonly Error ProgressEntryNotFound = Error.NotFound("Habit.ProgressEntryNotFound", "Progress entry not found");
+
         public static readonly Error CheckInNotFound = Error.NotFound("Habit.CheckInNotFound", "The habit wasn't checked in on this day");
         public static readonly Error RelapseNotFound = Error.NotFound("Habit.RelapseNotFound", "No relapse was logged on this day");
         public static readonly Error AlreadyCheckedIn = Error.Conflict("Habit.AlreadyCheckedIn", "The habit was already checked in on this day");

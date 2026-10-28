@@ -241,6 +241,19 @@ namespace LifeManager.Domain.Habits
         }
 
         /// <summary>
+        /// Whether progress can be logged on <paramref name="date"/>, or removed, on <paramref name="today"/>: the same
+        /// days as a check-in (<see cref="EnsureCanCheckIn"/>), on a habit with a daily target.
+        /// </summary>
+        public Result EnsureCanRecordProgress(DateOnly date, DateOnly today)
+        {
+            var canCheckIn = EnsureCanCheckIn(date, today);
+            if (!canCheckIn.IsSuccess)
+                return canCheckIn;
+
+            return Target is null ? HabitErrors.NotMeasurable : Result.Success();
+        }
+
+        /// <summary>
         /// Whether a relapse can be logged on <paramref name="date"/>, or undone, on <paramref name="today"/>: an active
         /// habit to avoid, on a day it is avoided (a set-days habit's other days are free), from its start date, and only
         /// today or yesterday.
