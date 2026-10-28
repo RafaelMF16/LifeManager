@@ -593,6 +593,11 @@ namespace LifeManager.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("Avatar")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
+
                     b.Property<int>("Coins")
                         .HasColumnType("integer");
 
@@ -606,6 +611,9 @@ namespace LifeManager.Infrastructure.Migrations
                         .HasColumnType("integer");
 
                     b.Property<int>("StreakFreezes")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("Title")
                         .HasColumnType("integer");
 
                     b.Property<int>("TotalXp")

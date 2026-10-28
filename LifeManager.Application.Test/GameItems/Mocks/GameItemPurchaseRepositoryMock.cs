@@ -121,7 +121,9 @@ namespace LifeManager.Application.Test.GameItems.Mocks
                 profile.Hp,
                 profile.MaxHp,
                 profile.Coins,
-                profile.StreakFreezes);
+                profile.StreakFreezes,
+                profile.Avatar,
+                profile.Title);
 
         internal static GameItemPurchase ToDetachedCopy(GameItemPurchase purchase)
             => GameItemPurchase.FromPersistence(

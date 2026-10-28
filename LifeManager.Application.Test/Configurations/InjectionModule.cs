@@ -65,6 +65,7 @@ namespace LifeManager.Application.Test.Configurations
             services.AddScoped<IRewardRedemptionRepository, RewardRedemptionRepositoryMock>();
             services.AddScoped<IGameItemPurchaseRepository, GameItemPurchaseRepositoryMock>();
             services.AddScoped<IAchievementRepository, AchievementRepositoryMock>();
+            services.AddScoped<IPlayerStatsRepository, PlayerStatsRepositoryMock>();
             services.AddScoped<IStatementImportRepository, StatementImportRepositoryMock>();
             services.AddScoped<ICategorizationRuleRepository, CategorizationRuleRepositoryMock>();
             services.AddScoped<IAccountHolderRepository, AccountHolderRepositoryMock>();

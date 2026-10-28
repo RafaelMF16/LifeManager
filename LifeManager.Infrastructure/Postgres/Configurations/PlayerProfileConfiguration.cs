@@ -1,4 +1,5 @@
 using LifeManager.Domain.Habits;
+using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.Habits.ValueObjects;
 using LifeManager.Domain.Users;
 using Microsoft.EntityFrameworkCore;
@@ -22,6 +23,14 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
             builder.Property(profile => profile.MaxHp).IsRequired();
             builder.Property(profile => profile.Coins).IsRequired();
             builder.Property(profile => profile.StreakFreezes).IsRequired();
+
+            // The default lets PlayerWallet's raw insert leave the appearance out. EF itself always sends the value: the
+            // domain never holds the sentinel 0, which isn't an avatar.
+            builder.Property(profile => profile.Avatar)
+                .IsRequired()
+                .HasDefaultValue(PlayerAvatar.Cat)
+                .HasSentinel((PlayerAvatar)0);
+            builder.Property(profile => profile.Title);
 
             builder.Ignore(profile => profile.XpInLevel);
             builder.Ignore(profile => profile.XpToNextLevel);

@@ -1,5 +1,7 @@
 using LifeManager.Application.Test.Configurations.SingletonLists;
+using LifeManager.Domain.Achievements.Enums;
 using LifeManager.Domain.Habits;
+using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.Habits.Interfaces;
 using LifeManager.Domain.Users.ValueObjects;
 
@@ -27,14 +29,7 @@ namespace LifeManager.Application.Test.Habits.Mocks
         public Task<PlayerProfile> ApplyAsync(UserId userId, Func<PlayerProfile, IReadOnlyList<GameLedgerEntry>> apply, CancellationToken cancellationToken)
         {
             // Mirrors PlayerWallet: insert the default profile if missing, then work on the stored row.
-            var index = _profiles.FindIndex(profile => profile.UserId == userId);
-            if (index < 0)
-            {
-                var newProfile = PlayerProfile.CreateDefault(userId);
-                newProfile.AssignId(_profiles.Count + 1);
-                _profiles.Add(newProfile);
-                index = _profiles.Count - 1;
-            }
+            var index = EnsureExists(userId);
 
             var lockedProfile = ToDetachedCopy(_profiles[index]);
             var entries = apply(lockedProfile);
@@ -50,6 +45,30 @@ namespace LifeManager.Application.Test.Habits.Mocks
             return Task.FromResult(lockedProfile);
         }
 
+        public Task UpdateAppearanceAsync(UserId userId, PlayerAvatar avatar, AchievementCode? title, CancellationToken cancellationToken)
+        {
+            var index = EnsureExists(userId);
+            var stored = _profiles[index];
+
+            _profiles[index] = PlayerProfile.FromPersistence(
+                stored.Id!.Value, stored.UserId.Value, stored.TotalXp, stored.Hp, stored.MaxHp, stored.Coins, stored.StreakFreezes, avatar, title);
+
+            return Task.CompletedTask;
+        }
+
+        private int EnsureExists(UserId userId)
+        {
+            var index = _profiles.FindIndex(profile => profile.UserId == userId);
+            if (index >= 0)
+                return index;
+
+            var newProfile = PlayerProfile.CreateDefault(userId);
+            newProfile.AssignId(_profiles.Count + 1);
+            _profiles.Add(newProfile);
+
+            return _profiles.Count - 1;
+        }
+
         private static PlayerProfile ToDetachedCopy(PlayerProfile profile)
             => PlayerProfile.FromPersistence(
                 profile.Id!.Value,
@@ -58,6 +77,8 @@ namespace LifeManager.Application.Test.Habits.Mocks
                 profile.Hp,
                 profile.MaxHp,
                 profile.Coins,
-                profile.StreakFreezes);
+                profile.StreakFreezes,
+                profile.Avatar,
+                profile.Title);
     }
 }

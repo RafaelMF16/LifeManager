@@ -1,3 +1,5 @@
+using LifeManager.Domain.Achievements.Enums;
+using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Domain.Habits.Interfaces
@@ -13,5 +15,11 @@ namespace LifeManager.Domain.Habits.Interfaces
         /// run one after the other.
         /// </summary>
         Task<PlayerProfile> ApplyAsync(UserId userId, Func<PlayerProfile, IReadOnlyList<GameLedgerEntry>> apply, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Stores the avatar and the title, creating the user's profile first if it doesn't exist yet. Writes only those
+        /// two columns, without the lock: they never race with <see cref="ApplyAsync"/>, which doesn't write them.
+        /// </summary>
+        Task UpdateAppearanceAsync(UserId userId, PlayerAvatar avatar, AchievementCode? title, CancellationToken cancellationToken);
     }
 }

@@ -1,4 +1,6 @@
+using LifeManager.Application.Habits.DTOs;
 using LifeManager.Application.Habits.Services;
+using LifeManager.Domain.Habits.Enums;
 using LifeManager.WebApi.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,12 +10,28 @@ namespace LifeManager.WebApi.Habits.Controllers
     [ApiController]
     [Authorize]
     [Route("api/Habits/Profile")]
-    public class HabitProfileController(PlayerWalletService playerWalletService) : Controller
+    public class HabitProfileController(PlayerWalletService playerWalletService, PlayerProfileService playerProfileService) : Controller
     {
         private readonly PlayerWalletService _playerWalletService = playerWalletService;
+        private readonly PlayerProfileService _playerProfileService = playerProfileService;
 
         [HttpGet]
         public async Task<IActionResult> Get(CancellationToken cancellationToken)
             => Ok(await _playerWalletService.GetProfileAsync(User.GetUserId(), cancellationToken));
+
+        /// <summary>Picks the avatar and the title (an unlocked achievement's, or none).</summary>
+        [HttpPut("Appearance")]
+        public async Task<IActionResult> UpdateAppearance(UpdateAppearanceRequestDto request, CancellationToken cancellationToken)
+            => (await _playerProfileService.UpdateAppearanceAsync(request, User.GetUserId(), cancellationToken)).Match(Ok);
+
+        /// <summary>The player's lifetime numbers.</summary>
+        [HttpGet("Stats")]
+        public async Task<IActionResult> GetStats(CancellationToken cancellationToken)
+            => Ok(await _playerProfileService.GetStatsAsync(User.GetUserId(), cancellationToken));
+
+        /// <summary>XP and coins day by day over the range (<c>Month</c>, <c>Quarter</c> by default, or <c>Year</c>).</summary>
+        [HttpGet("Evolution")]
+        public async Task<IActionResult> GetEvolution([FromQuery] EvolutionRange range = EvolutionRange.Quarter, CancellationToken cancellationToken = default)
+            => (await _playerProfileService.GetEvolutionAsync(range, User.GetUserId(), cancellationToken)).Match(Ok);
     }
 }

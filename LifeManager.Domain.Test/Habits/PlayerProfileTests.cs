@@ -1,5 +1,7 @@
+using LifeManager.Domain.Achievements.Enums;
 using LifeManager.Domain.GameItems.Errors;
 using LifeManager.Domain.Habits;
+using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.Habits.Errors;
 using LifeManager.Domain.Users.ValueObjects;
 
@@ -247,6 +249,73 @@ namespace LifeManager.Domain.Test.Habits
 
             Assert.Equal(GameItemErrors.ItemAlreadyUsed, result.Error);
             Assert.Equal(0, profile.StreakFreezes);
+        }
+
+        [Fact]
+        public void CreateDefault_ShouldStartWithTheDefaultAvatarAndNoTitle()
+        {
+            var profile = PlayerProfile.CreateDefault(new UserId(7));
+
+            Assert.Equal(PlayerAvatar.Cat, profile.Avatar);
+            Assert.Null(profile.Title);
+        }
+
+        [Fact]
+        public void ChangeAppearance_ShouldSetAvatarAndTitle_WhenTheTitleIsUnlocked()
+        {
+            var profile = Profile();
+
+            var result = profile.ChangeAppearance(PlayerAvatar.Rocket, AchievementCode.CheckIns10, [AchievementCode.CheckIns10]);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(PlayerAvatar.Rocket, profile.Avatar);
+            Assert.Equal(AchievementCode.CheckIns10, profile.Title);
+        }
+
+        [Fact]
+        public void ChangeAppearance_ShouldReturnTitleLockedAndChangeNothing_WhenTheTitleIsLocked()
+        {
+            var profile = Profile();
+
+            var result = profile.ChangeAppearance(PlayerAvatar.Rocket, AchievementCode.Level25, [AchievementCode.CheckIns10]);
+
+            Assert.Equal(PlayerProfileErrors.TitleLocked, result.Error);
+            Assert.Equal(PlayerAvatar.Cat, profile.Avatar);
+            Assert.Null(profile.Title);
+        }
+
+        [Fact]
+        public void ChangeAppearance_ShouldClearTheTitle_WhenItIsNull()
+        {
+            var profile = PlayerProfile.FromPersistence(1, 1, 0, GameRules.MaxHp, GameRules.MaxHp, 0, 0, PlayerAvatar.Dog, AchievementCode.Streak7);
+
+            var result = profile.ChangeAppearance(PlayerAvatar.Dog, null, []);
+
+            Assert.True(result.IsSuccess);
+            Assert.Null(profile.Title);
+        }
+
+        [Fact]
+        public void ChangeAppearance_ShouldChangeOnlyTheAvatar_WithoutAnyAchievement()
+        {
+            var profile = Profile();
+
+            var result = profile.ChangeAppearance(PlayerAvatar.Panda, null, []);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(PlayerAvatar.Panda, profile.Avatar);
+            Assert.Null(profile.Title);
+        }
+
+        [Fact]
+        public void ChangeAppearance_ShouldReturnUnknownAvatarAndChangeNothing_WhenTheAvatarIsNotInTheList()
+        {
+            var profile = Profile();
+
+            var result = profile.ChangeAppearance((PlayerAvatar)99, null, []);
+
+            Assert.Equal(PlayerProfileErrors.UnknownAvatar, result.Error);
+            Assert.Equal(PlayerAvatar.Cat, profile.Avatar);
         }
     }
 }

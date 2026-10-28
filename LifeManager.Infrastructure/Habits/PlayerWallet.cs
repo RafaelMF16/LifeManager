@@ -19,6 +19,20 @@ namespace LifeManager.Infrastructure.Habits
         /// </summary>
         public static async Task<PlayerProfile> LockAsync(LifeManagerDbContext dbContext, UserId userId, CancellationToken cancellationToken)
         {
+            await EnsureExistsAsync(dbContext, userId, cancellationToken);
+
+            var id = userId.Value;
+            var lockedProfiles = await dbContext.PlayerProfiles
+                .FromSql($"""SELECT * FROM "PlayerProfiles" WHERE "UserId" = {id} FOR UPDATE""")
+                .AsNoTracking()
+                .ToListAsync(cancellationToken);
+
+            return lockedProfiles.Single();
+        }
+
+        /// <summary>Inserts a new player's profile for the user unless one exists; the columns left out take their defaults.</summary>
+        public static async Task EnsureExistsAsync(LifeManagerDbContext dbContext, UserId userId, CancellationToken cancellationToken)
+        {
             // ON CONFLICT on the unique UserId index makes a concurrent first change a no-op instead of an error,
             // without aborting the surrounding transaction the way a caught unique violation would.
             var newProfile = PlayerProfile.CreateDefault(userId);
@@ -35,13 +49,6 @@ namespace LifeManager.Infrastructure.Habits
                 VALUES ({id}, {level}, {totalXp}, {hp}, {maxHp}, {coins}, {streakFreezes})
                 ON CONFLICT ("UserId") DO NOTHING
                 """, cancellationToken);
-
-            var lockedProfiles = await dbContext.PlayerProfiles
-                .FromSql($"""SELECT * FROM "PlayerProfiles" WHERE "UserId" = {id} FOR UPDATE""")
-                .AsNoTracking()
-                .ToListAsync(cancellationToken);
-
-            return lockedProfiles.Single();
         }
 
         /// <summary>Appends <paramref name="entries"/> to the ledger and stores the locked profile's new values.</summary>
