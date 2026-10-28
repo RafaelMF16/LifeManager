@@ -105,7 +105,9 @@ namespace LifeManager.Application.Test.Rewards.Mocks
                 profile.Hp,
                 profile.MaxHp,
                 profile.Coins,
-                profile.StreakFreezes);
+                profile.StreakFreezes,
+                profile.Avatar,
+                profile.Title);
 
         internal static RewardRedemption ToDetachedCopy(RewardRedemption redemption)
             => RewardRedemption.FromPersistence(

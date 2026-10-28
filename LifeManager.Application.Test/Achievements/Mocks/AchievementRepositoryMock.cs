@@ -124,7 +124,9 @@ namespace LifeManager.Application.Test.Achievements.Mocks
                 profile.Hp,
                 profile.MaxHp,
                 profile.Coins,
-                profile.StreakFreezes);
+                profile.StreakFreezes,
+                profile.Avatar,
+                profile.Title);
 
         private static AchievementUnlock ToDetachedCopy(AchievementUnlock unlock)
             => AchievementUnlock.FromPersistence(unlock.Id!.Value, unlock.UserId.Value, unlock.Code, unlock.UnlockedOn, unlock.UnlockedAt, unlock.SeenAt);

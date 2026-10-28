@@ -140,10 +140,13 @@ namespace LifeManager.Domain.Habits
 
         /// <summary>
         /// Picks the avatar and the title; <paramref name="title"/> must be one of the <paramref name="unlocked"/>
-        /// achievements (or null for none). Nothing changes when it isn't.
+        /// achievements (or null for none). Nothing changes when either is refused.
         /// </summary>
         public Result ChangeAppearance(PlayerAvatar avatar, AchievementCode? title, IEnumerable<AchievementCode> unlocked)
         {
+            if (!Enum.IsDefined(avatar))
+                return PlayerProfileErrors.UnknownAvatar;
+
             if (title is { } code && !unlocked.Contains(code))
                 return PlayerProfileErrors.TitleLocked;
 

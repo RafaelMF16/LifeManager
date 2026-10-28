@@ -1,4 +1,6 @@
+using LifeManager.Domain.Achievements.Enums;
 using LifeManager.Domain.Habits;
+using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.Habits.Interfaces;
 using LifeManager.Domain.Users.ValueObjects;
 using LifeManager.Infrastructure.Postgres;
@@ -28,6 +30,17 @@ namespace LifeManager.Infrastructure.Habits
             await databaseTransaction.CommitAsync(cancellationToken);
 
             return profile;
+        }
+
+        public async Task UpdateAppearanceAsync(UserId userId, PlayerAvatar avatar, AchievementCode? title, CancellationToken cancellationToken)
+        {
+            await PlayerWallet.EnsureExistsAsync(_dbContext, userId, cancellationToken);
+
+            await _dbContext.PlayerProfiles
+                .Where(profile => profile.UserId == userId)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(profile => profile.Avatar, avatar)
+                    .SetProperty(profile => profile.Title, title), cancellationToken);
         }
     }
 }

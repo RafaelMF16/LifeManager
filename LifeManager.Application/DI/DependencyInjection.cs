@@ -52,6 +52,7 @@ namespace LifeManager.Application.DI
             services.AddScoped<RewardRedemptionService>();
             services.AddScoped<GameItemService>();
             services.AddScoped<AchievementService>();
+            services.AddScoped<PlayerProfileService>();
             services.AddScoped<StatementImportService>();
             services.AddScoped<StatementImportRowService>();
 

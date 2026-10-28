@@ -137,6 +137,8 @@ namespace LifeManager.Application.Test.Habits.Mocks
                 profile.Hp,
                 profile.MaxHp,
                 profile.Coins,
-                profile.StreakFreezes);
+                profile.StreakFreezes,
+                profile.Avatar,
+                profile.Title);
     }
 }

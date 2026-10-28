@@ -1,5 +1,7 @@
 using LifeManager.Application.Achievements.DTOs;
+using LifeManager.Domain.Achievements.Enums;
 using LifeManager.Domain.Habits;
+using LifeManager.Domain.Habits.Enums;
 
 namespace LifeManager.Application.Habits.DTOs
 {
@@ -13,6 +15,8 @@ namespace LifeManager.Application.Habits.DTOs
         int Coins,
         int StreakFreezes,
         int MaxStreakFreezes,
+        PlayerAvatar Avatar,
+        AchievementCode? Title,
         LastKnockoutDto? LastKnockout,
         IReadOnlyList<NewAchievementDto> NewAchievements)
     {
@@ -29,6 +33,8 @@ namespace LifeManager.Application.Habits.DTOs
                 profile.Coins,
                 profile.StreakFreezes,
                 GameRules.MaxStreakFreezes,
+                profile.Avatar,
+                profile.Title,
                 lastKnockout,
                 newAchievements ?? []);
     }

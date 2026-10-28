@@ -306,5 +306,16 @@ namespace LifeManager.Domain.Test.Habits
             Assert.Equal(PlayerAvatar.Panda, profile.Avatar);
             Assert.Null(profile.Title);
         }
+
+        [Fact]
+        public void ChangeAppearance_ShouldReturnUnknownAvatarAndChangeNothing_WhenTheAvatarIsNotInTheList()
+        {
+            var profile = Profile();
+
+            var result = profile.ChangeAppearance((PlayerAvatar)99, null, []);
+
+            Assert.Equal(PlayerProfileErrors.UnknownAvatar, result.Error);
+            Assert.Equal(PlayerAvatar.Cat, profile.Avatar);
+        }
     }
 }
