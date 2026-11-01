@@ -14,6 +14,8 @@ using LifeManager.Domain.Transactions;
 using LifeManager.Domain.Users;
 using LifeManager.Domain.UsersPreferences;
 using Microsoft.EntityFrameworkCore;
+using LifeManager.Domain.Ranking;
+using LifeManager.Domain.RankingGroups;
 
 namespace LifeManager.Infrastructure.Postgres
 {
@@ -35,6 +37,10 @@ namespace LifeManager.Infrastructure.Postgres
         public DbSet<Habit> Habits { get; set; }
         public DbSet<HabitCheckIn> HabitCheckIns { get; set; }
         public DbSet<HabitProgressEntry> HabitProgressEntries { get; set; }
+        public DbSet<RankingGroup> RankingGroups { get; set; }
+        public DbSet<RankingGroupMember> RankingGroupMembers { get; set; }
+        public DbSet<RankingWeekResult> RankingWeekResults { get; set; }
+        public DbSet<RankingReaction> RankingReactions { get; set; }
         public DbSet<Reward> Rewards { get; set; }
         public DbSet<RewardRedemption> RewardRedemptions { get; set; }
         public DbSet<GameItemPurchase> GameItemPurchases { get; set; }

@@ -11,6 +11,8 @@ namespace LifeManager.Domain.Achievements
     /// <param name="CleanDays">Clean days of habits to avoid.</param>
     /// <param name="KeptDaysAfterFirstKnockout">Days done or clean after the day of the first knockout; 0 without one.</param>
     /// <param name="MostKeptDaysInOneHabit">The most days done or clean of a single habit.</param>
+    /// <param name="RankingWins">Distinct weeks the player finished first in a group (<see cref="Ranking.RankingWeekResult.CountsForAchievements"/>).</param>
+    /// <param name="RankingPodiums">Distinct weeks the player finished on a group's podium, by the same rule.</param>
     public record AchievementProgress(
         int CheckIns,
         int LongestStreakDays,
@@ -18,5 +20,7 @@ namespace LifeManager.Domain.Achievements
         int Redemptions,
         int CleanDays,
         int KeptDaysAfterFirstKnockout,
-        int MostKeptDaysInOneHabit);
+        int MostKeptDaysInOneHabit,
+        int RankingWins = 0,
+        int RankingPodiums = 0);
 }

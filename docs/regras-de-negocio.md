@@ -30,6 +30,11 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
   - [Perfil do jogador](#perfil-do-jogador)
 - [Loja de recompensas](#loja-de-recompensas)
   - [Itens de jogo](#itens-de-jogo)
+- [Ranking em grupos](#ranking-em-grupos)
+  - [Pontos da semana](#pontos-da-semana)
+  - [Grupos](#grupos)
+  - [Ranking do grupo](#ranking-do-grupo)
+  - [Reações](#reações)
 - [Apêndice: códigos de erro](#apêndice-códigos-de-erro)
 
 ## Princípios gerais
@@ -390,7 +395,7 @@ Um processo do servidor roda a cada hora (e ao iniciar a API) e **fecha os dias 
 
 ### Conquistas
 
-São **16 conquistas fixas**, em três níveis: **bronze, prata e ouro**. Cada uma é ganha **uma vez só**, paga um **bônus único** e libera um **título**.
+São **22 conquistas fixas**, em três níveis: **bronze, prata e ouro**. Cada uma é ganha **uma vez só**, paga um **bônus único** e libera um **título**.
 
 | Família | Bronze | Prata | Ouro |
 |---|---|---|---|
@@ -401,6 +406,8 @@ São **16 conquistas fixas**, em três níveis: **bronze, prata e ouro**. Cada u
 | **Dias limpos** (hábitos para evitar) | 10 | 50 | 200 |
 | **Volta por cima**: dias cumpridos depois do primeiro nocaute | — | 10 | — |
 | **Piloto automático**: dias cumpridos de um mesmo hábito | — | — | 66 |
+| **Ranking: vitórias** (semanas em 1º num grupo) | 1 | 5 | 20 |
+| **Ranking: pódios** (semanas entre os 3 primeiros) | 3 | 10 | 30 |
 
 **Bônus por nível**
 
@@ -415,7 +422,8 @@ São **16 conquistas fixas**, em três níveis: **bronze, prata e ouro**. Cada u
   - "dias cumpridos" são os feitos e os dias limpos, a mesma conta do "rumo ao automático";
   - nos hábitos semanais, cada semana de ofensiva vale 7 dias;
   - um check-in desfeito ou um resgate desfeito deixa de contar;
-  - compras de itens de jogo não contam como resgate.
+  - compras de itens de jogo não contam como resgate;
+  - **ranking:** só vale uma semana **fechada** de um grupo com **3 ou mais membros desde segunda**, em que o jogador também estava desde segunda e fez pontos. Empate em 1º vale vitória para todos os empatados. Contam **semanas diferentes**: vencer a mesma semana em dois grupos conta uma vez só.
 - **Para sempre:** desfazer o check-in, arquivar o hábito ou perder XP **não** tira a conquista nem o bônus.
 - **Bônus:** entra no extrato como "conquista". Se o XP do bônus subir o nível, a subida vem com HP cheio, como sempre, e pode liberar uma conquista de nível na mesma hora.
 - **Quando é ganha:** sempre que o perfil do jogador é lido, o que o app faz ao abrir e depois de toda mudança. Uma conquista que o fechamento do dia liberou de madrugada aparece quando o jogador abre o app, com a data desse dia.
@@ -467,6 +475,53 @@ Além das recompensas do usuário, a loja vende dois **itens de jogo** fixos, qu
 - **Desfazer uma compra:** só **no mesmo dia** e só uma vez. O preço volta integralmente e o limite é liberado de novo.
   - **Poção:** a cura é retirada, mas o HP para em 1 (o desfazer nunca derruba o jogador).
   - **Proteção:** só se o jogador ainda tiver alguma guardada. Se o fechamento do dia já a usou, o desfazer é recusado. As proteções não guardam a origem: o desfazer tira uma das guardadas, seja a comprada ou uma ganha pela ofensiva. O saldo final é o mesmo de quem nunca comprou.
+
+## Ranking em grupos
+
+Grupos fechados de amigos, criados pelos próprios jogadores, comparam a **semana de hábitos** de cada um. Não há ranking global.
+
+### Pontos da semana
+
+A semana do ranking vai de **segunda a domingo**, a mesma da ofensiva semanal. Os pontos saem dos registros de cada dia, sem nada a mais para marcar:
+
+- **10 pontos por hábito cumprido no dia** (feito, ou dia limpo de um hábito para evitar), contando **no máximo 5 hábitos por dia**. Ter mais hábitos não dá mais pontos.
+- **+10 pontos de dia perfeito** quando, no dia, havia ao menos um hábito previsto, **todos** os hábitos para construir previstos foram feitos e **nenhum** hábito para evitar teve recaída.
+  - um dia **protegido** (proteção de ofensiva) sai da conta: não ajuda nem atrapalha o dia perfeito, e não dá pontos;
+  - hábitos **N vezes por semana** dão pontos quando feitos, mas ficam fora da conta do dia perfeito;
+  - um hábito arquivado ainda conta no dia em que foi arquivado; antes do início, não conta.
+- **Máximo:** 60 pontos por dia, 420 por semana.
+- Os **dias limpos** só são gravados pelo fechamento do dia (até 2 dias depois), por isso os pontos de hábitos para evitar chegam com atraso: o placar pode subir na terça.
+
+### Grupos
+
+- **Criar:** nome de 1 a 40 caracteres; quem cria é o **dono** e o primeiro membro.
+- **Limites:** cada jogador participa de **até 5 grupos**; cada grupo tem **até 20 membros**.
+- **Convite:** cada grupo tem um **código de 8 caracteres** (sem letras e números que se confundem, como O/0 e I/1), compartilhado como código ou link. Quem tem o código vê o nome do grupo, o dono e quantos membros há antes de entrar. Só o dono pode **gerar um código novo**, e o antigo para de funcionar.
+- **Dono:** só ele renomeia o grupo, gera código novo e remove membros. Ele não pode se remover: para isso, **sai** do grupo.
+- **Sair:** qualquer membro pode sair. Se o dono sai, o membro **mais antigo** vira dono. Se o último membro sai, o grupo é **apagado**. Quem saiu ou foi removido pode voltar pelo convite.
+- **Privacidade:** quem não é membro não sabe nem se o grupo existe ("não encontrado"). Dentro do grupo, os membros veem só nome, avatar, título e os pontos da semana.
+- O código do convite tem um limite de **30 tentativas a cada 10 minutos** (prévia e entrada).
+
+### Ranking do grupo
+
+- **Posição:** por pontos; empate nos pontos desempata por dias perfeitos e depois por hábitos cumpridos. Empate nos três divide a posição (1º, 1º, 3º); na tela, os empatados aparecem por nome.
+- **Estado da semana:**
+  - **ao vivo:** a semana atual, calculada na hora para os membros de agora;
+  - **fechando:** a semana acabou, mas ainda não foi gravada (os pontos ainda podem mudar com o fechamento do dia);
+  - **final:** gravada. Um resultado final **nunca muda**: desfazer um check-in ou sair do grupo não reescreve a semana. Quem saiu continua aparecendo nela, marcado como "saiu do grupo".
+- **Fechamento da semana:** feito de hora em hora, a partir de terça. A semana só fecha quando o fechamento do dia de **todos** os membros já julgou o domingo. Se algum ainda estiver atrasado **3 dias depois da terça**, ela fecha mesmo assim com o que está gravado. Entram os membros do momento do fechamento que já estavam no grupo até o domingo. A primeira semana do grupo é a da sua criação.
+- **Quem vale para conquistas:** só quem estava no grupo **desde a segunda** da semana. Quem entrou no meio aparece no ranking, mas a semana não lhe dá conquista; e a semana só vale conquistas com **3 ou mais** desses membros (veja [Conquistas](#conquistas)).
+- **Avisos:** na semana atual (menos na segunda), o jogador vê quem **passou à sua frente desde ontem** (quem estava atrás ou empatado ontem e hoje está à frente) e quantos pontos faltam para alcançar quem está logo à frente.
+- **Semana passada:** junto com a semana atual vem o **pódio** da semana anterior (até o 3º lugar, com empates) e a posição do jogador nela.
+- **Navegação:** da semana atual até a primeira semana do grupo. Semanas futuras ou anteriores à criação do grupo não existem.
+- Na lista de grupos, cada um mostra a posição e os pontos do jogador na semana atual.
+
+### Reações
+
+- Um membro pode reagir à semana de outro com **👏** ou **🔥**: **uma reação por pessoa, por membro e por semana** em cada grupo. Reagir de novo troca a reação; dá para desfazer.
+- Só na **semana atual e na anterior**, e nunca à própria semana.
+- Cada linha do ranking mostra quantas reações de cada tipo o membro recebeu e qual eu dei. **Quem reagiu** só aparece para quem recebeu.
+- Quem sai do grupo leva junto as reações que deu e recebeu nele.
 
 ## Apêndice: códigos de erro
 
@@ -629,3 +684,24 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 | `GameItems.AlreadyUndone` | Conflict | A compra já foi desfeita |
 | `GameItems.ItemAlreadyUsed` | Conflict | Desfazer uma proteção que o fechamento do dia já usou |
 | `GameItems.PurchaseNotFound` | NotFound | Compra não existe |
+
+### Ranking
+
+| Código | Tipo | Quando acontece |
+|---|---|---|
+| `RankingGroups.NameIsNullOrWhiteSpace` | Validation | Nome do grupo vazio |
+| `RankingGroups.NameTooLong` | Validation | Nome do grupo com mais de 40 caracteres |
+| `RankingGroups.TooManyGroups` | Conflict | Criar ou entrar num 6º grupo |
+| `RankingGroups.GroupFull` | Conflict | Entrar num grupo que já tem 20 membros |
+| `RankingGroups.AlreadyMember` | Conflict | Entrar num grupo do qual já é membro |
+| `RankingGroups.NotOwner` | Conflict | Renomear, gerar código novo ou remover membro sem ser o dono |
+| `RankingGroups.CannotRemoveSelf` | Validation | O dono tentando se remover (ele sai do grupo) |
+| `RankingGroups.NotFound` | NotFound | Grupo não existe, ou o usuário não é membro |
+| `RankingGroups.InviteNotFound` | NotFound | Código de convite que não existe (ou foi trocado) |
+| `RankingGroups.MemberNotFound` | NotFound | Remover alguém que não é membro do grupo |
+| `Ranking.InvalidWeekStart` | Validation | Semana que não começa numa segunda (ou não informada, nas reações) |
+| `Ranking.WeekOutOfRange` | Validation | Semana futura ou anterior à criação do grupo |
+| `Ranking.MemberNotFound` | NotFound | Reagir a quem não é membro do grupo |
+| `Ranking.CannotReactToSelf` | Validation | Reagir à própria semana |
+| `Ranking.ReactionOutOfWindow` | Validation | Reagir a uma semana que não é a atual nem a anterior |
+| `Ranking.UnknownReaction` | Validation | Reação que não é 👏 nem 🔥 |

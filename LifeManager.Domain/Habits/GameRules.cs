@@ -45,6 +45,8 @@ namespace LifeManager.Domain.Habits
         public static readonly IReadOnlyList<int> LevelAchievements = [5, 10, 25];
         public static readonly IReadOnlyList<int> RedemptionAchievements = [1, 10];
         public static readonly IReadOnlyList<int> CleanDayAchievements = [10, 50, 200];
+        public static readonly IReadOnlyList<int> RankingWinAchievements = [1, 5, 20];
+        public static readonly IReadOnlyList<int> RankingPodiumAchievements = [3, 10, 30];
 
         /// <summary>Days done or clean after the first knockout for the comeback achievement.</summary>
         public const int ComebackKeptDays = 10;

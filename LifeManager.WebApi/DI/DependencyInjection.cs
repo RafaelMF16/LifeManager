@@ -6,6 +6,7 @@ using LifeManager.WebApi.Auth.Jobs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using LifeManager.WebApi.Habits.Jobs;
+using LifeManager.WebApi.Ranking.Jobs;
 using LifeManager.WebApi.RecurringTransactions.Jobs;
 using LifeManager.WebApi.StatementImports.Jobs;
 using Microsoft.IdentityModel.Tokens;
@@ -86,6 +87,7 @@ namespace LifeManager.WebApi.DI
         {
             builder.Services.AddSingleton<RecurringTransactionsRunner>();
             builder.Services.AddSingleton<HabitsDayCloseRunner>();
+            builder.Services.AddSingleton<RankingWeekCloseRunner>();
             builder.Services.AddSingleton<StatementImportsCleanupRunner>();
             builder.Services.AddSingleton<AuthCleanupRunner>();
 
@@ -94,6 +96,7 @@ namespace LifeManager.WebApi.DI
 
             builder.Services.AddHostedService<RecurringTransactionsJob>();
             builder.Services.AddHostedService<HabitsDayCloseJob>();
+            builder.Services.AddHostedService<RankingWeekCloseJob>();
             builder.Services.AddHostedService<StatementImportsCleanupJob>();
             builder.Services.AddHostedService<AuthCleanupJob>();
         }

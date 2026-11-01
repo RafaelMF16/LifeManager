@@ -3,6 +3,7 @@ using LifeManager.Domain.Achievements.Enums;
 using LifeManager.Domain.Achievements.Interfaces;
 using LifeManager.Domain.Habits;
 using LifeManager.Domain.Habits.Enums;
+using LifeManager.Domain.Ranking;
 using LifeManager.Domain.Users.ValueObjects;
 using LifeManager.Infrastructure.Habits;
 using LifeManager.Infrastructure.Postgres;
@@ -64,6 +65,11 @@ namespace LifeManager.Infrastructure.Achievements
         {
             var checkIns = _dbContext.HabitCheckIns.Where(checkIn => checkIn.UserId == userId);
             var keptCheckIns = checkIns.Where(checkIn => checkIn.Status == HabitCheckInStatus.Done || checkIn.Status == HabitCheckInStatus.Clean);
+            // RankingWeekResult.CountsForAchievements, inlined for SQL.
+            var rankingWeeks = _dbContext.RankingWeekResults.Where(result => result.UserId == userId
+                && result.Eligible
+                && result.EligibleCount >= RankingRules.MinEligibleMembers
+                && result.Points > 0);
 
             var row = await _dbContext.Users
                 .Where(user => user.Id == userId)
@@ -86,7 +92,9 @@ namespace LifeManager.Infrastructure.Achievements
                     MostKeptDaysInOneHabit = keptCheckIns
                         .GroupBy(checkIn => checkIn.HabitId)
                         .Select(days => (int?)days.Count())
-                        .Max()
+                        .Max(),
+                    RankingWins = rankingWeeks.Where(result => result.Position == 1).Select(result => result.WeekStart).Distinct().Count(),
+                    RankingPodiums = rankingWeeks.Where(result => result.Position <= RankingRules.PodiumPositions).Select(result => result.WeekStart).Distinct().Count()
                 })
                 .SingleOrDefaultAsync(cancellationToken);
 
@@ -100,7 +108,9 @@ namespace LifeManager.Infrastructure.Achievements
                 row.Redemptions,
                 row.CleanDays,
                 row.KeptDaysAfterFirstKnockout,
-                row.MostKeptDaysInOneHabit ?? 0);
+                row.MostKeptDaysInOneHabit ?? 0,
+                row.RankingWins,
+                row.RankingPodiums);
         }
     }
 }
