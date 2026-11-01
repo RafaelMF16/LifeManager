@@ -9,6 +9,15 @@ namespace LifeManager.Domain.Ranking
 
     public record RankingCheckInRow(UserId UserId, int HabitId, DateOnly Date, HabitCheckInStatus Status);
 
+    public record RankingChallengeRow(UserId UserId, int HabitId, ChallengeType Type, int Target, ChallengeEffort Effort, ChallengeStatus Status);
+
+    public record RankingProgressRow(UserId UserId, int HabitId, DateOnly Date, int Value);
+
     /// <summary>Everything the weekly score of some players needs, read in one go.</summary>
-    public record RankingScoreInputs(IReadOnlyList<RankingHabitRow> Habits, IReadOnlyList<RankingCheckInRow> CheckIns);
+    /// <param name="Progress">The amounts logged in the week toward the habits of the volume challenges only.</param>
+    public record RankingScoreInputs(
+        IReadOnlyList<RankingHabitRow> Habits,
+        IReadOnlyList<RankingCheckInRow> CheckIns,
+        IReadOnlyList<RankingChallengeRow> Challenges,
+        IReadOnlyList<RankingProgressRow> Progress);
 }

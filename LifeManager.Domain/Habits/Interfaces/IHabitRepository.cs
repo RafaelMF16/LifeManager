@@ -29,6 +29,9 @@ namespace LifeManager.Domain.Habits.Interfaces
         /// </summary>
         Task<IReadOnlyList<Habit>> GetActiveByUserIdAsync(UserId userId, HabitKind kind, CancellationToken cancellationToken);
 
+        /// <summary>The user's habits among <paramref name="habitIds"/>, archived ones included.</summary>
+        Task<IReadOnlyList<Habit>> GetByIdsAsync(UserId userId, IReadOnlyCollection<HabitId> habitIds, CancellationToken cancellationToken);
+
         /// <summary>
         /// Whether another active (not archived) habit of the user has this name; case- and accent-insensitive, comparing
         /// <see cref="HabitName.NormalizedValue"/>.

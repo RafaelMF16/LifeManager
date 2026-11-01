@@ -18,11 +18,17 @@ namespace LifeManager.Application.Habits.DTOs
         PlayerAvatar Avatar,
         AchievementCode? Title,
         LastKnockoutDto? LastKnockout,
-        IReadOnlyList<NewAchievementDto> NewAchievements)
+        IReadOnlyList<NewAchievementDto> NewAchievements,
+        IReadOnlyList<ChallengeDto> NewChallenges)
     {
         /// <param name="lastKnockout">Only filled by <c>GET Profile</c>, so the frontend can tell the player about a knockout the day close caused.</param>
         /// <param name="newAchievements">Only filled by <c>GET Profile</c>: the unlocks the player hasn't been shown; empty elsewhere.</param>
-        public static PlayerProfileResponseDto From(PlayerProfile profile, LastKnockoutDto? lastKnockout = null, IReadOnlyList<NewAchievementDto>? newAchievements = null)
+        /// <param name="newChallenges">Only filled by <c>GET Profile</c>: the completed challenges the player hasn't seen celebrated.</param>
+        public static PlayerProfileResponseDto From(
+            PlayerProfile profile,
+            LastKnockoutDto? lastKnockout = null,
+            IReadOnlyList<NewAchievementDto>? newAchievements = null,
+            IReadOnlyList<ChallengeDto>? newChallenges = null)
             => new(
                 profile.Level,
                 profile.XpInLevel,
@@ -36,7 +42,8 @@ namespace LifeManager.Application.Habits.DTOs
                 profile.Avatar,
                 profile.Title,
                 lastKnockout,
-                newAchievements ?? []);
+                newAchievements ?? [],
+                newChallenges ?? []);
     }
 
     /// <summary>The player's latest knockout: its ledger entry id (growing, so the frontend can tell a new one) and the coins it took.</summary>

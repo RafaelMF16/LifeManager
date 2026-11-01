@@ -16,27 +16,30 @@ namespace LifeManager.Application.Habits.Services
         IPlayerProfileRepository playerProfileRepository,
         IGameLedgerRepository gameLedgerRepository,
         AchievementService achievementService,
+        ChallengeService challengeService,
         TimeProvider timeProvider)
     {
         private readonly IPlayerProfileRepository _playerProfileRepository = playerProfileRepository;
         private readonly IGameLedgerRepository _gameLedgerRepository = gameLedgerRepository;
         private readonly AchievementService _achievementService = achievementService;
+        private readonly ChallengeService _challengeService = challengeService;
         private readonly TimeProvider _timeProvider = timeProvider;
 
         /// <summary>
         /// The stored profile, or a new player's one (not saved: the profile is created on its first change), with the
         /// latest knockout. Syncs the achievements first, so the profile already has their bonuses and lists the ones
-        /// the player hasn't been shown.
+        /// the player hasn't been shown. The challenges settle before them, since a challenge's bonus can reach a level.
         /// </summary>
         public async Task<PlayerProfileResponseDto> GetProfileAsync(UserId userId, CancellationToken cancellationToken)
         {
+            var newChallenges = await _challengeService.SyncAndGetUnseenAsync(userId, cancellationToken);
             var achievements = await _achievementService.SyncAsync(userId, cancellationToken);
 
             var profile = await _playerProfileRepository.GetByUserIdAsync(userId, cancellationToken)
                 ?? PlayerProfile.CreateDefault(userId);
             var lastKnockout = await _gameLedgerRepository.GetLatestAsync(userId, GameLedgerEntryKind.Knockout, cancellationToken);
 
-            return PlayerProfileResponseDto.From(profile, LastKnockoutDto.From(lastKnockout), achievements.Unseen());
+            return PlayerProfileResponseDto.From(profile, LastKnockoutDto.From(lastKnockout), achievements.Unseen(), newChallenges);
         }
 
         /// <param name="occurredOn">The game day the change belongs to (e.g. the check-in's date).</param>

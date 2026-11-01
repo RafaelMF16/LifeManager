@@ -31,6 +31,12 @@ namespace LifeManager.Domain.Habits
         /// <summary>The unlocked achievement whose title the player shows; null for none.</summary>
         public AchievementCode? Title { get; private set; }
 
+        /// <summary>
+        /// The Monday of the last weekly summary the player was shown; null before the first. Only written by
+        /// <c>IPlayerProfileRepository.MarkSummarySeenAsync</c>.
+        /// </summary>
+        public DateOnly? SummarySeenWeek { get; private set; }
+
         /// <summary>XP earned since the current level started.</summary>
         public int XpInLevel => TotalXp - GameRules.TotalXpForLevel(Level);
 
@@ -55,12 +61,13 @@ namespace LifeManager.Domain.Habits
         /// <summary>Rehydrates a stored profile without going through the game, so tests can seed any state.</summary>
         internal static PlayerProfile FromPersistence(
             int id, int idUser, int totalXp, int hp, int maxHp, int coins, int streakFreezes,
-            PlayerAvatar avatar = PlayerAvatar.Cat, AchievementCode? title = null)
+            PlayerAvatar avatar = PlayerAvatar.Cat, AchievementCode? title = null, DateOnly? summarySeenWeek = null)
         {
             var profile = new PlayerProfile(new UserId(idUser), totalXp, hp, maxHp, coins, streakFreezes)
             {
                 Avatar = avatar,
-                Title = title
+                Title = title,
+                SummarySeenWeek = summarySeenWeek
             };
             profile.AssignId(id);
 

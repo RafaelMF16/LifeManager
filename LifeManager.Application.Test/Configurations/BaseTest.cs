@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using LifeManager.Application.Test.Configurations.SingletonLists;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LifeManager.Application.Test.Configurations
@@ -25,7 +26,8 @@ namespace LifeManager.Application.Test.Configurations
 
         public void Dispose()
         {
-            
+            // Every profile read settles the active challenges: none may leak into the next test and pay there.
+            WeeklyChallengeSingleton.Instance.Clear();
         }
     }
 }

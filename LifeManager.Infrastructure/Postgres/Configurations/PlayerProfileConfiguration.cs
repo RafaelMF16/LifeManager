@@ -31,6 +31,7 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
                 .HasDefaultValue(PlayerAvatar.Cat)
                 .HasSentinel((PlayerAvatar)0);
             builder.Property(profile => profile.Title);
+            builder.Property(profile => profile.SummarySeenWeek);
 
             builder.Ignore(profile => profile.XpInLevel);
             builder.Ignore(profile => profile.XpToNextLevel);

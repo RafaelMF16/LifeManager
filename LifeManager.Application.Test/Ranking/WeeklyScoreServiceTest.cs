@@ -2,6 +2,7 @@ using LifeManager.Application.Ranking.Services;
 using LifeManager.Application.Test.Configurations;
 using LifeManager.Application.Test.Configurations.SingletonLists;
 using LifeManager.Domain.Habits;
+using LifeManager.Domain.Habits.Challenges;
 using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.Ranking.Errors;
 using LifeManager.Domain.Users.ValueObjects;
@@ -28,6 +29,8 @@ namespace LifeManager.Application.Test.Ranking
 
             HabitSingleton.Instance.Clear();
             HabitCheckInSingleton.Instance.Clear();
+            WeeklyChallengeSingleton.Instance.Clear();
+            HabitProgressEntrySingleton.Instance.Clear();
         }
 
         internal static Habit SeedHabit(UserId userId, HabitKind kind = HabitKind.Positive, DateTimeOffset? archivedAt = null)
@@ -44,6 +47,11 @@ namespace LifeManager.Application.Test.Ranking
         internal static void SeedDay(Habit habit, DateOnly date, HabitCheckInStatus status = HabitCheckInStatus.Done)
             => HabitCheckInSingleton.Instance.Add(HabitCheckIn.FromPersistence(
                 HabitCheckInSingleton.Instance.Count + 1, habit.Id!.Value, habit.UserId.Value, date, status, CreatedAt, 0, 0, 0));
+
+        internal static void SeedChallenge(Habit habit, DateOnly weekStart, int target, ChallengeEffort effort = ChallengeEffort.Stretch)
+            => WeeklyChallengeSingleton.Instance.Add(WeeklyChallenge.FromPersistence(
+                WeeklyChallengeSingleton.Instance.Count + 1, habit.UserId.Value, habit.Id!.Value, weekStart, ChallengeType.Frequency, target,
+                1m, effort, 30, 60, ChallengeStatus.Active, CreatedAt, null, null));
 
         [Fact]
         public async Task GetMineAsync_ShouldScoreTheCurrentWeekUpToToday_WhenNoWeekIsGiven()
@@ -118,6 +126,23 @@ namespace LifeManager.Application.Test.Ranking
 
             Assert.Equal(20, scores[UserId].Points);
             Assert.Equal(0, scores[OtherUserId].Points);
+        }
+
+        [Fact]
+        public async Task GetMineAsync_ShouldAddTheReachedChallengesBonus()
+        {
+            var read = SeedHabit(UserId);
+            var walk = SeedHabit(UserId);
+            SeedDay(read, Monday);
+            SeedDay(read, Today);
+            SeedChallenge(read, Monday, 2);
+            SeedChallenge(walk, Monday, 1, ChallengeEffort.Light);
+            SeedDay(walk, Monday);
+
+            var score = (await _service.GetMineAsync(UserId, null, CancellationToken.None)).Value!;
+
+            Assert.Equal(15, score.ChallengePoints);
+            Assert.Equal(score.Days.Sum(day => day.Points) + 15, score.Points);
         }
     }
 }

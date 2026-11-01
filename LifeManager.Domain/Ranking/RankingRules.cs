@@ -12,6 +12,12 @@ namespace LifeManager.Domain.Ranking
         /// <summary>Bonus for a day on which every due habit to build was done and no habit to avoid relapsed.</summary>
         public const int PerfectDayBonus = 10;
 
+        /// <summary>Points for a <c>Steady</c> or <c>Stretch</c> weekly challenge whose target the week reached.</summary>
+        public const int PointsPerChallenge = 15;
+
+        /// <summary>Challenges that score in one week (a week takes at most 3 anyway).</summary>
+        public const int MaxScoredChallengesPerWeek = 3;
+
         /// <summary>Ranking groups a player can be in (created or joined).</summary>
         public const int MaxGroupsPerUser = 5;
 

@@ -48,6 +48,8 @@ namespace LifeManager.Application.Test.Ranking
             RankingWeekResultRepositoryMock.Reset();
             HabitSingleton.Instance.Clear();
             HabitCheckInSingleton.Instance.Clear();
+            WeeklyChallengeSingleton.Instance.Clear();
+            HabitProgressEntrySingleton.Instance.Clear();
             PlayerProfileSingleton.Instance.Clear();
             UserSingleton.Instance.Clear();
             RankingGroupServiceTest.SeedUsers(5);
@@ -236,5 +238,48 @@ namespace LifeManager.Application.Test.Ranking
 
             Assert.Equal([("Amigos", 2, 20), ("Família", 1, 20)], groups.Select(group => (group.Name, group.MyPosition!.Value, group.MyPoints)));
         }
+
+        [Fact]
+        public async Task GetAsync_ShouldCountAReachedChallengeInTheBoardAndShowItToMe()
+        {
+            SeedDone(SeedHabit(Bia), Monday, Monday.AddDays(1));
+            var ana = SeedHabit(Ana);
+            SeedDone(ana, Monday);
+            WeeklyScoreServiceTest.SeedChallenge(ana, Monday, 1);
+
+            var ranking = (await _service.GetAsync(GroupId, Ana, null, CancellationToken.None)).Value!;
+
+            Assert.Equal(["Bia", "Ana"], ranking.Entries.Select(entry => entry.Name));
+            Assert.Equal([40, 35], ranking.Entries.Select(entry => entry.Points));
+            Assert.Equal(15, ranking.Me.ChallengePoints);
+            Assert.Equal(35, ranking.Me.Points);
+        }
+
+        private static void AddGroup(int id, string name, DateOnly createdOn)
+            => RankingGroupSingleton.Instance.Add(RankingGroup.FromPersistence(
+                id, name, Ana.Value, $"CODE{id}XYZ", createdOn.ToDateTime(TimeOnly.MinValue), createdOn));
+
+        [Fact]
+        public async Task GetWeekPlacesAsync_ShouldGiveTheStoredOrLivePlace_AndSkipAGroupCreatedAfterTheWeek()
+        {
+            SeedResult(Bia, LastMonday, 60, 1);
+            SeedResult(Ana, LastMonday, 20, 2);
+            AddGroup(2, "Amigos", LastMonday.AddDays(3));
+            SeedMember(Ana, LastMonday.AddDays(3), 2);
+            SeedMember(Caio, LastMonday.AddDays(3), 2);
+            AddGroup(3, "Trabalho", Monday);
+            SeedMember(Ana, Monday, 3);
+            SeedDone(SeedHabit(Ana), LastMonday);
+
+            var places = await _service.GetWeekPlacesAsync(Ana, LastMonday, CancellationToken.None);
+
+            Assert.Equal(
+                [("Amigos", 1, 2, 20, false), ("Família", 2, 2, 20, true)],
+                places.Select(place => (place.GroupName, place.Position, place.MemberCount, place.Points, place.IsFinal)));
+        }
+
+        [Fact]
+        public async Task GetWeekPlacesAsync_ShouldBeEmpty_WithoutGroups()
+            => Assert.Empty(await _service.GetWeekPlacesAsync(Outsider, LastMonday, CancellationToken.None));
     }
 }

@@ -11,6 +11,7 @@ namespace LifeManager.Application.Habits.DTOs
     /// <param name="RecentMissCount">How many missed habit-days (relapses included) those were.</param>
     /// <param name="Avoiding">Habits to avoid that are in force today (a weekly limit always is).</param>
     /// <param name="FreeToday">Names of set-days habits to avoid whose day off is today.</param>
+    /// <param name="Challenges">The current week's challenges, already settled.</param>
     public record HabitTodayDto(
         DateOnly Date,
         IReadOnlyList<HabitTodayItemDto> Today,
@@ -18,7 +19,8 @@ namespace LifeManager.Application.Habits.DTOs
         DateOnly? LastMissedOn,
         int RecentMissCount,
         IReadOnlyList<HabitAvoidItemDto> Avoiding,
-        IReadOnlyList<string> FreeToday);
+        IReadOnlyList<string> FreeToday,
+        IReadOnlyList<ChallengeDto> Challenges);
 
     /// <summary>A habit to avoid on the day's checklist.</summary>
     /// <param name="CurrentStreak">Clean days in a row (weeks within the limit, for a weekly limit).</param>
