@@ -51,7 +51,21 @@ namespace LifeManager.Application.Test.Habits.Mocks
             var stored = _profiles[index];
 
             _profiles[index] = PlayerProfile.FromPersistence(
-                stored.Id!.Value, stored.UserId.Value, stored.TotalXp, stored.Hp, stored.MaxHp, stored.Coins, stored.StreakFreezes, avatar, title);
+                stored.Id!.Value, stored.UserId.Value, stored.TotalXp, stored.Hp, stored.MaxHp, stored.Coins, stored.StreakFreezes, avatar, title, stored.SummarySeenWeek);
+
+            return Task.CompletedTask;
+        }
+
+        public Task MarkSummarySeenAsync(UserId userId, DateOnly weekStart, CancellationToken cancellationToken)
+        {
+            var index = _profiles.FindIndex(profile => profile.UserId == userId);
+            if (index >= 0 && (_profiles[index].SummarySeenWeek is null || _profiles[index].SummarySeenWeek < weekStart))
+            {
+                var stored = _profiles[index];
+                _profiles[index] = PlayerProfile.FromPersistence(
+                    stored.Id!.Value, stored.UserId.Value, stored.TotalXp, stored.Hp, stored.MaxHp, stored.Coins, stored.StreakFreezes,
+                    stored.Avatar, stored.Title, weekStart);
+            }
 
             return Task.CompletedTask;
         }
@@ -79,6 +93,7 @@ namespace LifeManager.Application.Test.Habits.Mocks
                 profile.Coins,
                 profile.StreakFreezes,
                 profile.Avatar,
-                profile.Title);
+                profile.Title,
+                profile.SummarySeenWeek);
     }
 }

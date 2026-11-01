@@ -73,6 +73,7 @@ namespace LifeManager.Application.Test.Configurations
             services.AddScoped<IRankingGroupRepository, RankingGroupRepositoryMock>();
             services.AddScoped<IRankingWeekResultRepository, RankingWeekResultRepositoryMock>();
             services.AddScoped<IRankingReactionRepository, RankingReactionRepositoryMock>();
+            services.AddScoped<IWeeklyChallengeRepository, WeeklyChallengeRepositoryMock>();
             services.AddScoped<IPlayerStatsRepository, PlayerStatsRepositoryMock>();
             services.AddScoped<IStatementImportRepository, StatementImportRepositoryMock>();
             services.AddScoped<ICategorizationRuleRepository, CategorizationRuleRepositoryMock>();

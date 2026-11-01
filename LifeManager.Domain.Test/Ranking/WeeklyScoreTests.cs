@@ -199,5 +199,64 @@ namespace LifeManager.Domain.Test.Ranking
             Assert.Equal(7, result.PerfectDays);
             Assert.Equal(35, result.KeptDays);
         }
+
+        private static ScoredChallenge Challenge(
+            int habitId, int target, ChallengeEffort effort = ChallengeEffort.Stretch, ChallengeStatus status = ChallengeStatus.Completed,
+            ChallengeType type = ChallengeType.Frequency)
+            => new(habitId, type, target, effort, status);
+
+        [Fact]
+        public void Calculate_ShouldAddFifteenPointsPerReachedSteadyOrStretchChallenge()
+        {
+            var checkIns = new[] { CheckIn(1, Monday), CheckIn(1, Monday.AddDays(1)), CheckIn(2, Monday) };
+
+            var result = WeeklyScore.Calculate(
+                [Build(1), Build(2)], checkIns, Monday, Sunday,
+                [Challenge(1, 2), Challenge(2, 1, ChallengeEffort.Steady, ChallengeStatus.Active), Challenge(2, 1, ChallengeEffort.Light)]);
+
+            Assert.Equal(30, result.ChallengePoints);
+            Assert.Equal(WeeklyScore.Calculate([Build(1), Build(2)], checkIns, Monday, Sunday).Points + 30, result.Points);
+        }
+
+        [Fact]
+        public void Calculate_ShouldNotScoreAChallengeBelowItsTargetFailedOrCancelled()
+        {
+            var checkIns = new[] { CheckIn(1, Monday), CheckIn(1, Monday.AddDays(1), HabitCheckInStatus.Frozen) };
+
+            var result = WeeklyScore.Calculate(
+                [Build(1)], checkIns, Monday, Sunday,
+                [Challenge(1, 2), Challenge(1, 1, status: ChallengeStatus.Failed), Challenge(1, 1, status: ChallengeStatus.Cancelled)]);
+
+            Assert.Equal(0, result.ChallengePoints);
+        }
+
+        [Fact]
+        public void Calculate_ShouldTakeThePointsBack_WhenTheCheckInThatCompletedTheChallengeIsUndone()
+        {
+            // Completed and paid, but the stored check-ins no longer reach the target.
+            var result = WeeklyScore.Calculate([Build(1)], [CheckIn(1, Monday)], Monday, Sunday, [Challenge(1, 2)]);
+
+            Assert.Equal(0, result.ChallengePoints);
+        }
+
+        [Fact]
+        public void Calculate_ShouldScoreAtMostThreeChallenges()
+        {
+            var result = WeeklyScore.Calculate(
+                [Build(1)], [CheckIn(1, Monday)], Monday, Sunday,
+                [Challenge(1, 1), Challenge(1, 1), Challenge(1, 1), Challenge(1, 1)]);
+
+            Assert.Equal(45, result.ChallengePoints);
+        }
+
+        [Fact]
+        public void Calculate_ShouldCountAVolumeChallengeFromTheAmountsUpToTheLastScoredDay()
+        {
+            var progress = new[] { new ScoredProgress(1, Monday, 600), new ScoredProgress(1, Monday.AddDays(2), 500), new ScoredProgress(2, Monday, 900) };
+            var volume = Challenge(1, 1000, type: ChallengeType.Volume);
+
+            Assert.Equal(15, WeeklyScore.Calculate([Build(1)], [], Monday, Sunday, [volume], progress).ChallengePoints);
+            Assert.Equal(0, WeeklyScore.Calculate([Build(1)], [], Monday, Monday.AddDays(1), [volume], progress).ChallengePoints);
+        }
     }
 }

@@ -19,4 +19,10 @@ namespace LifeManager.Domain.Ranking
     }
 
     public record ScoredCheckIn(int HabitId, DateOnly Date, HabitCheckInStatus Status);
+
+    /// <summary>An amount logged toward a habit's daily target, for a volume challenge's progress.</summary>
+    public record ScoredProgress(int HabitId, DateOnly Date, int Value);
+
+    /// <summary>A weekly challenge as the score reads it; its progress is recounted from the check-ins and amounts.</summary>
+    public record ScoredChallenge(int HabitId, ChallengeType Type, int Target, ChallengeEffort Effort, ChallengeStatus Status);
 }

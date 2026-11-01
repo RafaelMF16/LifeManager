@@ -68,6 +68,17 @@ namespace LifeManager.Infrastructure.Habits
                 .ToListAsync(cancellationToken);
         }
 
+        public async Task<IReadOnlyList<Habit>> GetByIdsAsync(UserId userId, IReadOnlyCollection<HabitId> habitIds, CancellationToken cancellationToken)
+        {
+            if (habitIds.Count == 0)
+                return [];
+
+            return await _dbContext.Habits
+                .AsNoTracking()
+                .Where(habit => habit.UserId == userId && habitIds.Contains(habit.Id!))
+                .ToListAsync(cancellationToken);
+        }
+
         public async Task<bool> ExistsActiveByNameAsync(UserId userId, HabitName name, HabitId? ignoredHabitId, CancellationToken cancellationToken)
         {
             var normalizedName = name.NormalizedValue;

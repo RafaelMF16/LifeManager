@@ -54,6 +54,8 @@ namespace LifeManager.Application.DI
             services.AddScoped<RewardRedemptionService>();
             services.AddScoped<GameItemService>();
             services.AddScoped<AchievementService>();
+            services.AddScoped<ChallengeService>();
+            services.AddScoped<WeeklySummaryService>();
             services.AddScoped<WeeklyScoreService>();
             services.AddScoped<RankingGroupService>();
             services.AddScoped<RankingWeekCloseService>();

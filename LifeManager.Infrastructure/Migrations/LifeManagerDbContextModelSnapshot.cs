@@ -361,6 +361,65 @@ namespace LifeManager.Infrastructure.Migrations
                     b.ToTable("GameItemPurchases");
                 });
 
+            modelBuilder.Entity("LifeManager.Domain.Habits.Challenges.WeeklyChallenge", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal?>("Baseline")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Effort")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("HabitId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("RewardCoins")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("RewardXp")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("SeenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Target")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("WeekStart")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HabitId", "WeekStart")
+                        .IsUnique()
+                        .HasFilter("\"Status\" <> 4");
+
+                    b.HasIndex("UserId", "WeekStart");
+
+                    b.ToTable("WeeklyChallenges");
+                });
+
             modelBuilder.Entity("LifeManager.Domain.Habits.GameLedgerEntry", b =>
                 {
                     b.Property<int>("Id")
@@ -370,6 +429,9 @@ namespace LifeManager.Infrastructure.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<int?>("AchievementCode")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ChallengeId")
                         .HasColumnType("integer");
 
                     b.Property<int>("CoinsDelta")
@@ -407,6 +469,8 @@ namespace LifeManager.Infrastructure.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ChallengeId");
 
                     b.HasIndex("HabitId");
 
@@ -612,6 +676,9 @@ namespace LifeManager.Infrastructure.Migrations
 
                     b.Property<int>("StreakFreezes")
                         .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("SummarySeenWeek")
+                        .HasColumnType("date");
 
                     b.Property<int?>("Title")
                         .HasColumnType("integer");
@@ -1378,8 +1445,28 @@ namespace LifeManager.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("LifeManager.Domain.Habits.Challenges.WeeklyChallenge", b =>
+                {
+                    b.HasOne("LifeManager.Domain.Habits.Habit", null)
+                        .WithMany()
+                        .HasForeignKey("HabitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("LifeManager.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("LifeManager.Domain.Habits.GameLedgerEntry", b =>
                 {
+                    b.HasOne("LifeManager.Domain.Habits.Challenges.WeeklyChallenge", null)
+                        .WithMany()
+                        .HasForeignKey("ChallengeId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("LifeManager.Domain.Habits.Habit", null)
                         .WithMany()
                         .HasForeignKey("HabitId")

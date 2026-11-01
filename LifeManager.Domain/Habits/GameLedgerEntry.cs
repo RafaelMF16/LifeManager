@@ -56,6 +56,9 @@ namespace LifeManager.Domain.Habits
         /// <summary>The achievement behind the change (its unlock bonus), when there is one.</summary>
         public AchievementCode? AchievementCode { get; }
 
+        /// <summary>The weekly challenge behind the change (its completion bonus), when there is one.</summary>
+        public WeeklyChallengeId? ChallengeId { get; }
+
         private GameLedgerEntry(
             UserId userId,
             GameLedgerEntryKind kind,
@@ -68,7 +71,8 @@ namespace LifeManager.Domain.Habits
             HabitId? habitId,
             RewardId? rewardId,
             GameItemKind? itemKind,
-            AchievementCode? achievementCode)
+            AchievementCode? achievementCode,
+            WeeklyChallengeId? challengeId)
         {
             UserId = userId;
             Kind = kind;
@@ -82,14 +86,15 @@ namespace LifeManager.Domain.Habits
             RewardId = rewardId;
             ItemKind = itemKind;
             AchievementCode = achievementCode;
+            ChallengeId = challengeId;
         }
 
         /// <summary>
         /// The entries for one <see cref="PlayerProfile.Apply"/>: the <paramref name="kind"/> entry with the applied
         /// delta, then a <see cref="GameLedgerEntryKind.LevelUp"/> entry when the HP was refilled by a new level and a
         /// <see cref="GameLedgerEntryKind.Knockout"/> entry when the player was knocked out. Every entry carries
-        /// <paramref name="habitId"/>, <paramref name="rewardId"/>, <paramref name="itemKind"/> and
-        /// <paramref name="achievementCode"/>.
+        /// <paramref name="habitId"/>, <paramref name="rewardId"/>, <paramref name="itemKind"/>,
+        /// <paramref name="achievementCode"/> and <paramref name="challengeId"/>.
         /// </summary>
         public static IReadOnlyList<GameLedgerEntry> FromOutcome(
             UserId userId,
@@ -101,19 +106,20 @@ namespace LifeManager.Domain.Habits
             HabitId? habitId = null,
             RewardId? rewardId = null,
             GameItemKind? itemKind = null,
-            AchievementCode? achievementCode = null)
+            AchievementCode? achievementCode = null,
+            WeeklyChallengeId? challengeId = null)
         {
             var applied = outcome.Applied;
             var entries = new List<GameLedgerEntry>
             {
-                new(userId, kind, occurredOn, createdAt, applied.Coins, applied.Xp, applied.Hp, Truncate(description), habitId, rewardId, itemKind, achievementCode)
+                new(userId, kind, occurredOn, createdAt, applied.Coins, applied.Xp, applied.Hp, Truncate(description), habitId, rewardId, itemKind, achievementCode, challengeId)
             };
 
             if (outcome.LeveledUp)
-                entries.Add(new GameLedgerEntry(userId, GameLedgerEntryKind.LevelUp, occurredOn, createdAt, 0, 0, outcome.LevelUpHpRestored, null, habitId, rewardId, itemKind, achievementCode));
+                entries.Add(new GameLedgerEntry(userId, GameLedgerEntryKind.LevelUp, occurredOn, createdAt, 0, 0, outcome.LevelUpHpRestored, null, habitId, rewardId, itemKind, achievementCode, challengeId));
 
             if (outcome.KnockedOut)
-                entries.Add(new GameLedgerEntry(userId, GameLedgerEntryKind.Knockout, occurredOn, createdAt, -outcome.KnockoutCoinsLost, 0, outcome.KnockoutHpRestored, null, habitId, rewardId, itemKind, achievementCode));
+                entries.Add(new GameLedgerEntry(userId, GameLedgerEntryKind.Knockout, occurredOn, createdAt, -outcome.KnockoutCoinsLost, 0, outcome.KnockoutHpRestored, null, habitId, rewardId, itemKind, achievementCode, challengeId));
 
             return entries;
         }

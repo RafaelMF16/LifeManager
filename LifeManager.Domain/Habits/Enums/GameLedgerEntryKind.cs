@@ -14,6 +14,7 @@ namespace LifeManager.Domain.Habits.Enums
         FreezeUsed = 9,
         LevelUp = 10,
         ItemPurchased = 11,
-        AchievementUnlocked = 12
+        AchievementUnlocked = 12,
+        ChallengeCompleted = 13
     }
 }

@@ -48,7 +48,8 @@ namespace LifeManager.Application.Ranking.DTOs
 
     /// <param name="Position">Null when the user wasn't in the group that week.</param>
     /// <param name="GapToNext">Points behind the member right ahead; null when first (or out of the week).</param>
-    public record RankingMeDto(int? Position, int Points, int? GapToNext, string? NextName, IReadOnlyList<WeeklyScoreDayDto> Days);
+    /// <param name="ChallengePoints">The weekly challenges' bonus in the user's live points (always recounted live).</param>
+    public record RankingMeDto(int? Position, int Points, int? GapToNext, string? NextName, IReadOnlyList<WeeklyScoreDayDto> Days, int ChallengePoints);
 
     public record RankingMemberRefDto(int MemberId, string Name);
 
@@ -67,4 +68,9 @@ namespace LifeManager.Application.Ranking.DTOs
         RankingMeDto Me,
         IReadOnlyList<RankingMemberRefDto> OvertakenBy,
         RankingPreviousDto? Previous);
+
+    /// <summary>The user's place in one group in a past week, for the weekly summary.</summary>
+    /// <param name="MemberCount">The lines of that week's board.</param>
+    /// <param name="IsFinal">From the stored result; otherwise live and provisional (the week isn't closed yet).</param>
+    public record RankingWeekPlaceDto(int GroupId, string GroupName, int Position, int MemberCount, int Points, bool IsFinal);
 }

@@ -8,10 +8,13 @@ namespace LifeManager.Application.Ranking.DTOs
             => new(day.Date, day.Kept, day.Perfect, day.Points);
     }
 
-    public record WeeklyScoreDto(DateOnly WeekStart, DateOnly WeekEnd, int Points, int KeptDays, int PerfectDays, IReadOnlyList<WeeklyScoreDayDto> Days)
+    /// <param name="Points">The days' points plus <paramref name="ChallengePoints"/>.</param>
+    /// <param name="ChallengePoints">The weekly challenges' bonus.</param>
+    public record WeeklyScoreDto(
+        DateOnly WeekStart, DateOnly WeekEnd, int Points, int KeptDays, int PerfectDays, IReadOnlyList<WeeklyScoreDayDto> Days, int ChallengePoints)
     {
         public static WeeklyScoreDto From(WeeklyScoreResult result)
             => new(result.WeekStart, GameWeek.End(result.WeekStart), result.Points, result.KeptDays, result.PerfectDays,
-                [.. result.Days.Select(WeeklyScoreDayDto.From)]);
+                [.. result.Days.Select(WeeklyScoreDayDto.From)], result.ChallengePoints);
     }
 }

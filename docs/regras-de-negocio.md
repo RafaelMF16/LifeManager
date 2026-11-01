@@ -28,6 +28,8 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
   - [Estatísticas e extrato](#estatísticas-e-extrato)
   - [Conquistas](#conquistas)
   - [Perfil do jogador](#perfil-do-jogador)
+  - [Desafios da semana](#desafios-da-semana)
+  - [Resumo da semana](#resumo-da-semana)
 - [Loja de recompensas](#loja-de-recompensas)
   - [Itens de jogo](#itens-de-jogo)
 - [Ranking em grupos](#ranking-em-grupos)
@@ -446,6 +448,33 @@ A página de perfil mostra quem o jogador é no jogo e o caminho que já fez.
   - nocautes, conquistas desbloqueadas e "jogando desde" (o dia do primeiro lançamento do extrato).
 - **Evolução:** o XP total e o saldo de moedas ao fim de cada dia de jogo, nos últimos 30, 90 (padrão) ou 365 dias, até hoje. Sai do extrato: cada dia soma tudo o que veio antes, então o último ponto é o perfil de agora, e um dia sem movimento repete o anterior.
 
+### Desafios da semana
+
+Um desafio é uma meta **semanal** num hábito para construir: fazer **mais dias** (frequência) ou **mais quantidade** (volume, só para hábitos com meta diária) do que o normal. É opcional: cumprir paga um bônus, não cumprir **não custa nada**.
+
+- **Semanas:** a atual aceita desafios **até quarta-feira**; a próxima pode ser planejada a qualquer momento. No máximo **3 desafios por semana** e **um por hábito**.
+- **Hábitos aceitos:** ativos, para construir, já iniciados até o domingo da semana. Hábitos para evitar não têm desafio.
+- **Meta:** acima do que já foi feito na semana. Frequência: até os dias possíveis da semana (numa semana em andamento, só os dias feitos ou ainda abertos a check-in). Volume: até 3 semanas da meta diária (7 × meta × 3).
+- **Média (base):** a média semanal das até **4 últimas semanas fechadas** desde o início do hábito; sem nenhuma, não há média.
+- **Esforço**, comparando a meta com a média:
+  - **Leve:** meta até a média;
+  - **Firme:** até 1 dia a mais (frequência) ou até 25% a mais (volume), ou quando ainda não há média;
+  - **Puxado:** acima disso.
+- **Recompensa:** a recompensa de um check-in do hábito (pela dificuldade) × **2** (Leve), **×4** (Firme) ou **×6** (Puxado), em moedas e XP. O formulário mostra o esforço e a recompensa antes de criar.
+- **Progresso:** sempre recontado do que está gravado: dias **feitos** na semana (dia protegido não conta) ou a soma das quantidades registradas na semana (dias abaixo da meta diária também somam).
+- **Conclusão:** ao alcançar a meta, o desafio é concluído e paga **uma vez** (lançamento "Desafio concluído" no extrato), com uma celebração na próxima visita. Desfazer o check-in depois **não** desfaz o bônus.
+- **Falha:** a partir de terça, quando o domingo não pode mais mudar, um desafio não alcançado vira "não deu", sem custo.
+- **Desistir:** um desafio ativo pode ser apagado; não paga nem conta para nada. Arquivar o hábito cancela os desafios ativos dele.
+- **Sugestões:** para cada hábito com semana fechada, um pouco acima da média (1 dia a mais, ou 15% a mais de quantidade, preferida quando há meta diária), começando pelos hábitos mais esquecidos e depois os mais difíceis, até as vagas da semana. Aceitar cria o desafio com um toque.
+
+### Resumo da semana
+
+- Na **primeira visita da semana** aparece o resumo da semana anterior: hábitos cumpridos, dias limpos, moedas ganhas (hábitos, já descontados os desfeitos, mais os bônus de desafios) e desafios concluídos, cada número comparado com a semana antes dela; como terminou cada desafio; e a posição em cada grupo de ranking.
+- Aparece **uma vez**, em qualquer aparelho. Quem não jogou na semana (nenhum hábito cumprido, dia limpo ou desafio) não vê resumo; estar num grupo não muda isso.
+- **Ranking no resumo:** os grupos em que o jogador está agora, criados até aquela semana: a posição gravada se a semana já fechou, senão a calculada na hora, marcada **provisória** (na segunda, normalmente). Tocar no grupo abre o ranking dele.
+- Na segunda, o domingo ainda aceita check-in: se ele concluir um desafio, o desafio paga e é celebrado normalmente, mesmo com o resumo já visto.
+- O atalho **Planejar a semana** leva aos desafios.
+
 ## Loja de recompensas
 
 O próprio usuário cadastra as recompensas e as compra com as moedas ganhas nos hábitos.
@@ -489,7 +518,8 @@ A semana do ranking vai de **segunda a domingo**, a mesma da ofensiva semanal. O
   - um dia **protegido** (proteção de ofensiva) sai da conta: não ajuda nem atrapalha o dia perfeito, e não dá pontos;
   - hábitos **N vezes por semana** dão pontos quando feitos, mas ficam fora da conta do dia perfeito;
   - um hábito arquivado ainda conta no dia em que foi arquivado; antes do início, não conta.
-- **Máximo:** 60 pontos por dia, 420 por semana.
+- **+15 pontos por desafio** da semana **Firme ou Puxado** com a meta alcançada, até **3 desafios** (+45). Conta o progresso gravado, não o status: desfazer o check-in que bateu a meta tira os pontos (o bônus em moedas fica). Desafios Leves, que não deram ou foram cancelados não contam.
+- **Máximo:** 60 pontos por dia, 420 por semana, mais os desafios.
 - Os **dias limpos** só são gravados pelo fechamento do dia (até 2 dias depois), por isso os pontos de hábitos para evitar chegam com atraso: o placar pode subir na terça.
 
 ### Grupos
@@ -658,6 +688,22 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 | `PlayerProfile.UnknownAvatar` | Validation | Avatar fora da lista fixa |
 | `PlayerProfile.TitleLocked` | Validation | Título de uma conquista não desbloqueada |
 | `PlayerProfile.UnknownEvolutionRange` | Validation | Período da evolução que não é `Month`, `Quarter` nem `Year` |
+
+### Desafios
+
+| Código | Tipo | Quando acontece |
+|---|---|---|
+| `Challenge.NotFound` | NotFound | Desafio que não existe ou é de outro jogador |
+| `Challenge.InvalidType` | Validation | Tipo desconhecido |
+| `Challenge.InvalidWeek` | Validation | Semana diferente da atual ou da próxima; no resumo, semana que não é uma segunda anterior à atual |
+| `Challenge.CreationWindowClosed` | Validation | Desafio para a semana atual depois de quarta-feira |
+| `Challenge.HabitNotEligible` | Validation | Hábito arquivado, para evitar ou que só começa depois da semana |
+| `Challenge.NotMeasurable` | Validation | Desafio de volume num hábito sem meta diária |
+| `Challenge.InvalidTarget` | Validation | Meta fora do limite da semana |
+| `Challenge.TargetAlreadyReached` | Validation | Meta que não passa do já feito na semana |
+| `Challenge.AlreadyExists` | Conflict | O hábito já tem desafio na semana |
+| `Challenge.WeekLimitReached` | Conflict | A semana já tem 3 desafios |
+| `Challenge.NotActive` | Conflict | Desistir de um desafio já concluído, que não deu ou cancelado |
 
 ### Loja
 

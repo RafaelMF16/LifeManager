@@ -1,4 +1,5 @@
 using LifeManager.Application.Test.Configurations.SingletonLists;
+using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.Ranking;
 using LifeManager.Domain.Ranking.Interfaces;
 using LifeManager.Domain.Users.ValueObjects;
@@ -24,7 +25,19 @@ namespace LifeManager.Application.Test.Ranking.Mocks
                 .Select(checkIn => new RankingCheckInRow(checkIn.UserId, checkIn.HabitId.Value, checkIn.Date, checkIn.Status))
                 .ToList();
 
-            return Task.FromResult(new RankingScoreInputs(habits, checkIns));
+            var challenges = WeeklyChallengeSingleton.Instance
+                .Where(challenge => userIds.Contains(challenge.UserId) && challenge.WeekStart == weekStart)
+                .Select(challenge => new RankingChallengeRow(
+                    challenge.UserId, challenge.HabitId.Value, challenge.Type, challenge.Target, challenge.Effort, challenge.Status))
+                .ToList();
+
+            var volumeHabitIds = challenges.Where(challenge => challenge.Type == ChallengeType.Volume).Select(challenge => challenge.HabitId).ToHashSet();
+            var progress = HabitProgressEntrySingleton.Instance
+                .Where(entry => volumeHabitIds.Contains(entry.HabitId.Value) && entry.Date >= weekStart && entry.Date <= weekEnd)
+                .Select(entry => new RankingProgressRow(entry.UserId, entry.HabitId.Value, entry.Date, entry.Value))
+                .ToList();
+
+            return Task.FromResult(new RankingScoreInputs(habits, checkIns, challenges, progress));
         }
     }
 }

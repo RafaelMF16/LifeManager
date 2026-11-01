@@ -72,6 +72,7 @@ namespace LifeManager.Infrastructure.DI
             services.AddScoped<IRankingGroupRepository, RankingGroupRepository>();
             services.AddScoped<IRankingWeekResultRepository, RankingWeekResultRepository>();
             services.AddScoped<IRankingReactionRepository, RankingReactionRepository>();
+            services.AddScoped<IWeeklyChallengeRepository, WeeklyChallengeRepository>();
             services.AddScoped<IPlayerStatsRepository, PlayerStatsRepository>();
             services.AddScoped<IStatementImportRepository, StatementImportRepository>();
             services.AddScoped<ICategorizationRuleRepository, CategorizationRuleRepository>();

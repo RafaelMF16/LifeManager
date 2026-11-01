@@ -60,6 +60,35 @@ namespace LifeManager.Application.Ranking.Services
             })];
         }
 
+        /// <summary>
+        /// The user's place in each group they are in now, in <paramref name="week"/>: the stored result once the week is
+        /// closed, live (provisional) before. A group created after that week, or one the user joined after it, is left
+        /// out. Best place first.
+        /// </summary>
+        public async Task<IReadOnlyList<RankingWeekPlaceDto>> GetWeekPlacesAsync(UserId userId, DateOnly week, CancellationToken cancellationToken)
+        {
+            var groups = await _rankingGroupService.GetAllAsync(userId, cancellationToken);
+            var today = _appClock.Today();
+            var places = new List<RankingWeekPlaceDto>();
+
+            foreach (var item in groups)
+            {
+                var group = await _rankingGroupRepository.GetForMemberAsync(new RankingGroupId(item.Id), userId, cancellationToken);
+                if (group is null || GameWeek.Start(group.Group.CreatedOn) > week)
+                    continue;
+
+                var board = await GetBoardAsync(group, week, today, cancellationToken);
+                var mine = board.Lines.SingleOrDefault(line => line.UserId == userId);
+                if (mine is null)
+                    continue;
+
+                places.Add(new RankingWeekPlaceDto(
+                    item.Id, item.Name, mine.Standing.Position, board.Lines.Count, mine.Standing.Points, board.Status == RankingWeekStatus.Final));
+            }
+
+            return [.. places.OrderBy(place => place.Position).ThenBy(place => place.GroupName, StringComparer.CurrentCultureIgnoreCase)];
+        }
+
         public async Task<Result<GroupRankingDto>> GetAsync(int groupId, UserId userId, DateOnly? weekStart, CancellationToken cancellationToken)
         {
             var group = await _rankingGroupRepository.GetForMemberAsync(new RankingGroupId(groupId), userId, cancellationToken);
@@ -88,7 +117,8 @@ namespace LifeManager.Application.Ranking.Services
                 mine?.Standing.Points ?? 0,
                 nextLine is null ? null : nextLine.Standing.Points - mine!.Standing.Points,
                 nextLine?.Name,
-                [.. myDays[userId].Days.Select(WeeklyScoreDayDto.From)]);
+                [.. myDays[userId].Days.Select(WeeklyScoreDayDto.From)],
+                myDays[userId].ChallengePoints);
 
             var previous = week == currentWeek && week > firstWeek
                 ? await GetPreviousAsync(group, week.AddDays(-GameWeek.Days), today, userId, cancellationToken)

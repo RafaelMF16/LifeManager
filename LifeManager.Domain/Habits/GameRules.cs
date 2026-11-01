@@ -40,6 +40,34 @@ namespace LifeManager.Domain.Habits
         public const int MaxHpPotionsPerDay = 3;
 
         /// <summary>Achievement thresholds, bronze first (see <c>AchievementCatalog</c>).</summary>
+        /// <summary>Weekly challenges: at most one per habit and this many per player in a week.</summary>
+        public const int MaxChallengesPerWeek = 3;
+
+        /// <summary>The last day of a week a challenge can still be created for it (the next week is always open).</summary>
+        public const DayOfWeek ChallengeLastCreationDay = DayOfWeek.Wednesday;
+
+        /// <summary>Closed weeks averaged into a challenge's baseline.</summary>
+        public const int ChallengeBaselineWeeks = 4;
+
+        /// <summary>A volume target up to the baseline times this is <c>Steady</c> (a frequency one, up to the baseline + 1).</summary>
+        public const decimal ChallengeSteadyFactor = 1.25m;
+
+        /// <summary>A suggested volume target is the baseline times this, rounded up.</summary>
+        public const decimal ChallengeVolumeSuggestionFactor = 1.15m;
+
+        /// <summary>A volume target goes up to this many weeks' worth of the daily target.</summary>
+        public const int ChallengeMaxVolumeWeeks = 3;
+
+        /// <summary>A completed challenge pays the habit's reward times this, by effort.</summary>
+        public static int ChallengeRewardMultiplier(ChallengeEffort effort)
+            => effort switch
+            {
+                ChallengeEffort.Light => 2,
+                ChallengeEffort.Steady => 4,
+                ChallengeEffort.Stretch => 6,
+                _ => throw new ArgumentOutOfRangeException(nameof(effort), effort, "Unknown challenge effort")
+            };
+
         public static readonly IReadOnlyList<int> CheckInAchievements = [10, 100, 500];
         public static readonly IReadOnlyList<int> StreakAchievements = [7, 30, 100];
         public static readonly IReadOnlyList<int> LevelAchievements = [5, 10, 25];

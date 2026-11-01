@@ -8,7 +8,10 @@ using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Application.Ranking.Services
 {
-    /// <summary>The ranking points of players in a week (<see cref="WeeklyScore"/>), read from their stored check-ins.</summary>
+    /// <summary>
+    /// The ranking points of players in a week (<see cref="WeeklyScore"/>), read from their stored check-ins, challenges
+    /// and amounts.
+    /// </summary>
     public class WeeklyScoreService(IWeeklyScoreRepository weeklyScoreRepository, AppClock appClock)
     {
         private readonly IWeeklyScoreRepository _weeklyScoreRepository = weeklyScoreRepository;
@@ -40,6 +43,8 @@ namespace LifeManager.Application.Ranking.Services
             var inputs = await _weeklyScoreRepository.GetInputsAsync(userIds, weekStart, GameWeek.End(weekStart), cancellationToken);
             var habitsByUser = inputs.Habits.ToLookup(habit => habit.UserId);
             var checkInsByUser = inputs.CheckIns.ToLookup(checkIn => checkIn.UserId);
+            var challengesByUser = inputs.Challenges.ToLookup(challenge => challenge.UserId);
+            var progressByUser = inputs.Progress.ToLookup(entry => entry.UserId);
 
             return userIds.Distinct().ToDictionary(
                 userId => userId,
@@ -49,7 +54,10 @@ namespace LifeManager.Application.Ranking.Services
                         habit.ArchivedAt is { } archivedAt ? _appClock.DateOf(archivedAt) : null))],
                     [.. checkInsByUser[userId].Select(checkIn => new ScoredCheckIn(checkIn.HabitId, checkIn.Date, checkIn.Status))],
                     weekStart,
-                    upTo));
+                    upTo,
+                    [.. challengesByUser[userId].Select(challenge => new ScoredChallenge(
+                        challenge.HabitId, challenge.Type, challenge.Target, challenge.Effort, challenge.Status))],
+                    [.. progressByUser[userId].Select(entry => new ScoredProgress(entry.HabitId, entry.Date, entry.Value))]));
         }
     }
 }

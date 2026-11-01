@@ -19,6 +19,7 @@ namespace LifeManager.Application.Habits.Services
         IHabitRepository habitRepository,
         IHabitCheckInRepository habitCheckInRepository,
         IHabitProgressRepository habitProgressRepository,
+        ChallengeService challengeService,
         AppClock appClock,
         TimeProvider timeProvider)
     {
@@ -28,6 +29,7 @@ namespace LifeManager.Application.Habits.Services
         private readonly IHabitRepository _habitRepository = habitRepository;
         private readonly IHabitCheckInRepository _habitCheckInRepository = habitCheckInRepository;
         private readonly IHabitProgressRepository _habitProgressRepository = habitProgressRepository;
+        private readonly ChallengeService _challengeService = challengeService;
         private readonly AppClock _appClock = appClock;
         private readonly TimeProvider _timeProvider = timeProvider;
 
@@ -92,7 +94,9 @@ namespace LifeManager.Application.Habits.Services
                     freeToday.Add(habit.Name.Value);
             }
 
-            return new HabitTodayDto(today, todayItems, yesterdayPending, lastMissedOn, recentMisses.Count, avoiding, freeToday);
+            var challenges = await _challengeService.GetCurrentWeekAsync(userId, cancellationToken);
+
+            return new HabitTodayDto(today, todayItems, yesterdayPending, lastMissedOn, recentMisses.Count, avoiding, freeToday, challenges);
         }
 
         private static HabitAvoidItemDto ToAvoidItem(Habit habit, DateOnly today, IReadOnlySet<DateOnly> relapseDates)
