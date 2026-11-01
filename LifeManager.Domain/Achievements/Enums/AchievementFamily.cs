@@ -10,6 +10,9 @@ namespace LifeManager.Domain.Achievements.Enums
         CleanDays = 5,
 
         /// <summary>One-off feats: coming back from a knockout and a habit made automatic.</summary>
-        Overcoming = 6
+        Overcoming = 6,
+
+        /// <summary>Weeks won or on the podium of a ranking group.</summary>
+        Ranking = 7
     }
 }

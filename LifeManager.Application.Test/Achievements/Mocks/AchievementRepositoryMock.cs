@@ -81,6 +81,8 @@ namespace LifeManager.Application.Test.Achievements.Mocks
                 .Select(entry => (DateOnly?)entry.OccurredOn)
                 .Min();
 
+            var rankingWeeks = RankingWeekResultSingleton.Instance.Where(result => result.UserId == userId).ToList();
+
             return new AchievementProgress(
                 checkIns.Count(checkIn => checkIn.Status == HabitCheckInStatus.Done),
                 HabitSingleton.Instance
@@ -92,7 +94,9 @@ namespace LifeManager.Application.Test.Achievements.Mocks
                 RewardRedemptionSingleton.Instance.Count(redemption => redemption.UserId == userId && redemption.UndoneAt is null),
                 checkIns.Count(checkIn => checkIn.Status == HabitCheckInStatus.Clean),
                 firstKnockoutOn is null ? 0 : kept.Count(checkIn => checkIn.Date > firstKnockoutOn),
-                kept.GroupBy(checkIn => checkIn.HabitId).Select(days => days.Count()).DefaultIfEmpty(0).Max());
+                kept.GroupBy(checkIn => checkIn.HabitId).Select(days => days.Count()).DefaultIfEmpty(0).Max(),
+                rankingWeeks.Where(result => result.IsWin).Select(result => result.WeekStart).Distinct().Count(),
+                rankingWeeks.Where(result => result.IsPodium).Select(result => result.WeekStart).Distinct().Count());
         }
 
         private IReadOnlyList<AchievementUnlock> Unlocks(UserId userId)

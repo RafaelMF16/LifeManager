@@ -28,7 +28,13 @@ namespace LifeManager.Domain.Achievements
             [AchievementCode.CleanDays50] = Tiered(AchievementFamily.CleanDays, GameRules.CleanDayAchievements, 1, progress => progress.CleanDays),
             [AchievementCode.CleanDays200] = Tiered(AchievementFamily.CleanDays, GameRules.CleanDayAchievements, 2, progress => progress.CleanDays),
             [AchievementCode.Comeback] = new(AchievementFamily.Overcoming, AchievementTier.Silver, GameRules.ComebackKeptDays, progress => progress.KeptDaysAfterFirstKnockout),
-            [AchievementCode.AutomaticHabit] = new(AchievementFamily.Overcoming, AchievementTier.Gold, GameRules.AutomaticHabitKeptDays, progress => progress.MostKeptDaysInOneHabit)
+            [AchievementCode.AutomaticHabit] = new(AchievementFamily.Overcoming, AchievementTier.Gold, GameRules.AutomaticHabitKeptDays, progress => progress.MostKeptDaysInOneHabit),
+            [AchievementCode.RankingWins1] = Tiered(AchievementFamily.Ranking, GameRules.RankingWinAchievements, 0, progress => progress.RankingWins),
+            [AchievementCode.RankingWins5] = Tiered(AchievementFamily.Ranking, GameRules.RankingWinAchievements, 1, progress => progress.RankingWins),
+            [AchievementCode.RankingWins20] = Tiered(AchievementFamily.Ranking, GameRules.RankingWinAchievements, 2, progress => progress.RankingWins),
+            [AchievementCode.RankingPodiums3] = Tiered(AchievementFamily.Ranking, GameRules.RankingPodiumAchievements, 0, progress => progress.RankingPodiums),
+            [AchievementCode.RankingPodiums10] = Tiered(AchievementFamily.Ranking, GameRules.RankingPodiumAchievements, 1, progress => progress.RankingPodiums),
+            [AchievementCode.RankingPodiums30] = Tiered(AchievementFamily.Ranking, GameRules.RankingPodiumAchievements, 2, progress => progress.RankingPodiums)
         };
 
         public static readonly IReadOnlyList<AchievementCode> All = [.. Definitions.Keys.Order()];

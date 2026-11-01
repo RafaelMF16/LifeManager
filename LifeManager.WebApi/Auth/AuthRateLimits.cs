@@ -1,4 +1,5 @@
 using LifeManager.Domain.Auth.Errors;
+using LifeManager.WebApi.RankingGroups;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Globalization;
 using System.Text.Json;
@@ -37,6 +38,7 @@ namespace LifeManager.WebApi.Auth
             {
                 options.AddPolicy(EmailRequests, httpContext => FixedWindowByIp(httpContext, EmailRequestsPerWindow));
                 options.AddPolicy(EmailTokens, httpContext => FixedWindowByIp(httpContext, EmailTokensPerWindow));
+                RankingGroupRateLimits.AddPolicies(options);
                 options.OnRejected = WriteTooManyRequestsAsync;
             });
         }

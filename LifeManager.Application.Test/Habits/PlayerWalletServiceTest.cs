@@ -26,6 +26,7 @@ namespace LifeManager.Application.Test.Habits
 
             // Reading the profile syncs the achievements, so another test's history mustn't unlock any here.
             AchievementUnlockSingleton.Instance.Clear();
+            RankingWeekResultSingleton.Instance.Clear();
             HabitSingleton.Instance.Clear();
             HabitCheckInSingleton.Instance.Clear();
             RewardRedemptionSingleton.Instance.Clear();

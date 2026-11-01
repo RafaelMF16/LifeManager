@@ -34,6 +34,7 @@ namespace LifeManager.Application.Test.Habits
             PlayerProfileSingleton.Instance.Clear();
             GameLedgerEntrySingleton.Instance.Clear();
             AchievementUnlockSingleton.Instance.Clear();
+            RankingWeekResultSingleton.Instance.Clear();
             HabitSingleton.Instance.Clear();
             HabitCheckInSingleton.Instance.Clear();
             RewardRedemptionSingleton.Instance.Clear();
