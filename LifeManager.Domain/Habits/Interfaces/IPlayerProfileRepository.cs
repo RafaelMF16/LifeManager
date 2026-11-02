@@ -21,5 +21,11 @@ namespace LifeManager.Domain.Habits.Interfaces
         /// two columns, without the lock: they never race with <see cref="ApplyAsync"/>, which doesn't write them.
         /// </summary>
         Task UpdateAppearanceAsync(UserId userId, PlayerAvatar avatar, AchievementCode? title, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Stores <paramref name="weekStart"/> as the last weekly summary seen, unless a later one already is. Without the
+        /// lock, like the appearance; does nothing for a user without a profile (who never gets a summary).
+        /// </summary>
+        Task MarkSummarySeenAsync(UserId userId, DateOnly weekStart, CancellationToken cancellationToken);
     }
 }

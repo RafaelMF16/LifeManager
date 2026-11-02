@@ -18,6 +18,12 @@ namespace LifeManager.Domain.Achievements.Enums
         CleanDays50 = 13,
         CleanDays200 = 14,
         Comeback = 15,
-        AutomaticHabit = 16
+        AutomaticHabit = 16,
+        RankingWins1 = 17,
+        RankingWins5 = 18,
+        RankingWins20 = 19,
+        RankingPodiums3 = 20,
+        RankingPodiums10 = 21,
+        RankingPodiums30 = 22
     }
 }

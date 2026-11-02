@@ -42,5 +42,12 @@ namespace LifeManager.Infrastructure.Habits
                     .SetProperty(profile => profile.Avatar, avatar)
                     .SetProperty(profile => profile.Title, title), cancellationToken);
         }
+
+        public async Task MarkSummarySeenAsync(UserId userId, DateOnly weekStart, CancellationToken cancellationToken)
+        {
+            await _dbContext.PlayerProfiles
+                .Where(profile => profile.UserId == userId && (profile.SummarySeenWeek == null || profile.SummarySeenWeek < weekStart))
+                .ExecuteUpdateAsync(setters => setters.SetProperty(profile => profile.SummarySeenWeek, weekStart), cancellationToken);
+        }
     }
 }

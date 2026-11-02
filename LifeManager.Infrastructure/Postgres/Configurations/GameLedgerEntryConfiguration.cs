@@ -1,4 +1,5 @@
 using LifeManager.Domain.Habits;
+using LifeManager.Domain.Habits.Challenges;
 using LifeManager.Domain.Habits.ValueObjects;
 using LifeManager.Domain.Rewards;
 using LifeManager.Domain.Rewards.ValueObjects;
@@ -57,6 +58,14 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
             builder.HasOne<Reward>()
                 .WithMany()
                 .HasForeignKey(entry => entry.RewardId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Property(entry => entry.ChallengeId)
+                .HasConversion(id => id!.Value, id => new WeeklyChallengeId(id));
+
+            builder.HasOne<WeeklyChallenge>()
+                .WithMany()
+                .HasForeignKey(entry => entry.ChallengeId)
                 .OnDelete(DeleteBehavior.SetNull);
         }
     }

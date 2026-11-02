@@ -10,6 +10,7 @@ using LifeManager.Domain.Achievements.Enums;
 using LifeManager.Domain.Habits;
 using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.Habits.ValueObjects;
+using LifeManager.Domain.Ranking;
 using LifeManager.Domain.Rewards;
 using LifeManager.Domain.Users.ValueObjects;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,6 +32,8 @@ namespace LifeManager.Application.Test.Achievements
             ((FakeTimeProvider)ServiceProvider.GetRequiredService<TimeProvider>()).SetToday(Today);
 
             AchievementUnlockSingleton.Instance.Clear();
+
+            RankingWeekResultSingleton.Instance.Clear();
             HabitSingleton.Instance.Clear();
             HabitCheckInSingleton.Instance.Clear();
             RewardRedemptionSingleton.Instance.Clear();
@@ -307,7 +310,7 @@ namespace LifeManager.Application.Test.Achievements
 
             var result = await _service.GetAsync(UserId, CancellationToken.None);
 
-            Assert.Equal(16, result.Total);
+            Assert.Equal(22, result.Total);
             Assert.Equal(1, result.UnlockedCount);
             Assert.Equal(AchievementCatalog.All, result.Achievements.Select(achievement => achievement.Code));
 
@@ -490,6 +493,46 @@ namespace LifeManager.Application.Test.Achievements
             var after = await rewardRedemptionService.GetEarningPaceAsync(UserId, CancellationToken.None);
 
             Assert.Equal(before, after);
+        }
+    
+        private static void SeedRankingWeek(int groupId, DateOnly weekStart, int position, int points = 100, int eligibleCount = 3, bool eligible = true, UserId? userId = null)
+            => RankingWeekResultSingleton.Instance.Add(RankingWeekResult.FromPersistence(
+                RankingWeekResultSingleton.Instance.Count + 1, groupId, weekStart, (userId ?? UserId).Value, points, 0, 0, position, eligible, eligibleCount, eligibleCount, DateTimeOffset.UtcNow));
+
+        [Fact]
+        public async Task SyncAsync_ShouldUnlockARankingWin_OnlyInAWeekOfThreeEligibleMembers()
+        {
+            SeedProfile();
+            SeedRankingWeek(1, new DateOnly(2026, 10, 12), 1, eligibleCount: 2);
+            SeedRankingWeek(1, new DateOnly(2026, 10, 19), 1, points: 0);
+            SeedRankingWeek(1, new DateOnly(2026, 10, 5), 1, eligible: false);
+            SeedRankingWeek(1, new DateOnly(2026, 10, 19), 1, userId: OtherUserId);
+
+            Assert.Empty((await _service.SyncAsync(UserId, CancellationToken.None)).NewlyUnlocked);
+
+            SeedRankingWeek(1, new DateOnly(2026, 10, 26), 1);
+            var result = await _service.SyncAsync(UserId, CancellationToken.None);
+
+            Assert.Equal([AchievementCode.RankingWins1], result.NewlyUnlocked.Select(unlock => unlock.Code));
+            Assert.Contains(GameLedgerEntrySingleton.Instance, entry => entry.Kind == GameLedgerEntryKind.AchievementUnlocked && entry.AchievementCode == AchievementCode.RankingWins1);
+            Assert.Empty((await _service.SyncAsync(UserId, CancellationToken.None)).NewlyUnlocked);
+        }
+
+        [Fact]
+        public async Task SyncAsync_ShouldCountAWeekOnceAcrossGroups_ForThePodium()
+        {
+            SeedProfile();
+            var monday = new DateOnly(2026, 10, 5);
+            SeedRankingWeek(1, monday, 2);
+            SeedRankingWeek(2, monday, 3);
+            SeedRankingWeek(1, monday.AddDays(7), 3);
+
+            Assert.Empty((await _service.SyncAsync(UserId, CancellationToken.None)).NewlyUnlocked);
+
+            SeedRankingWeek(2, monday.AddDays(14), 1);
+            var result = await _service.SyncAsync(UserId, CancellationToken.None);
+
+            Assert.Equal([AchievementCode.RankingWins1, AchievementCode.RankingPodiums3], result.NewlyUnlocked.Select(unlock => unlock.Code));
         }
     }
 }

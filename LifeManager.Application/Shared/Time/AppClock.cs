@@ -15,7 +15,11 @@ namespace LifeManager.Application.Shared.Time
         private readonly TimeZoneInfo _timeZone = FindTimeZone(configuration[TimeZoneKey] ?? DefaultTimeZone);
 
         public DateOnly Today()
-            => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(_timeProvider.GetUtcNow(), _timeZone).DateTime);
+            => DateOf(_timeProvider.GetUtcNow());
+
+        /// <summary>The business day <paramref name="moment"/> fell on (e.g. the day a habit was archived).</summary>
+        public DateOnly DateOf(DateTimeOffset moment)
+            => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(moment, _timeZone).DateTime);
 
         private static TimeZoneInfo FindTimeZone(string id)
         {

@@ -13,14 +13,16 @@ namespace LifeManager.Domain.Test.Achievements
             int redemptions = 0,
             int cleanDays = 0,
             int keptDaysAfterFirstKnockout = 0,
-            int mostKeptDaysInOneHabit = 0)
-            => new(checkIns, longestStreakDays, level, redemptions, cleanDays, keptDaysAfterFirstKnockout, mostKeptDaysInOneHabit);
+            int mostKeptDaysInOneHabit = 0,
+            int rankingWins = 0,
+            int rankingPodiums = 0)
+            => new(checkIns, longestStreakDays, level, redemptions, cleanDays, keptDaysAfterFirstKnockout, mostKeptDaysInOneHabit, rankingWins, rankingPodiums);
 
         [Fact]
-        public void All_ShouldListTheSixteenCodesInOrder()
+        public void All_ShouldListTheTwentyTwoCodesInOrder()
         {
             Assert.Equal(Enum.GetValues<AchievementCode>(), AchievementCatalog.All);
-            Assert.Equal(16, AchievementCatalog.All.Count);
+            Assert.Equal(22, AchievementCatalog.All.Count);
         }
 
         [Theory]
@@ -40,6 +42,12 @@ namespace LifeManager.Domain.Test.Achievements
         [InlineData(AchievementCode.CleanDays200, AchievementFamily.CleanDays, AchievementTier.Gold, 200)]
         [InlineData(AchievementCode.Comeback, AchievementFamily.Overcoming, AchievementTier.Silver, 10)]
         [InlineData(AchievementCode.AutomaticHabit, AchievementFamily.Overcoming, AchievementTier.Gold, 66)]
+        [InlineData(AchievementCode.RankingWins1, AchievementFamily.Ranking, AchievementTier.Bronze, 1)]
+        [InlineData(AchievementCode.RankingWins5, AchievementFamily.Ranking, AchievementTier.Silver, 5)]
+        [InlineData(AchievementCode.RankingWins20, AchievementFamily.Ranking, AchievementTier.Gold, 20)]
+        [InlineData(AchievementCode.RankingPodiums3, AchievementFamily.Ranking, AchievementTier.Bronze, 3)]
+        [InlineData(AchievementCode.RankingPodiums10, AchievementFamily.Ranking, AchievementTier.Silver, 10)]
+        [InlineData(AchievementCode.RankingPodiums30, AchievementFamily.Ranking, AchievementTier.Gold, 30)]
         public void Catalog_ShouldDescribeEveryAchievement(AchievementCode code, AchievementFamily family, AchievementTier tier, int threshold)
         {
             Assert.Equal(family, AchievementCatalog.Family(code));
@@ -102,6 +110,14 @@ namespace LifeManager.Domain.Test.Achievements
         public void Progress_ShouldBeCappedAtTheThreshold(int checkIns, int expected)
         {
             Assert.Equal(expected, AchievementCatalog.Progress(AchievementCode.CheckIns100, Progress(checkIns: checkIns)));
+        }
+    
+        [Fact]
+        public void NewlyUnlocked_ShouldUnlockTheRankingAchievements_FromWinsAndPodiums()
+        {
+            var unlocked = AchievementCatalog.NewlyUnlocked(Progress(rankingWins: 1, rankingPodiums: 3), []);
+
+            Assert.Equal([AchievementCode.RankingWins1, AchievementCode.RankingPodiums3], unlocked);
         }
     }
 }

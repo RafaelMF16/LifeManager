@@ -73,6 +73,13 @@ namespace LifeManager.Application.Test.Habits.Mocks
             return Task.FromResult(new PagedList<Habit>(items, matching.Count, pageRequest.Page, pageRequest.PageSize));
         }
 
+        public Task<IReadOnlyList<Habit>> GetByIdsAsync(UserId userId, IReadOnlyCollection<HabitId> habitIds, CancellationToken cancellationToken)
+        {
+            IReadOnlyList<Habit> habits = [.. _instance.Where(habit => habit.UserId == userId && habitIds.Contains(habit.Id!)).Select(ToDetachedCopy)];
+
+            return Task.FromResult(habits);
+        }
+
         public Task<IReadOnlyList<Habit>> GetActiveByUserIdAsync(UserId userId, HabitKind kind, CancellationToken cancellationToken)
         {
             IReadOnlyList<Habit> habits =
