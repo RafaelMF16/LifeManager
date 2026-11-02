@@ -1,6 +1,7 @@
 using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.Habits.Errors;
 using LifeManager.Domain.Habits.ValueObjects;
+using LifeManager.Domain.Ranking;
 using LifeManager.Domain.Shared.Results;
 using LifeManager.Domain.Users.ValueObjects;
 
@@ -29,6 +30,12 @@ namespace LifeManager.Domain.Habits.Challenges
         public ChallengeStatus Status { get; private set; }
         public DateTimeOffset CreatedAt { get; }
         public DateTimeOffset? CompletedAt { get; private set; }
+
+        /// <summary>
+        /// The progress when it was completed or failed, so the history shows how it ended without recounting the week;
+        /// null while active, once cancelled, or for one ended before this was stored.
+        /// </summary>
+        public int? FinalProgress { get; private set; }
 
         /// <summary>When the player saw it completed (the celebration), on any device.</summary>
         public DateTimeOffset? SeenAt { get; private set; }
@@ -63,7 +70,7 @@ namespace LifeManager.Domain.Habits.Challenges
 
             if (!Enum.IsDefined(draft.Type))
                 return ChallengeErrors.InvalidType;
-            if (habit.IsArchived || habit.Kind != HabitKind.Positive)
+            if (habit.IsArchived || habit.Kind != HabitKind.Positive || habit.StartDate > GameWeek.End(draft.WeekStart))
                 return ChallengeErrors.HabitNotEligible;
             if (draft.Type == ChallengeType.Volume && habit.Target is null)
                 return ChallengeErrors.NotMeasurable;
@@ -88,23 +95,25 @@ namespace LifeManager.Domain.Habits.Challenges
                 reward.Xp, ChallengeStatus.Active, createdAt, null, null);
         }
 
-        public Result Complete(DateTimeOffset completedAt)
+        public Result Complete(DateTimeOffset completedAt, int progress)
         {
             if (Status != ChallengeStatus.Active)
                 return ChallengeErrors.NotActive;
 
             Status = ChallengeStatus.Completed;
             CompletedAt = completedAt;
+            FinalProgress = progress;
 
             return Result.Success();
         }
 
-        public Result Fail()
+        public Result Fail(int progress)
         {
             if (Status != ChallengeStatus.Active)
                 return ChallengeErrors.NotActive;
 
             Status = ChallengeStatus.Failed;
+            FinalProgress = progress;
 
             return Result.Success();
         }
@@ -136,11 +145,12 @@ namespace LifeManager.Domain.Habits.Challenges
         internal static WeeklyChallenge FromPersistence(
             int id, int userId, int habitId, DateOnly weekStart, ChallengeType type, int target, decimal? baseline,
             ChallengeEffort effort, int rewardCoins, int rewardXp, ChallengeStatus status, DateTimeOffset createdAt,
-            DateTimeOffset? completedAt, DateTimeOffset? seenAt)
+            DateTimeOffset? completedAt, DateTimeOffset? seenAt, int? finalProgress = null)
             => new(new UserId(userId), new HabitId(habitId), weekStart, type, target, baseline, effort, rewardCoins, rewardXp,
                 status, createdAt, completedAt, seenAt)
             {
-                Id = new WeeklyChallengeId(id)
+                Id = new WeeklyChallengeId(id),
+                FinalProgress = finalProgress
             };
     }
 }

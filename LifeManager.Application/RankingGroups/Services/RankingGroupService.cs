@@ -57,7 +57,9 @@ namespace LifeManager.Application.RankingGroups.Services
             if (!renamed.IsSuccess)
                 return renamed.Error!;
 
-            await _rankingGroupRepository.UpdateAsync(view.Group, cancellationToken);
+            // Not the owner anymore: they left (or the group went) since the read.
+            if (!await _rankingGroupRepository.SaveNameAsync(view.Group, userId, cancellationToken))
+                return RankingGroupErrors.NotOwner;
 
             return RankingGroupDetailsDto.From(view, userId);
         }
@@ -73,7 +75,8 @@ namespace LifeManager.Application.RankingGroups.Services
             if (!changed.IsSuccess)
                 return changed.Error!;
 
-            await _rankingGroupRepository.UpdateAsync(view.Group, cancellationToken);
+            if (!await _rankingGroupRepository.SaveInviteCodeAsync(view.Group, userId, cancellationToken))
+                return RankingGroupErrors.NotOwner;
 
             return RankingGroupDetailsDto.From(view, userId);
         }
@@ -99,9 +102,7 @@ namespace LifeManager.Application.RankingGroups.Services
             if (member.UserId == userId)
                 return RankingGroupErrors.CannotRemoveSelf;
 
-            return await _rankingGroupRepository.RemoveMemberAsync(view.Group.Id!, member.MemberId, cancellationToken)
-                ? Result.Success()
-                : RankingGroupErrors.MemberNotFound;
+            return await _rankingGroupRepository.RemoveMemberAsync(view.Group.Id!, member.MemberId, userId, cancellationToken);
         }
 
         public async Task<Result<RankingGroupPreviewDto>> PreviewAsync(string? code, UserId userId, CancellationToken cancellationToken)

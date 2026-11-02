@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.RateLimiting;
+using System.Security.Claims;
 using System.Threading.RateLimiting;
 
 namespace LifeManager.WebApi.RankingGroups
 {
     /// <summary>
-    /// Keeps a client from guessing invite codes. Per IP like the auth limits: the rate limiter runs before
-    /// authentication, so the user isn't known yet. A rejection is the same 429 as the auth limits'.
+    /// Keeps a client from guessing invite codes. Per user (the rate limiter runs after authentication), so it doesn't
+    /// depend on the address the proxies pass on; the IP only for a request without a valid token, which the
+    /// authorization refuses anyway. A rejection is the same 429 as the auth limits'.
     /// </summary>
     public static class RankingGroupRateLimits
     {
@@ -17,7 +19,9 @@ namespace LifeManager.WebApi.RankingGroups
 
         public static void AddPolicies(RateLimiterOptions options)
             => options.AddPolicy(Invites, httpContext => RateLimitPartition.GetFixedWindowLimiter(
-                httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier) is { } userId
+                    ? $"user:{userId}"
+                    : $"ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}",
                 _ => new FixedWindowRateLimiterOptions { PermitLimit = InvitesPerWindow, Window = Window, QueueLimit = 0 }));
     }
 }

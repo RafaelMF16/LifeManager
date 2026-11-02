@@ -110,15 +110,18 @@ namespace LifeManager.Application.Ranking.Services
             var mine = lines.SingleOrDefault(line => line.UserId == userId);
             var next = mine is null ? null : GroupStandings.Next([.. lines.Select(line => line.Standing)], userId);
             var nextLine = next is null ? null : lines.First(line => line.UserId == next.UserId);
-            var myDays = await _weeklyScoreService.GetForUsersAsync([userId], week, Min(today, GameWeek.End(week)), cancellationToken);
+            // A live board already scored the user over the same days; a stored week keeps no days, so read them.
+            var myScore = board.Scores.TryGetValue(userId, out var scored)
+                ? scored
+                : (await _weeklyScoreService.GetForUsersAsync([userId], week, Min(today, GameWeek.End(week)), cancellationToken))[userId];
 
             var me = new RankingMeDto(
                 mine?.Standing.Position,
                 mine?.Standing.Points ?? 0,
                 nextLine is null ? null : nextLine.Standing.Points - mine!.Standing.Points,
                 nextLine?.Name,
-                [.. myDays[userId].Days.Select(WeeklyScoreDayDto.From)],
-                myDays[userId].ChallengePoints);
+                [.. myScore.Days.Select(WeeklyScoreDayDto.From)],
+                myScore.ChallengePoints);
 
             var previous = week == currentWeek && week > firstWeek
                 ? await GetPreviousAsync(group, week.AddDays(-GameWeek.Days), today, userId, cancellationToken)
@@ -166,7 +169,7 @@ namespace LifeManager.Application.Ranking.Services
                     view.Result.Eligible,
                     view.MemberId is null));
 
-                return new Board(RankingWeekStatus.Final, Order(finalLines), stored[0].Result.EligibleCount, []);
+                return new Board(RankingWeekStatus.Final, Order(finalLines), stored[0].Result.EligibleCount, [], new Dictionary<UserId, WeeklyScoreResult>());
             }
 
             // Like the close: the current members, only those already in by the week's end.
@@ -188,7 +191,7 @@ namespace LifeManager.Application.Ranking.Services
             var status = week == GameWeek.Start(today) ? RankingWeekStatus.Open : RankingWeekStatus.Closing;
             var ordered = Order(lines);
 
-            return new Board(status, ordered, ordered.Count(line => line.Eligible), members);
+            return new Board(status, ordered, ordered.Count(line => line.Eligible), members, scores);
         }
 
         /// <summary>Who passed the user since yesterday: an open week only, and never on its Monday (no yesterday in it).</summary>
@@ -268,6 +271,12 @@ namespace LifeManager.Application.Ranking.Services
             IReadOnlyList<RankingReaction> All, RankingGroupMemberId Me, IReadOnlyDictionary<RankingGroupMemberId, string> Names);
 
         /// <param name="Members">The members a live board was scored for (empty for a stored week).</param>
-        private sealed record Board(RankingWeekStatus Status, IReadOnlyList<Line> Lines, int EligibleCount, IReadOnlyList<RankingMemberView> Members);
+        /// <param name="Scores">Their scores up to today or the week's Sunday (empty for a stored week).</param>
+        private sealed record Board(
+            RankingWeekStatus Status,
+            IReadOnlyList<Line> Lines,
+            int EligibleCount,
+            IReadOnlyList<RankingMemberView> Members,
+            IReadOnlyDictionary<UserId, WeeklyScoreResult> Scores);
     }
 }

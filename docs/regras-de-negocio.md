@@ -455,15 +455,16 @@ Um desafio é uma meta **semanal** num hábito para construir: fazer **mais dias
 - **Semanas:** a atual aceita desafios **até quarta-feira**; a próxima pode ser planejada a qualquer momento. No máximo **3 desafios por semana** e **um por hábito**.
 - **Hábitos aceitos:** ativos, para construir, já iniciados até o domingo da semana. Hábitos para evitar não têm desafio.
 - **Meta:** acima do que já foi feito na semana. Frequência: até os dias possíveis da semana (numa semana em andamento, só os dias feitos ou ainda abertos a check-in). Volume: até 3 semanas da meta diária (7 × meta × 3).
-- **Média (base):** a média semanal das até **4 últimas semanas fechadas** desde o início do hábito; sem nenhuma, não há média.
+- **Média (base):** a média semanal das até **4 últimas semanas fechadas**, só semanas **inteiras** desde o início do hábito (a semana em que ele começou no meio fica de fora, para não puxar a média para baixo); sem nenhuma, não há média.
 - **Esforço**, comparando a meta com a média:
-  - **Leve:** meta até a média;
-  - **Firme:** até 1 dia a mais (frequência) ou até 25% a mais (volume), ou quando ainda não há média;
+  - **Leve:** meta até a média, ou qualquer meta quando ainda não há média (assim um hábito recém-criado não rende o bônus maior nem pontos no ranking com uma meta de 1 dia);
+  - **Firme:** até 1 dia a mais (frequência) ou até 25% a mais (volume);
   - **Puxado:** acima disso.
 - **Recompensa:** a recompensa de um check-in do hábito (pela dificuldade) × **2** (Leve), **×4** (Firme) ou **×6** (Puxado), em moedas e XP. O formulário mostra o esforço e a recompensa antes de criar.
 - **Progresso:** sempre recontado do que está gravado: dias **feitos** na semana (dia protegido não conta) ou a soma das quantidades registradas na semana (dias abaixo da meta diária também somam).
 - **Conclusão:** ao alcançar a meta, o desafio é concluído e paga **uma vez** (lançamento "Desafio concluído" no extrato), com uma celebração na próxima visita. Desfazer o check-in depois **não** desfaz o bônus.
 - **Falha:** a partir de terça, quando o domingo não pode mais mudar, um desafio não alcançado vira "não deu", sem custo.
+- **Histórico:** um desafio concluído ou que não deu guarda o progresso com que terminou; desfazer um check-in depois não muda o que o histórico mostra.
 - **Desistir:** um desafio ativo pode ser apagado; não paga nem conta para nada. Arquivar o hábito cancela os desafios ativos dele.
 - **Sugestões:** para cada hábito com semana fechada, um pouco acima da média (1 dia a mais, ou 15% a mais de quantidade, preferida quando há meta diária), começando pelos hábitos mais esquecidos e depois os mais difíceis, até as vagas da semana. Aceitar cria o desafio com um toque.
 
@@ -530,7 +531,8 @@ A semana do ranking vai de **segunda a domingo**, a mesma da ofensiva semanal. O
 - **Dono:** só ele renomeia o grupo, gera código novo e remove membros. Ele não pode se remover: para isso, **sai** do grupo.
 - **Sair:** qualquer membro pode sair. Se o dono sai, o membro **mais antigo** vira dono. Se o último membro sai, o grupo é **apagado**. Quem saiu ou foi removido pode voltar pelo convite.
 - **Privacidade:** quem não é membro não sabe nem se o grupo existe ("não encontrado"). Dentro do grupo, os membros veem só nome, avatar, título e os pontos da semana.
-- O código do convite tem um limite de **30 tentativas a cada 10 minutos** (prévia e entrada).
+- O código do convite tem um limite de **30 tentativas a cada 10 minutos por jogador** (prévia e entrada).
+- Se o dono sai do grupo enquanto renomeia, gera código novo ou remove alguém, o pedido é recusado ("só o dono"). Renomear nunca desfaz um código novo gerado ao mesmo tempo.
 
 ### Ranking do grupo
 
@@ -574,7 +576,7 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 | `User.NotFound` | NotFound | Usuário não existe |
 | `Auth.InvalidRefreshToken` | Unauthorized | Sessão expirada, revogada ou inválida (é preciso entrar de novo) |
 | `Auth.InvalidEmailToken` | Validation | Link do e-mail (cadastro ou recuperação) vencido, já usado ou desconhecido |
-| `Auth.TooManyRequests` | Failure (429) | Muitos pedidos de cadastro/recuperação ou usos de link do mesmo IP em 10 minutos |
+| `Auth.TooManyRequests` | Failure (429) | Muitos pedidos de cadastro/recuperação ou usos de link do mesmo IP em 10 minutos, ou tentativas de convite do mesmo jogador |
 | `UserPreferences.InvalidTheme` | Validation | Tema desconhecido |
 | `UserPreferences.InvalidLanguage` | Validation | Idioma desconhecido |
 
@@ -695,7 +697,9 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 |---|---|---|
 | `Challenge.NotFound` | NotFound | Desafio que não existe ou é de outro jogador |
 | `Challenge.InvalidType` | Validation | Tipo desconhecido |
-| `Challenge.InvalidWeek` | Validation | Semana diferente da atual ou da próxima; no resumo, semana que não é uma segunda anterior à atual |
+| `Challenge.InvalidWeek` | Validation | Semana diferente da atual ou da próxima |
+| `Challenge.InvalidSummaryWeek` | Validation | Marcar como visto um resumo cuja semana não é uma segunda anterior à atual |
+| `Challenge.TooManyIds` | Validation | Mais de 100 desafios marcados como vistos de uma vez |
 | `Challenge.CreationWindowClosed` | Validation | Desafio para a semana atual depois de quarta-feira |
 | `Challenge.HabitNotEligible` | Validation | Hábito arquivado, para evitar ou que só começa depois da semana |
 | `Challenge.NotMeasurable` | Validation | Desafio de volume num hábito sem meta diária |

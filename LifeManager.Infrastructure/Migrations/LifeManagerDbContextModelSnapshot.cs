@@ -382,6 +382,9 @@ namespace LifeManager.Infrastructure.Migrations
                     b.Property<int>("Effort")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("FinalProgress")
+                        .HasColumnType("integer");
+
                     b.Property<int>("HabitId")
                         .HasColumnType("integer");
 

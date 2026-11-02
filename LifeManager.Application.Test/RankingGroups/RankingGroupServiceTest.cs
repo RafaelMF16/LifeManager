@@ -2,6 +2,7 @@ using LifeManager.Application.RankingGroups.DTOs;
 using LifeManager.Application.RankingGroups.Services;
 using LifeManager.Application.Test.Configurations;
 using LifeManager.Application.Test.Configurations.SingletonLists;
+using LifeManager.Application.Test.RankingGroups.Mocks;
 using LifeManager.Domain.Habits;
 using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.RankingGroups.Errors;
@@ -31,6 +32,7 @@ namespace LifeManager.Application.Test.RankingGroups
             RankingReactionSingleton.Instance.Clear();
             PlayerProfileSingleton.Instance.Clear();
             UserSingleton.Instance.Clear();
+            RankingGroupRepositoryMock.BeforeNextWrite = null;
             SeedUsers();
         }
 
@@ -248,6 +250,44 @@ namespace LifeManager.Application.Test.RankingGroups
 
             // A removed member can come back with the current code.
             Assert.True((await _service.JoinAsync(group.InviteCode, Bia, CancellationToken.None)).IsSuccess);
+        }
+    
+        [Fact]
+        public async Task RenameAsync_ShouldKeepANewCodeMadeMeanwhile()
+        {
+            var group = await CreateAsync(Ana);
+            string? newCode = null;
+            RankingGroupRepositoryMock.BeforeNextWrite = () => newCode = _service
+                .RegenerateInviteCodeAsync(group.Id, Ana, CancellationToken.None).GetAwaiter().GetResult().Value!.InviteCode;
+
+            Assert.True((await _service.RenameAsync(group.Id, new RankingGroupRequestDto("Amigos"), Ana, CancellationToken.None)).IsSuccess);
+
+            var stored = (await _service.GetAsync(group.Id, Ana, CancellationToken.None)).Value!;
+            Assert.Equal("Amigos", stored.Name);
+            Assert.Equal(newCode, stored.InviteCode);
+            Assert.Equal(RankingGroupErrors.InviteNotFound, (await _service.JoinAsync(group.InviteCode, Bia, CancellationToken.None)).Error);
+        }
+
+        [Fact]
+        public async Task OwnerOnlyChanges_ShouldBeRefused_WhenTheOwnerLeftMeanwhile()
+        {
+            var group = await CreateAsync(Ana);
+            await JoinAsync(group, Bia);
+            var joined = await JoinAsync(group, Caio);
+            var caio = joined.Members.Single(member => member.Name == "Caio");
+            void LeavesFirst(UserId userId) => RankingGroupRepositoryMock.BeforeNextWrite = () =>
+                _service.LeaveAsync(group.Id, userId, CancellationToken.None).GetAwaiter().GetResult();
+
+            // Ana passes the group on to Bia before her removal lands, then Bia to Caio before her rename does.
+            LeavesFirst(Ana);
+            Assert.Equal(RankingGroupErrors.NotOwner, (await _service.RemoveMemberAsync(group.Id, caio.MemberId, Ana, CancellationToken.None)).Error);
+            LeavesFirst(Bia);
+            Assert.Equal(RankingGroupErrors.NotOwner, (await _service.RenameAsync(group.Id, new RankingGroupRequestDto("Amigos"), Bia, CancellationToken.None)).Error);
+
+            var stored = (await _service.GetAsync(group.Id, Caio, CancellationToken.None)).Value!;
+            Assert.Equal("Família", stored.Name);
+            Assert.True(stored.IsOwner);
+            Assert.Single(stored.Members);
         }
     }
 }

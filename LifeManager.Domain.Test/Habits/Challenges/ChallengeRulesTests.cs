@@ -74,10 +74,11 @@ namespace LifeManager.Domain.Test.Habits.Challenges
                 [Monday.AddDays(-7), Monday.AddDays(-14), Monday.AddDays(-21), Monday.AddDays(-28)],
                 ChallengeRules.ClosedWeeks(Monday.AddDays(2), Monday.AddDays(-60)));
 
-            // Started on a Thursday two weeks ago: that partial week counts, the ones before it don't.
-            Assert.Equal(
-                [Monday.AddDays(-7), Monday.AddDays(-14)],
-                ChallengeRules.ClosedWeeks(Monday.AddDays(2), Monday.AddDays(-11)));
+            // Started on a Thursday two weeks ago: that partial week would pull the average down, so only whole weeks count.
+            Assert.Equal([Monday.AddDays(-7)], ChallengeRules.ClosedWeeks(Monday.AddDays(2), Monday.AddDays(-11)));
+
+            // Started on a Monday: that week is whole.
+            Assert.Equal([Monday.AddDays(-7), Monday.AddDays(-14)], ChallengeRules.ClosedWeeks(Monday.AddDays(2), Monday.AddDays(-14)));
 
             Assert.Empty(ChallengeRules.ClosedWeeks(Monday.AddDays(2), Monday));
         }
@@ -91,7 +92,9 @@ namespace LifeManager.Domain.Test.Habits.Challenges
         }
 
         [Theory]
-        [InlineData(ChallengeType.Frequency, 3, null, ChallengeEffort.Steady)]
+        // Without an average there is nothing to beat: light, so a brand-new habit can't farm the bigger rewards.
+        [InlineData(ChallengeType.Frequency, 3, null, ChallengeEffort.Light)]
+        [InlineData(ChallengeType.Volume, 5000, null, ChallengeEffort.Light)]
         [InlineData(ChallengeType.Frequency, 3, 3.0, ChallengeEffort.Light)]
         [InlineData(ChallengeType.Frequency, 4, 3.0, ChallengeEffort.Steady)]
         [InlineData(ChallengeType.Frequency, 5, 3.0, ChallengeEffort.Stretch)]

@@ -38,19 +38,22 @@ namespace LifeManager.Domain.Habits.Interfaces
         Task<bool> DeleteActiveAsync(WeeklyChallengeId id, UserId userId, CancellationToken cancellationToken);
 
         /// <summary>
-        /// In one transaction under the profile's lock: moves each challenge from active to completed (only if it still is,
-        /// so it pays once) and stores what <paramref name="pay"/> applies to the profile for it.
+        /// In one transaction under the profile's lock: moves each challenge from active to completed with its progress
+        /// (only if it still is, so it pays once) and stores what <paramref name="pay"/> applies to the profile for it.
         /// </summary>
         /// <returns>The challenges this call completed.</returns>
         Task<IReadOnlyList<WeeklyChallenge>> CompleteAsync(
             UserId userId,
-            IReadOnlyCollection<WeeklyChallenge> challenges,
+            IReadOnlyCollection<(WeeklyChallenge Challenge, int Progress)> challenges,
             DateTimeOffset completedAt,
             Func<PlayerProfile, WeeklyChallenge, IReadOnlyList<GameLedgerEntry>> pay,
             CancellationToken cancellationToken);
 
-        /// <summary>Ends the challenges still active as <paramref name="status"/> (failed or cancelled).</summary>
-        Task EndAsync(IReadOnlyCollection<WeeklyChallengeId> ids, ChallengeStatus status, CancellationToken cancellationToken);
+        /// <summary>Fails the challenges still active, storing the progress each one ended with.</summary>
+        Task FailAsync(IReadOnlyCollection<(WeeklyChallengeId Id, int Progress)> challenges, CancellationToken cancellationToken);
+
+        /// <summary>Cancels the challenges still active.</summary>
+        Task CancelAsync(IReadOnlyCollection<WeeklyChallengeId> ids, CancellationToken cancellationToken);
 
         Task MarkSeenAsync(UserId userId, IReadOnlyCollection<WeeklyChallengeId> ids, DateTimeOffset now, CancellationToken cancellationToken);
     }

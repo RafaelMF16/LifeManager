@@ -146,8 +146,8 @@ namespace LifeManager.Application.Test.Habits.Challenges
         {
             SeedProfile();
 
-            Assert.Equal(ChallengeErrors.InvalidWeek, (await _service.MarkSeenAsync(UserId, new WeeklySummarySeenDto(Monday), CancellationToken.None)).Error);
-            Assert.Equal(ChallengeErrors.InvalidWeek, (await _service.MarkSeenAsync(UserId, new WeeklySummarySeenDto(LastMonday.AddDays(1)), CancellationToken.None)).Error);
+            Assert.Equal(ChallengeErrors.InvalidSummaryWeek, (await _service.MarkSeenAsync(UserId, new WeeklySummarySeenDto(Monday), CancellationToken.None)).Error);
+            Assert.Equal(ChallengeErrors.InvalidSummaryWeek, (await _service.MarkSeenAsync(UserId, new WeeklySummarySeenDto(LastMonday.AddDays(1)), CancellationToken.None)).Error);
             Assert.Null(PlayerProfileSingleton.Instance.Single().SummarySeenWeek);
         }
 

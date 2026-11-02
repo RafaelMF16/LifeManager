@@ -84,7 +84,7 @@ namespace LifeManager.Application.Test.Habits.Mocks
 
         public Task<IReadOnlyList<WeeklyChallenge>> CompleteAsync(
             UserId userId,
-            IReadOnlyCollection<WeeklyChallenge> challenges,
+            IReadOnlyCollection<(WeeklyChallenge Challenge, int Progress)> challenges,
             DateTimeOffset completedAt,
             Func<PlayerProfile, WeeklyChallenge, IReadOnlyList<GameLedgerEntry>> pay,
             CancellationToken cancellationToken)
@@ -94,13 +94,13 @@ namespace LifeManager.Application.Test.Habits.Mocks
             var profile = CopyProfile(_profiles[profileIndex]);
 
             var completed = new List<WeeklyChallenge>();
-            foreach (var challenge in challenges)
+            foreach (var (challenge, progress) in challenges)
             {
                 var stored = _challenges.Single(candidate => candidate.Id == challenge.Id);
-                if (!stored.Complete(completedAt).IsSuccess)
+                if (!stored.Complete(completedAt, progress).IsSuccess)
                     continue;
 
-                challenge.Complete(completedAt);
+                challenge.Complete(completedAt, progress);
                 completed.Add(challenge);
                 foreach (var entry in pay(profile, challenge))
                 {
@@ -114,15 +114,18 @@ namespace LifeManager.Application.Test.Habits.Mocks
             return Task.FromResult<IReadOnlyList<WeeklyChallenge>>(completed);
         }
 
-        public Task EndAsync(IReadOnlyCollection<WeeklyChallengeId> ids, ChallengeStatus status, CancellationToken cancellationToken)
+        public Task FailAsync(IReadOnlyCollection<(WeeklyChallengeId Id, int Progress)> challenges, CancellationToken cancellationToken)
+        {
+            foreach (var (id, progress) in challenges)
+                _challenges.SingleOrDefault(challenge => challenge.Id == id && challenge.Status == ChallengeStatus.Active)?.Fail(progress);
+
+            return Task.CompletedTask;
+        }
+
+        public Task CancelAsync(IReadOnlyCollection<WeeklyChallengeId> ids, CancellationToken cancellationToken)
         {
             foreach (var challenge in _challenges.Where(challenge => ids.Contains(challenge.Id!) && challenge.Status == ChallengeStatus.Active))
-            {
-                if (status == ChallengeStatus.Failed)
-                    challenge.Fail();
-                else
-                    challenge.Cancel();
-            }
+                challenge.Cancel();
 
             return Task.CompletedTask;
         }
@@ -155,7 +158,7 @@ namespace LifeManager.Application.Test.Habits.Mocks
             => WeeklyChallenge.FromPersistence(
                 challenge.Id!.Value, challenge.UserId.Value, challenge.HabitId.Value, challenge.WeekStart, challenge.Type, challenge.Target,
                 challenge.Baseline, challenge.Effort, challenge.RewardCoins, challenge.RewardXp, challenge.Status, challenge.CreatedAt,
-                challenge.CompletedAt, challenge.SeenAt);
+                challenge.CompletedAt, challenge.SeenAt, challenge.FinalProgress);
 
         private static PlayerProfile CopyProfile(PlayerProfile profile)
             => PlayerProfile.FromPersistence(

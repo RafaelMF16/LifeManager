@@ -44,11 +44,14 @@ namespace LifeManager.Domain.Habits.Challenges
         public static int MaxVolumeTarget(Habit habit)
             => GameWeek.Days * (habit.TargetValue ?? 0) * GameRules.ChallengeMaxVolumeWeeks;
 
-        /// <summary>The Mondays of the weeks the baseline averages: up to four ended weeks, newest first, since the habit started.</summary>
+        /// <summary>
+        /// The Mondays of the weeks the baseline averages: up to four ended weeks, newest first, whole ones only (a habit
+        /// started midweek leaves its first week out, which would pull the average down).
+        /// </summary>
         public static IReadOnlyList<DateOnly> ClosedWeeks(DateOnly today, DateOnly habitStart)
         {
             var currentWeek = GameWeek.Start(today);
-            var firstWeek = GameWeek.Start(habitStart);
+            var firstWeek = GameWeek.IsWeekStart(habitStart) ? habitStart : GameWeek.Start(habitStart).AddDays(GameWeek.Days);
 
             return [.. Enumerable.Range(1, GameRules.ChallengeBaselineWeeks)
                 .Select(weeksBack => currentWeek.AddDays(-GameWeek.Days * weeksBack))
@@ -59,12 +62,13 @@ namespace LifeManager.Domain.Habits.Challenges
         public static decimal? Baseline(IReadOnlyCollection<int> weekTotals)
             => weekTotals.Count == 0 ? null : Math.Round((decimal)weekTotals.Sum() / weekTotals.Count, 2);
 
+        /// <summary>
+        /// How hard the target is against the baseline. Without one there is nothing to beat, so it is light: a brand-new
+        /// habit can't take the bigger rewards (or the ranking points) for a target of one day.
+        /// </summary>
         public static ChallengeEffort Effort(ChallengeType type, int target, decimal? baseline)
         {
-            if (baseline is null)
-                return ChallengeEffort.Steady;
-
-            if (target <= baseline)
+            if (baseline is null || target <= baseline)
                 return ChallengeEffort.Light;
 
             var steadyLimit = type == ChallengeType.Frequency ? baseline.Value + 1 : baseline.Value * GameRules.ChallengeSteadyFactor;

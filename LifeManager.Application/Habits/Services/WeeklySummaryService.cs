@@ -60,7 +60,7 @@ namespace LifeManager.Application.Habits.Services
         public async Task<Result> MarkSeenAsync(UserId userId, WeeklySummarySeenDto request, CancellationToken cancellationToken)
         {
             if (!GameWeek.IsWeekStart(request.WeekStart) || request.WeekStart >= GameWeek.Start(_appClock.Today()))
-                return ChallengeErrors.InvalidWeek;
+                return ChallengeErrors.InvalidSummaryWeek;
 
             await _playerProfileRepository.MarkSummarySeenAsync(userId, request.WeekStart, cancellationToken);
 

@@ -28,6 +28,9 @@ namespace LifeManager.Domain.Habits.Errors
 
         public static readonly Error WeekLimitReached = Error.Conflict("Challenge.WeekLimitReached", "The week already has the most challenges allowed");
 
+        public static readonly Error InvalidSummaryWeek = Error.Validation(
+            "Challenge.InvalidSummaryWeek", "A weekly summary is for a Monday before the current week");
+        public static readonly Error TooManyIds = Error.Validation("Challenge.TooManyIds", "Too many challenges marked as seen at once");
         public static readonly Error NotActive = Error.Conflict("Challenge.NotActive", "The challenge is no longer active");
     }
 }

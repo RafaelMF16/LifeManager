@@ -31,6 +31,7 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
             builder.Property(challenge => challenge.RewardXp).IsRequired();
             builder.Property(challenge => challenge.Status).IsRequired();
             builder.Property(challenge => challenge.CreatedAt).IsRequired();
+            builder.Property(challenge => challenge.FinalProgress);
 
             // One live challenge per habit and week: the last defense against two requests at once.
             builder.HasIndex(challenge => new { challenge.HabitId, challenge.WeekStart })

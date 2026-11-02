@@ -43,10 +43,7 @@ namespace LifeManager.WebApi.Habits.Controllers
         /// <summary>Marks the completions the player was shown as seen; calling it again changes nothing.</summary>
         [HttpPost("Seen")]
         public async Task<IActionResult> MarkSeen(ChallengesSeenDto request, CancellationToken cancellationToken)
-        {
-            await _challengeService.MarkSeenAsync(User.GetUserId(), request.Ids ?? [], cancellationToken);
-            return NoContent();
-        }
+            => (await _challengeService.MarkSeenAsync(User.GetUserId(), request.Ids ?? [], cancellationToken)).Match(NoContent);
 
         /// <summary>Last week's summary, or 204 when it was already seen or the player didn't play that week.</summary>
         [HttpGet("Summary")]

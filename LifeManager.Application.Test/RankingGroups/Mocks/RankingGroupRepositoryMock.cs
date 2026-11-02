@@ -9,7 +9,10 @@ using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Application.Test.RankingGroups.Mocks
 {
-    /// <summary>Mirrors RankingGroupRepository over the singletons: the same membership scoping, limits and ownership rules.</summary>
+    /// <summary>
+    /// Mirrors RankingGroupRepository over the singletons: the same membership scoping, limits and ownership rules.
+    /// <see cref="BeforeNextWrite"/> plays a request that changed the group between the service's read and its write.
+    /// </summary>
     public class RankingGroupRepositoryMock : IRankingGroupRepository
     {
         private static readonly object Gate = new();
@@ -96,14 +99,28 @@ namespace LifeManager.Application.Test.RankingGroups.Mocks
             }
         }
 
-        public Task UpdateAsync(RankingGroup group, CancellationToken cancellationToken)
-        {
-            var index = RankingGroupSingleton.Instance.FindIndex(stored => stored.Id == group.Id);
-            var stored = RankingGroupSingleton.Instance[index];
-            RankingGroupSingleton.Instance[index] = RankingGroup.FromPersistence(
-                stored.Id!.Value, group.Name.Value, stored.OwnerUserId.Value, group.InviteCode.Value, stored.CreatedAt, stored.CreatedOn);
+        public Task<bool> SaveNameAsync(RankingGroup group, UserId ownerId, CancellationToken cancellationToken)
+            => Task.FromResult(SaveOwned(group.Id!, ownerId, stored => RankingGroup.FromPersistence(
+                stored.Id!.Value, group.Name.Value, stored.OwnerUserId.Value, stored.InviteCode.Value, stored.CreatedAt, stored.CreatedOn)));
 
-            return Task.CompletedTask;
+        public Task<bool> SaveInviteCodeAsync(RankingGroup group, UserId ownerId, CancellationToken cancellationToken)
+            => Task.FromResult(SaveOwned(group.Id!, ownerId, stored => RankingGroup.FromPersistence(
+                stored.Id!.Value, stored.Name.Value, stored.OwnerUserId.Value, group.InviteCode.Value, stored.CreatedAt, stored.CreatedOn)));
+
+        /// <summary>Like the conditional update: one column over what is stored now, only while the owner still owns it.</summary>
+        private static bool SaveOwned(RankingGroupId groupId, UserId ownerId, Func<RankingGroup, RankingGroup> change)
+        {
+            RunBeforeNextWrite();
+
+            lock (Gate)
+            {
+                var index = RankingGroupSingleton.Instance.FindIndex(stored => stored.Id == groupId && stored.IsOwnedBy(ownerId));
+                if (index < 0)
+                    return false;
+
+                RankingGroupSingleton.Instance[index] = change(RankingGroupSingleton.Instance[index]);
+                return true;
+            }
         }
 
         public Task<bool> LeaveAsync(RankingGroupId groupId, UserId userId, CancellationToken cancellationToken)
@@ -134,19 +151,37 @@ namespace LifeManager.Application.Test.RankingGroups.Mocks
             }
         }
 
-        public Task<bool> RemoveMemberAsync(RankingGroupId groupId, RankingGroupMemberId memberId, CancellationToken cancellationToken)
+        public Task<Result> RemoveMemberAsync(RankingGroupId groupId, RankingGroupMemberId memberId, UserId ownerId, CancellationToken cancellationToken)
         {
+            RunBeforeNextWrite();
+
             lock (Gate)
             {
                 var group = RankingGroupSingleton.Instance.SingleOrDefault(candidate => candidate.Id == groupId);
-                var member = MembersOf(groupId).SingleOrDefault(candidate => candidate.Id == memberId && group is not null && candidate.UserId != group.OwnerUserId);
+                if (group is null)
+                    return Task.FromResult<Result>(RankingGroupErrors.NotFound);
+                if (!group.IsOwnedBy(ownerId))
+                    return Task.FromResult<Result>(RankingGroupErrors.NotOwner);
+
+                var member = MembersOf(groupId).SingleOrDefault(candidate => candidate.Id == memberId && candidate.UserId != group.OwnerUserId);
                 if (member is null)
-                    return Task.FromResult(false);
+                    return Task.FromResult<Result>(RankingGroupErrors.MemberNotFound);
 
                 RankingGroupMemberSingleton.Instance.Remove(member);
                 MemberLeft?.Invoke(groupId, member.UserId);
-                return Task.FromResult(true);
+                return Task.FromResult(Result.Success());
             }
+        }
+
+        /// <summary>Runs once right before the next owner-only write: a concurrent request that got there first.</summary>
+        public static Action? BeforeNextWrite { get; set; }
+
+        private static void RunBeforeNextWrite()
+        {
+            // Cleared first: the concurrent request may write too.
+            var beforeNextWrite = BeforeNextWrite;
+            BeforeNextWrite = null;
+            beforeNextWrite?.Invoke();
         }
 
         /// <summary>What the database's cascades do when a member goes (for the mocks of the tables that hang on them).</summary>

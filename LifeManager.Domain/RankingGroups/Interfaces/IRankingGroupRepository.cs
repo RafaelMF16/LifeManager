@@ -1,3 +1,4 @@
+using LifeManager.Domain.RankingGroups.Errors;
 using LifeManager.Domain.RankingGroups.ValueObjects;
 using LifeManager.Domain.Shared.Results;
 using LifeManager.Domain.Users.ValueObjects;
@@ -34,8 +35,14 @@ namespace LifeManager.Domain.RankingGroups.Interfaces
         /// </summary>
         Task<Result<RankingGroupId>> JoinAsync(InviteCode inviteCode, UserId userId, DateTimeOffset joinedAt, DateOnly joinedOn, CancellationToken cancellationToken);
 
-        /// <summary>Stores the name and the invite code.</summary>
-        Task UpdateAsync(RankingGroup group, CancellationToken cancellationToken);
+        /// <summary>
+        /// Stores the group's name only, and only while <paramref name="ownerId"/> still owns it (a concurrent new code
+        /// or a change of owner is never overwritten); false otherwise.
+        /// </summary>
+        Task<bool> SaveNameAsync(RankingGroup group, UserId ownerId, CancellationToken cancellationToken);
+
+        /// <summary>Stores the group's invite code only, under the same owner check as <see cref="SaveNameAsync"/>.</summary>
+        Task<bool> SaveInviteCodeAsync(RankingGroup group, UserId ownerId, CancellationToken cancellationToken);
 
         /// <summary>
         /// Removes <paramref name="userId"/> under the group's row lock, then passes the ownership on or deletes the
@@ -43,7 +50,11 @@ namespace LifeManager.Domain.RankingGroups.Interfaces
         /// </summary>
         Task<bool> LeaveAsync(RankingGroupId groupId, UserId userId, CancellationToken cancellationToken);
 
-        /// <summary>Removes a member who isn't the owner; false when there is no such member in the group.</summary>
-        Task<bool> RemoveMemberAsync(RankingGroupId groupId, RankingGroupMemberId memberId, CancellationToken cancellationToken);
+        /// <summary>
+        /// Removes a member who isn't the owner, under the group's row lock and only while <paramref name="ownerId"/>
+        /// still owns the group (<see cref="RankingGroupErrors.NotOwner"/>, or <see cref="RankingGroupErrors.NotFound"/>
+        /// once it is gone); <see cref="RankingGroupErrors.MemberNotFound"/> when there is no such member.
+        /// </summary>
+        Task<Result> RemoveMemberAsync(RankingGroupId groupId, RankingGroupMemberId memberId, UserId ownerId, CancellationToken cancellationToken);
     }
 }

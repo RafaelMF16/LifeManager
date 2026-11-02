@@ -103,7 +103,7 @@ namespace LifeManager.Infrastructure.Habits
 
         public async Task<IReadOnlyList<WeeklyChallenge>> CompleteAsync(
             UserId userId,
-            IReadOnlyCollection<WeeklyChallenge> challenges,
+            IReadOnlyCollection<(WeeklyChallenge Challenge, int Progress)> challenges,
             DateTimeOffset completedAt,
             Func<PlayerProfile, WeeklyChallenge, IReadOnlyList<GameLedgerEntry>> pay,
             CancellationToken cancellationToken)
@@ -114,18 +114,19 @@ namespace LifeManager.Infrastructure.Habits
 
             var completed = new List<WeeklyChallenge>();
             var entries = new List<GameLedgerEntry>();
-            foreach (var challenge in challenges)
+            foreach (var (challenge, progress) in challenges)
             {
                 // Only if it is still active: a sync racing this one waits on the lock, then finds it completed and pays nothing.
                 var moved = await _dbContext.WeeklyChallenges
                     .Where(stored => stored.Id == challenge.Id && stored.UserId == userId && stored.Status == ChallengeStatus.Active)
                     .ExecuteUpdateAsync(setters => setters
                         .SetProperty(stored => stored.Status, ChallengeStatus.Completed)
-                        .SetProperty(stored => stored.CompletedAt, completedAt), cancellationToken);
+                        .SetProperty(stored => stored.CompletedAt, completedAt)
+                        .SetProperty(stored => stored.FinalProgress, progress), cancellationToken);
                 if (moved == 0)
                     continue;
 
-                challenge.Complete(completedAt);
+                challenge.Complete(completedAt, progress);
                 completed.Add(challenge);
                 entries.AddRange(pay(profile, challenge));
             }
@@ -138,14 +139,25 @@ namespace LifeManager.Infrastructure.Habits
             return completed;
         }
 
-        public async Task EndAsync(IReadOnlyCollection<WeeklyChallengeId> ids, ChallengeStatus status, CancellationToken cancellationToken)
+        public async Task FailAsync(IReadOnlyCollection<(WeeklyChallengeId Id, int Progress)> challenges, CancellationToken cancellationToken)
+        {
+            // One update per challenge (each its own progress); a sync fails at most the few of the weeks that just ended.
+            foreach (var (id, progress) in challenges)
+                await _dbContext.WeeklyChallenges
+                    .Where(challenge => challenge.Id == id && challenge.Status == ChallengeStatus.Active)
+                    .ExecuteUpdateAsync(setters => setters
+                        .SetProperty(challenge => challenge.Status, ChallengeStatus.Failed)
+                        .SetProperty(challenge => challenge.FinalProgress, progress), cancellationToken);
+        }
+
+        public async Task CancelAsync(IReadOnlyCollection<WeeklyChallengeId> ids, CancellationToken cancellationToken)
         {
             if (ids.Count == 0)
                 return;
 
             await _dbContext.WeeklyChallenges
                 .Where(challenge => ids.Contains(challenge.Id!) && challenge.Status == ChallengeStatus.Active)
-                .ExecuteUpdateAsync(setters => setters.SetProperty(challenge => challenge.Status, status), cancellationToken);
+                .ExecuteUpdateAsync(setters => setters.SetProperty(challenge => challenge.Status, ChallengeStatus.Cancelled), cancellationToken);
         }
 
         public async Task MarkSeenAsync(UserId userId, IReadOnlyCollection<WeeklyChallengeId> ids, DateTimeOffset now, CancellationToken cancellationToken)

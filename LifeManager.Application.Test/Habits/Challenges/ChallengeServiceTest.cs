@@ -229,7 +229,7 @@ namespace LifeManager.Application.Test.Habits.Challenges
             WeeklyChallengeRepositoryMock.BeforeComplete = () =>
             {
                 WeeklyChallengeRepositoryMock.BeforeComplete = null;
-                WeeklyChallengeSingleton.Instance.Single().Complete(CreatedAt);
+                WeeklyChallengeSingleton.Instance.Single().Complete(CreatedAt, 1);
             };
 
             var completed = await _service.SyncAsync(UserId, CancellationToken.None);
@@ -336,6 +336,48 @@ namespace LifeManager.Application.Test.Habits.Challenges
             Assert.Equal(Monday.AddDays(7), item.WeekStart);
             Assert.Equal(ChallengeStatus.Failed, item.Status);
             Assert.Equal(0, item.DaysLeft);
+        }
+
+        [Fact]
+        public async Task GetHistoryAsync_ShouldShowTheProgressStoredWhenTheChallengeEnded()
+        {
+            var habit = SeedHabit();
+            await Create(habit, 2);
+            Done(habit, Monday, Tuesday);
+            await _service.SyncAsync(UserId, CancellationToken.None);
+            Assert.Equal(2, WeeklyChallengeSingleton.Instance.Single().FinalProgress);
+
+            // A check-in undone after the week ended doesn't rewrite how the challenge ended.
+            HabitCheckInSingleton.Instance.RemoveAll(checkIn => checkIn.Date == Tuesday);
+            _clock.SetToday(Monday.AddDays(8));
+
+            var item = Assert.Single((await _service.GetHistoryAsync(UserId, new ChallengeHistoryQueryDto(), CancellationToken.None)).Value!.Items);
+
+            Assert.Equal(ChallengeStatus.Completed, item.Status);
+            Assert.Equal(2, item.Progress);
+        }
+
+        [Fact]
+        public async Task SyncAsync_ShouldStoreTheProgressOfAFailedChallenge()
+        {
+            var habit = SeedHabit();
+            await Create(habit, 4);
+            Done(habit, Monday, Tuesday);
+            _clock.SetToday(Monday.AddDays(8));
+
+            await _service.SyncAsync(UserId, CancellationToken.None);
+
+            var stored = WeeklyChallengeSingleton.Instance.Single();
+            Assert.Equal(ChallengeStatus.Failed, stored.Status);
+            Assert.Equal(2, stored.FinalProgress);
+        }
+
+        [Fact]
+        public async Task MarkSeenAsync_ShouldRefuseMoreIdsThanAPage()
+        {
+            var result = await _service.MarkSeenAsync(UserId, [.. Enumerable.Range(1, ChallengeService.MaxSeenIds + 1)], CancellationToken.None);
+
+            Assert.Equal(ChallengeErrors.TooManyIds, result.Error);
         }
 
         private static Habit SeedArchivedCopy(Habit habit)

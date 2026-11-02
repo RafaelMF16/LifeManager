@@ -26,6 +26,9 @@ namespace LifeManager.Application.Habits.Services
         AppClock appClock,
         TimeProvider timeProvider)
     {
+        /// <summary>The most ids <see cref="MarkSeenAsync"/> takes at once; the profile never lists that many unseen.</summary>
+        public const int MaxSeenIds = 100;
+
         private readonly IWeeklyChallengeRepository _challengeRepository = challengeRepository;
         private readonly IHabitRepository _habitRepository = habitRepository;
         private readonly IHabitCheckInRepository _habitCheckInRepository = habitCheckInRepository;
@@ -137,9 +140,7 @@ namespace LifeManager.Application.Habits.Services
             if (page.Items.Count == 0)
                 return PagedResponseDto<ChallengeDto>.From(page, _ => null!);
 
-            var from = page.Items.Min(challenge => challenge.WeekStart);
-            var to = GameWeek.End(page.Items.Max(challenge => challenge.WeekStart));
-            var figures = await ReadFiguresAsync(userId, from, to, cancellationToken);
+            var figures = await ReadFiguresForAsync(userId, page.Items, cancellationToken);
             var named = await HabitsAsync(userId, page.Items, cancellationToken);
 
             return PagedResponseDto<ChallengeDto>.From(page, challenge => ToDto(challenge, named[challenge.HabitId], figures, today));
@@ -163,21 +164,22 @@ namespace LifeManager.Application.Habits.Services
                 userId, active.Min(challenge => challenge.WeekStart), GameWeek.End(active.Max(challenge => challenge.WeekStart)), cancellationToken);
 
             var cancelled = new List<WeeklyChallengeId>();
-            var failed = new List<WeeklyChallengeId>();
-            var reached = new List<WeeklyChallenge>();
+            var failed = new List<(WeeklyChallengeId, int)>();
+            var reached = new List<(WeeklyChallenge, int)>();
 
             foreach (var challenge in active)
             {
+                var progress = figures.Progress(challenge);
                 if (!habits.TryGetValue(challenge.HabitId, out var habit) || habit.IsArchived)
                     cancelled.Add(challenge.Id!);
-                else if (figures.Progress(challenge) >= challenge.Target)
-                    reached.Add(challenge);
+                else if (progress >= challenge.Target)
+                    reached.Add((challenge, progress));
                 else if (ChallengeProgress.IsOver(challenge.WeekStart, today))
-                    failed.Add(challenge.Id!);
+                    failed.Add((challenge.Id!, progress));
             }
 
-            await _challengeRepository.EndAsync(cancelled, ChallengeStatus.Cancelled, cancellationToken);
-            await _challengeRepository.EndAsync(failed, ChallengeStatus.Failed, cancellationToken);
+            await _challengeRepository.CancelAsync(cancelled, cancellationToken);
+            await _challengeRepository.FailAsync(failed, cancellationToken);
             if (reached.Count == 0)
                 return [];
 
@@ -230,18 +232,23 @@ namespace LifeManager.Application.Habits.Services
             if (challenges.Count == 0)
                 return [];
 
-            var figures = await ReadFiguresAsync(
-                userId, challenges.Min(challenge => challenge.WeekStart), GameWeek.End(challenges.Max(challenge => challenge.WeekStart)), cancellationToken);
+            var figures = await ReadFiguresForAsync(userId, challenges, cancellationToken);
             var named = await HabitsAsync(userId, challenges, cancellationToken);
 
             return [.. challenges.Select(challenge => ToDto(challenge, named[challenge.HabitId], figures, today))];
         }
 
         /// <summary>Marks the completions the frontend celebrated, so each one is celebrated once, on any device.</summary>
-        public Task MarkSeenAsync(UserId userId, IReadOnlyCollection<int> ids, CancellationToken cancellationToken)
-            => ids.Count == 0
-                ? Task.CompletedTask
-                : _challengeRepository.MarkSeenAsync(userId, [.. ids.Select(id => new WeeklyChallengeId(id))], _timeProvider.GetUtcNow(), cancellationToken);
+        public async Task<Result> MarkSeenAsync(UserId userId, IReadOnlyCollection<int> ids, CancellationToken cancellationToken)
+        {
+            if (ids.Count > MaxSeenIds)
+                return ChallengeErrors.TooManyIds;
+
+            if (ids.Count > 0)
+                await _challengeRepository.MarkSeenAsync(userId, [.. ids.Select(id => new WeeklyChallengeId(id))], _timeProvider.GetUtcNow(), cancellationToken);
+
+            return Result.Success();
+        }
 
         private async Task<Result<ChallengeDraft>> DraftAsync(UserId userId, CreateChallengeDto request, CancellationToken cancellationToken)
         {
@@ -301,6 +308,20 @@ namespace LifeManager.Application.Habits.Services
             return new ChallengeFigures(checkIns, entries);
         }
 
+        /// <summary>
+        /// The figures to recount the challenges that have no stored progress (the active ones, and old rows), over their
+        /// weeks only; empty, without reading anything, when every one has it.
+        /// </summary>
+        private Task<ChallengeFigures> ReadFiguresForAsync(UserId userId, IEnumerable<WeeklyChallenge> challenges, CancellationToken cancellationToken)
+        {
+            var recounted = challenges.Where(challenge => challenge.FinalProgress is null).ToList();
+            if (recounted.Count == 0)
+                return Task.FromResult(new ChallengeFigures([], []));
+
+            return ReadFiguresAsync(
+                userId, recounted.Min(challenge => challenge.WeekStart), GameWeek.End(recounted.Max(challenge => challenge.WeekStart)), cancellationToken);
+        }
+
         /// <summary>The challenges' habits (archived ones included), for their names and units.</summary>
         private async Task<IReadOnlyDictionary<HabitId, Habit>> HabitsAsync(UserId userId, IEnumerable<WeeklyChallenge> challenges, CancellationToken cancellationToken)
         {
@@ -309,8 +330,9 @@ namespace LifeManager.Application.Habits.Services
             return habits.ToDictionary(habit => habit.Id!);
         }
 
+        /// <summary>An ended challenge shows the progress it ended with; an active one is recounted.</summary>
         private static ChallengeDto ToDto(WeeklyChallenge challenge, Habit habit, ChallengeFigures figures, DateOnly today)
-            => ToDto(challenge, habit, figures.Progress(challenge), today);
+            => ToDto(challenge, habit, challenge.FinalProgress ?? figures.Progress(challenge), today);
 
         private static ChallengeDto ToDto(WeeklyChallenge challenge, Habit habit, int progress, DateOnly today)
             => new(

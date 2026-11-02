@@ -47,12 +47,13 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseCors("AllowFrontend");
 
-// After CORS, so a 429 still carries the CORS headers and the frontend can read its body (local dev is cross-origin).
-app.UseRateLimiter();
-
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
+
+// After CORS, so a 429 still carries the CORS headers and the frontend can read its body (local dev is cross-origin),
+// and after authentication, so the invite limits can count per user.
+app.UseRateLimiter();
 
 app.UseAuthorization();
 

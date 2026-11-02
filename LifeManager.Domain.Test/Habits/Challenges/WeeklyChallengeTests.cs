@@ -34,6 +34,7 @@ namespace LifeManager.Domain.Test.Habits.Challenges
         {
             Assert.Equal(ChallengeErrors.HabitNotEligible, WeeklyChallenge.Create(Draft(Habit(kind: HabitKind.Negative)), Now).Error);
             Assert.Equal(ChallengeErrors.HabitNotEligible, WeeklyChallenge.Create(Draft(Habit(archivedAt: Now)), Now).Error);
+            Assert.Equal(ChallengeErrors.HabitNotEligible, WeeklyChallenge.Create(Draft(Habit(startDate: Monday.AddDays(7))), Now).Error);
         }
 
         [Fact]
@@ -101,11 +102,14 @@ namespace LifeManager.Domain.Test.Habits.Challenges
         {
             var challenge = WeeklyChallenge.Create(Draft(), Now).Value!;
 
-            Assert.True(challenge.Complete(Now).IsSuccess);
+            Assert.Null(challenge.FinalProgress);
+            Assert.True(challenge.Complete(Now, 5).IsSuccess);
             Assert.Equal(ChallengeStatus.Completed, challenge.Status);
             Assert.Equal(Now, challenge.CompletedAt);
-            Assert.Equal(ChallengeErrors.NotActive, challenge.Complete(Now).Error);
-            Assert.Equal(ChallengeErrors.NotActive, challenge.Fail().Error);
+            Assert.Equal(5, challenge.FinalProgress);
+            Assert.Equal(ChallengeErrors.NotActive, challenge.Complete(Now, 6).Error);
+            Assert.Equal(ChallengeErrors.NotActive, challenge.Fail(1).Error);
+            Assert.Equal(5, challenge.FinalProgress);
             Assert.Equal(ChallengeErrors.NotActive, challenge.EnsureCanDelete().Error);
         }
 
@@ -115,10 +119,12 @@ namespace LifeManager.Domain.Test.Habits.Challenges
             var failed = WeeklyChallenge.Create(Draft(), Now).Value!;
             var cancelled = WeeklyChallenge.Create(Draft(), Now).Value!;
 
-            Assert.True(failed.Fail().IsSuccess);
+            Assert.True(failed.Fail(2).IsSuccess);
             Assert.True(cancelled.Cancel().IsSuccess);
             Assert.Equal(ChallengeStatus.Failed, failed.Status);
+            Assert.Equal(2, failed.FinalProgress);
             Assert.Equal(ChallengeStatus.Cancelled, cancelled.Status);
+            Assert.Null(cancelled.FinalProgress);
             Assert.True(WeeklyChallenge.Create(Draft(), Now).Value!.EnsureCanDelete().IsSuccess);
         }
     }
