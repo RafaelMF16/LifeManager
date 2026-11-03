@@ -23,6 +23,7 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
   - [Check-in (hábitos para construir)](#check-in-hábitos-para-construir)
   - [Meta diária (hábitos mensuráveis)](#meta-diária-hábitos-mensuráveis)
   - [Recaídas (hábitos para evitar)](#recaídas-hábitos-para-evitar)
+  - [Economia (hábitos para evitar)](#economia-hábitos-para-evitar)
   - [Ofensiva, marcos e proteções](#ofensiva-marcos-e-proteções)
   - [Fechamento do dia](#fechamento-do-dia)
   - [Estatísticas e extrato](#estatísticas-e-extrato)
@@ -240,6 +241,7 @@ Cada mês tem **no máximo um orçamento**: um **total** (quanto se pretende gas
 - Meses sem lançamentos aparecem zerados.
 - As quebras por categoria mostram as **8 maiores**; o resto é somado em "Outras", de modo que as partes sempre fecham com o total.
 - **Orçamento no painel:** cada mês é avaliado com o seu próprio orçamento. O **limite de gastos do mês** é o total menos a fatia de investimentos (o Livre conta como gasto permitido), e o **alvo de investimento** é a fatia de investimentos. Meses sem orçamento ficam sem meta. A contagem "dentro do limite em X de N meses fechados" **deixa de fora o mês em andamento**. As categorias que mais passaram do valor da fatia aparecem primeiro (até 5).
+- **Economia com hábitos:** soma, no período, os dias limpos × o custo por recaída de cada hábito para evitar que tem custo (ver [Economia](#economia-hábitos-para-evitar)). Não tem comparação com o período anterior.
 - **Gastos por dia:** o calendário do painel soma só os **gastos** de cada dia do mês (receitas e investimentos ficam de fora), pela data do lançamento, com o mesmo critério dos totais do mês, então os dias sempre fecham com o gasto do mês. Uma linha de extrato jogada para o mês seguinte conta no dia em que foi lançada (o dia 1º). Todos os dias do mês aparecem, zerados quando não há gasto.
 
 ## Hábitos
@@ -335,6 +337,16 @@ Hábitos para evitar não recebem check-in. **Cada dia sem recaída vira um "dia
 - A recaída **zera a ofensiva na hora**.
 - **Desfazer** devolve o HP perdido. Se a recaída causou um nocaute, as moedas perdidas no nocaute não voltam.
 
+### Economia (hábitos para evitar)
+
+Um hábito para evitar pode ter um **custo por recaída** em dinheiro ("um delivery: R$ 45"). Só hábitos para evitar têm custo; ele é opcional, positivo, com até 2 casas decimais, e pode ser mudado ou removido a qualquer momento.
+
+- **Economia = dias limpos × custo.** Vale para qualquer frequência: no limite semanal, cada dia sem recaída de uma semana dentro do limite já é um dia limpo.
+- Os dias limpos só existem depois do fechamento do dia, então a economia de hoje e de ontem aparece depois.
+- Mudar o custo **recalcula todo o histórico** com o novo valor.
+- A economia é só informativa: não cria lançamento, não mexe em moedas e não registra se foi investida. O botão "Investir" do painel abre um lançamento de investimento já preenchido, que o usuário confere e salva.
+- Aparece no detalhe do hábito (economia desde o início) e no **painel** (economia do período, por hábito, do que mais economizou para o que menos). Hábitos arquivados continuam contando.
+
 ### Ofensiva, marcos e proteções
 
 **Ofensiva** é a sequência atual de dias (ou semanas) cumpridos.
@@ -387,6 +399,7 @@ Um processo do servidor roda a cada hora (e ao iniciar a API) e **fecha os dias 
 - **Consistência:**
   - Hábitos diários e de dias fixos: parte dos dias agendados dos últimos 30 dias que foram cumpridos (dias protegidos ficam fora da conta).
   - Hábitos semanais: parte das últimas 4 semanas fechadas que bateram a meta ou ficaram dentro do limite.
+- **Economia:** num hábito para evitar com custo por recaída, os dias limpos desde o início × o custo.
 - **Rumo ao automático:** total de dias cumpridos, rumo aos 66 dias (média para um hábito virar automático). Falhar um dia não zera esse total.
 - Hábitos arquivados também têm estatísticas.
 
@@ -401,7 +414,7 @@ Um processo do servidor roda a cada hora (e ao iniciar a API) e **fecha os dias 
 
 ### Conquistas
 
-São **22 conquistas fixas**, em três níveis: **bronze, prata e ouro**. Cada uma é ganha **uma vez só**, paga um **bônus único** e libera um **título**.
+São **31 conquistas fixas**, em três níveis: **bronze, prata e ouro**. Cada uma é ganha **uma vez só**, paga um **bônus único** e libera um **título**.
 
 | Família | Bronze | Prata | Ouro |
 |---|---|---|---|
@@ -414,6 +427,9 @@ São **22 conquistas fixas**, em três níveis: **bronze, prata e ouro**. Cada u
 | **Piloto automático**: dias cumpridos de um mesmo hábito | — | — | 66 |
 | **Ranking: vitórias** (semanas em 1º num grupo) | 1 | 5 | 20 |
 | **Ranking: pódios** (semanas entre os 3 primeiros) | 3 | 10 | 30 |
+| **Finanças: orçamento** (meses dentro do limite de gastos) | 1 | 3 | 6 |
+| **Finanças: investimento** (meses que bateram a fatia de investimentos) | 2 | 6 | 12 |
+| **Finanças: poupança** (meses que pouparam 20% das receitas) | 1 | 3 | 12 |
 
 **Bônus por nível**
 
@@ -430,6 +446,12 @@ São **22 conquistas fixas**, em três níveis: **bronze, prata e ouro**. Cada u
   - um check-in desfeito ou um resgate desfeito deixa de contar;
   - compras de itens de jogo não contam como resgate;
   - **ranking:** só vale uma semana **fechada** de um grupo com **3 ou mais membros desde segunda**, em que o jogador também estava desde segunda e fez pontos. Empate em 1º vale vitória para todos os empatados. Contam **semanas diferentes**: vencer a mesma semana em dois grupos conta uma vez só.
+  - **finanças:** só contam **meses fechados** (o mês em andamento nunca conta).
+    - **Orçamento e investimento** exigem um orçamento do mês **criado até o dia 5** desse mês (pode ser antes do mês começar) e **não alterado depois que o mês acabou**. Assim não dá para criar ou afrouxar a meta depois de saber o resultado.
+    - **Orçamento:** os gastos ficaram dentro do limite de gastos (total menos a fatia de investimentos) **e** chegaram a pelo menos **metade** dele. Um total inflado para passar fácil não conta.
+    - **Investimento:** o investido no mês chegou à fatia de investimentos. Um orçamento sem essa fatia não conta.
+    - **Poupança:** receitas − gastos ≥ **20% das receitas** (investir conta como poupar, como no painel). Não precisa de orçamento; um mês sem receitas não conta.
+    - Os orçamentos salvos antes desta regra existir contam como criados no início do próprio mês.
 - **Para sempre:** desfazer o check-in, arquivar o hábito ou perder XP **não** tira a conquista nem o bônus.
 - **Bônus:** entra no extrato como "conquista". Se o XP do bônus subir o nível, a subida vem com HP cheio, como sempre, e pode liberar uma conquista de nível na mesma hora.
 - **Quando é ganha:** sempre que o perfil do jogador é lido, o que o app faz ao abrir e depois de toda mudança. Uma conquista que o fechamento do dia liberou de madrugada aparece quando o jogador abre o app, com a data desse dia.
@@ -684,6 +706,10 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 | `Habit.InvalidTargetStep` | Validation | Incremento fora de 1 até o valor da meta |
 | `Habit.InvalidTargetCombination` | Validation | Unidade ou incremento informados sem meta |
 | `Habit.TargetNotAllowed` | Validation | Meta diária num hábito para evitar |
+| `Habit.RelapseCostNotPositive` | Validation | Custo por recaída zero ou negativo |
+| `Habit.RelapseCostTooManyDecimals` | Validation | Custo por recaída com mais de 2 casas decimais |
+| `Habit.RelapseCostTooLarge` | Validation | Custo por recaída grande demais |
+| `Habit.RelapseCostNotAllowed` | Validation | Custo por recaída num hábito para construir |
 | `Habit.NotMeasurable` | Validation | Registro de progresso num hábito sem meta |
 | `Habit.InvalidProgressValue` | Validation | Registro de progresso fora de 1 a 100.000 |
 | `Habit.TooManyProgressEntries` | Validation | Mais de 50 registros de progresso no dia |

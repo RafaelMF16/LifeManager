@@ -6,6 +6,7 @@ namespace LifeManager.Application.Habits.DTOs
     /// <param name="WeekDays">Only for <see cref="HabitFrequencyType.WeekDays"/>, e.g. <c>["Monday", "Thursday"]</c>.</param>
     /// <param name="TimesPerWeek">Only for <see cref="HabitFrequencyType.TimesPerWeek"/>.</param>
     /// <param name="TargetValue">The daily target of a habit to build; null (with no unit or step) for a one-tap habit.</param>
+    /// <param name="RelapseCost">What one relapse of a habit to avoid costs in money; null without one.</param>
     public record HabitDto(
         string Name,
         string? Description,
@@ -17,5 +18,6 @@ namespace LifeManager.Application.Habits.DTOs
         int? TimesPerWeek,
         int? TargetValue = null,
         string? TargetUnit = null,
-        int? TargetStep = null);
+        int? TargetStep = null,
+        decimal? RelapseCost = null);
 }

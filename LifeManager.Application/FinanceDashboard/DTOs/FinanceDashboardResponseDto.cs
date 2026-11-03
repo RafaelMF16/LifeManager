@@ -4,6 +4,7 @@ namespace LifeManager.Application.FinanceDashboard.DTOs
     /// Everything the Finance dashboard shows for a period, already summed and compared on the server.
     /// Amounts are always positive except balances; ratios are 0–1 (0.12 = 12%) and null when there is nothing to compare with.
     /// </summary>
+    /// <param name="HabitSavings">What the user's habits to avoid saved in the period (no comparison).</param>
     public record FinanceDashboardResponseDto(
         DashboardPeriodDto Period,
         DashboardPeriodDto ComparisonPeriod,
@@ -11,5 +12,6 @@ namespace LifeManager.Application.FinanceDashboard.DTOs
         IReadOnlyList<DashboardMonthDto> Months,
         DashboardCategoryBreakdownDto Expenses,
         DashboardCategoryBreakdownDto Investments,
-        DashboardBudgetsDto Budgets);
+        DashboardBudgetsDto Budgets,
+        DashboardHabitSavingsDto HabitSavings);
 }

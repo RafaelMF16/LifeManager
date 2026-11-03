@@ -34,7 +34,16 @@ namespace LifeManager.Domain.Achievements
             [AchievementCode.RankingWins20] = Tiered(AchievementFamily.Ranking, GameRules.RankingWinAchievements, 2, progress => progress.RankingWins),
             [AchievementCode.RankingPodiums3] = Tiered(AchievementFamily.Ranking, GameRules.RankingPodiumAchievements, 0, progress => progress.RankingPodiums),
             [AchievementCode.RankingPodiums10] = Tiered(AchievementFamily.Ranking, GameRules.RankingPodiumAchievements, 1, progress => progress.RankingPodiums),
-            [AchievementCode.RankingPodiums30] = Tiered(AchievementFamily.Ranking, GameRules.RankingPodiumAchievements, 2, progress => progress.RankingPodiums)
+            [AchievementCode.RankingPodiums30] = Tiered(AchievementFamily.Ranking, GameRules.RankingPodiumAchievements, 2, progress => progress.RankingPodiums),
+            [AchievementCode.BudgetMonths1] = Tiered(AchievementFamily.Finance, GameRules.BudgetMonthAchievements, 0, progress => progress.BudgetMonths),
+            [AchievementCode.BudgetMonths3] = Tiered(AchievementFamily.Finance, GameRules.BudgetMonthAchievements, 1, progress => progress.BudgetMonths),
+            [AchievementCode.BudgetMonths6] = Tiered(AchievementFamily.Finance, GameRules.BudgetMonthAchievements, 2, progress => progress.BudgetMonths),
+            [AchievementCode.InvestmentMonths2] = Tiered(AchievementFamily.Finance, GameRules.InvestmentMonthAchievements, 0, progress => progress.InvestmentMonths),
+            [AchievementCode.InvestmentMonths6] = Tiered(AchievementFamily.Finance, GameRules.InvestmentMonthAchievements, 1, progress => progress.InvestmentMonths),
+            [AchievementCode.InvestmentMonths12] = Tiered(AchievementFamily.Finance, GameRules.InvestmentMonthAchievements, 2, progress => progress.InvestmentMonths),
+            [AchievementCode.SavingsMonths1] = Tiered(AchievementFamily.Finance, GameRules.SavingsMonthAchievements, 0, progress => progress.SavingsMonths),
+            [AchievementCode.SavingsMonths3] = Tiered(AchievementFamily.Finance, GameRules.SavingsMonthAchievements, 1, progress => progress.SavingsMonths),
+            [AchievementCode.SavingsMonths12] = Tiered(AchievementFamily.Finance, GameRules.SavingsMonthAchievements, 2, progress => progress.SavingsMonths)
         };
 
         public static readonly IReadOnlyList<AchievementCode> All = [.. Definitions.Keys.Order()];

@@ -209,6 +209,22 @@ namespace LifeManager.Application.Test.BudgetPlans
         }
 
         [Fact]
+        public async Task SaveAsync_ShouldKeepWhenThePlanWasCreated_AndRecordWhenItChanged()
+        {
+            var clock = (FakeTimeProvider)ServiceProvider.GetRequiredService<TimeProvider>();
+            clock.SetToday(new DateOnly(2026, 10, 2));
+            var createdAt = clock.GetUtcNow();
+            await Save("2026-10", 6000m);
+
+            clock.SetToday(new DateOnly(2026, 10, 20));
+            await Save("2026-10", 8000m);
+
+            var stored = Assert.Single(BudgetPlanSingleton.Instance);
+            Assert.Equal(createdAt, stored.CreatedAt);
+            Assert.Equal(clock.GetUtcNow(), stored.UpdatedAt);
+        }
+
+        [Fact]
         public async Task SaveAsync_ShouldNotTouchOtherMonths()
         {
             SeedPlan(FirstUserId, "2026-09", 5000m, Expense(MarketCategoryId, 10m));
@@ -332,7 +348,7 @@ namespace LifeManager.Application.Test.BudgetPlans
         private static void SeedPlan(UserId userId, string month, decimal total, params BudgetSlice[] slices)
         {
             YearMonth.TryParse(month, out var yearMonth);
-            var plan = BudgetPlan.Create(userId.Value, yearMonth, total, slices).Value!;
+            var plan = BudgetPlan.Create(userId.Value, yearMonth, total, slices, DateTimeOffset.UnixEpoch).Value!;
             plan.AssignId(BudgetPlanSingleton.Instance.Count + 1);
             BudgetPlanSingleton.Instance.Add(plan);
         }

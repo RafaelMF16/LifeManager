@@ -138,6 +138,7 @@ namespace LifeManager.Application.Test.Habits.Mocks
                 habit.EvaluatedUntil,
                 habit.TargetValue,
                 habit.TargetUnit,
-                habit.TargetStep);
+                habit.TargetStep,
+                habit.RelapseCost);
     }
 }

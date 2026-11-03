@@ -76,6 +76,20 @@ namespace LifeManager.Domain.Habits
         public static readonly IReadOnlyList<int> RankingWinAchievements = [1, 5, 20];
         public static readonly IReadOnlyList<int> RankingPodiumAchievements = [3, 10, 30];
 
+        // Finance achievements: closed months only (see FinanceMonthProgress).
+        public static readonly IReadOnlyList<int> BudgetMonthAchievements = [1, 3, 6];
+        public static readonly IReadOnlyList<int> InvestmentMonthAchievements = [2, 6, 12];
+        public static readonly IReadOnlyList<int> SavingsMonthAchievements = [1, 3, 12];
+
+        /// <summary>A month's plan counts for the Finance achievements only when created by this day of the month.</summary>
+        public const int BudgetPlanLatestCreationDay = 5;
+
+        /// <summary>A month within the spending limit counts only when it spent at least this part of the limit.</summary>
+        public const decimal BudgetMinimumUsage = 0.5m;
+
+        /// <summary>A month counts as saving when income − expense is at least this part of the income.</summary>
+        public const decimal FinanceSavingsRateGoal = 0.2m;
+
         /// <summary>Days done or clean after the first knockout for the comeback achievement.</summary>
         public const int ComebackKeptDays = 10;
 

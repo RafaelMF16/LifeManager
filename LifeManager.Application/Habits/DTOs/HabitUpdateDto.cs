@@ -4,6 +4,7 @@ namespace LifeManager.Application.Habits.DTOs
 {
     /// <summary>Body of <c>PUT /api/Habits/{id}</c>: everything but the kind, which is fixed once created.</summary>
     /// <param name="TargetValue">Null (with no unit or step) removes the daily target.</param>
+    /// <param name="RelapseCost">Null removes the cost per relapse.</param>
     public record HabitUpdateDto(
         string Name,
         string? Description,
@@ -14,5 +15,6 @@ namespace LifeManager.Application.Habits.DTOs
         int? TimesPerWeek,
         int? TargetValue = null,
         string? TargetUnit = null,
-        int? TargetStep = null);
+        int? TargetStep = null,
+        decimal? RelapseCost = null);
 }

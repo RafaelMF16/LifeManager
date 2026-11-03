@@ -13,6 +13,9 @@ namespace LifeManager.Domain.Achievements
     /// <param name="MostKeptDaysInOneHabit">The most days done or clean of a single habit.</param>
     /// <param name="RankingWins">Distinct weeks the player finished first in a group (<see cref="Ranking.RankingWeekResult.CountsForAchievements"/>).</param>
     /// <param name="RankingPodiums">Distinct weeks the player finished on a group's podium, by the same rule.</param>
+    /// <param name="BudgetMonths">Closed months within the spending limit of an eligible plan (<see cref="FinanceMonthProgress"/>).</param>
+    /// <param name="InvestmentMonths">Closed months that reached the investment slice of an eligible plan.</param>
+    /// <param name="SavingsMonths">Closed months that saved at least part of the income (<see cref="Habits.GameRules.FinanceSavingsRateGoal"/>).</param>
     public record AchievementProgress(
         int CheckIns,
         int LongestStreakDays,
@@ -22,5 +25,13 @@ namespace LifeManager.Domain.Achievements
         int KeptDaysAfterFirstKnockout,
         int MostKeptDaysInOneHabit,
         int RankingWins = 0,
-        int RankingPodiums = 0);
+        int RankingPodiums = 0,
+        int BudgetMonths = 0,
+        int InvestmentMonths = 0,
+        int SavingsMonths = 0)
+    {
+        /// <summary>This progress with the Finance counts, which come from the money side rather than the game's own read.</summary>
+        public AchievementProgress WithFinance(FinanceMonthCounts finance)
+            => this with { BudgetMonths = finance.BudgetMonths, InvestmentMonths = finance.InvestmentMonths, SavingsMonths = finance.SavingsMonths };
+    }
 }

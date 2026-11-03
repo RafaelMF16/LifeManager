@@ -59,6 +59,36 @@ namespace LifeManager.Application.Test.Habits
         }
 
         [Fact]
+        public async Task GetAsync_ShouldReturnTheMoneySaved_WhenHabitToAvoidHasACost()
+        {
+            var habit = Habit.FromPersistence(
+                1, UserId.Value, "Delivery", null, null, HabitKind.Negative, HabitDifficulty.Easy,
+                HabitFrequencyType.Daily, HabitWeekDays.None, null, new DateOnly(2026, 1, 1), CreatedAt, null, 2, 5, Today.AddDays(-2),
+                relapseCost: 45m);
+            HabitSingleton.Instance.Add(habit);
+            SeedDay(habit, Today.AddDays(-2), HabitCheckInStatus.Clean);
+            SeedDay(habit, Today.AddDays(-3), HabitCheckInStatus.Relapse);
+            SeedDay(habit, new DateOnly(2026, 2, 1), HabitCheckInStatus.Clean);
+
+            var result = await _statsService.GetAsync(habit.Id!.Value, UserId, CancellationToken.None);
+
+            Assert.Equal(2, result.Value.TotalKept);
+            Assert.Equal(90m, result.Value.SavedAmount);
+            Assert.Equal(45m, result.Value.Habit.RelapseCost);
+        }
+
+        [Fact]
+        public async Task GetAsync_ShouldReturnNoMoneySaved_WhenHabitHasNoCost()
+        {
+            var habit = SeedHabit();
+            SeedDay(habit, Today.AddDays(-2), HabitCheckInStatus.Done);
+
+            var result = await _statsService.GetAsync(habit.Id!.Value, UserId, CancellationToken.None);
+
+            Assert.Null(result.Value.SavedAmount);
+        }
+
+        [Fact]
         public async Task GetAsync_ShouldReturnTheHeatmapConsistencyAndDaysKept()
         {
             var habit = SeedHabit();
