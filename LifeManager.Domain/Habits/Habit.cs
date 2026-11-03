@@ -52,6 +52,12 @@ namespace LifeManager.Domain.Habits
         /// </summary>
         public decimal? RelapseCost { get; private set; }
 
+        /// <summary>
+        /// The finance action that checks this habit in today by itself; <see cref="HabitAutoTrigger.None"/> for most.
+        /// Only a habit to build without a daily target takes one, and it can still be checked in by hand.
+        /// </summary>
+        public HabitAutoTrigger AutoTrigger { get; private set; }
+
         /// <summary>First day the habit counts on.</summary>
         public DateOnly StartDate { get; }
 
@@ -86,7 +92,8 @@ namespace LifeManager.Domain.Habits
             int? targetValue,
             string? targetUnit,
             int? targetStep,
-            decimal? relapseCost)
+            decimal? relapseCost,
+            HabitAutoTrigger autoTrigger)
         {
             UserId = userId;
             Name = name;
@@ -108,11 +115,13 @@ namespace LifeManager.Domain.Habits
             TargetUnit = targetUnit;
             TargetStep = targetStep;
             RelapseCost = relapseCost;
+            AutoTrigger = autoTrigger;
         }
 
         /// <param name="today">The user's current date: the habit starts counting on it.</param>
         /// <param name="targetValue">The daily target; null (with no unit or step) for a habit checked in with one tap.</param>
         /// <param name="relapseCost">What one relapse costs; only a habit to avoid takes one.</param>
+        /// <param name="autoTrigger">The finance action that checks it in by itself; only a one-tap habit to build takes one.</param>
         public static Result<Habit> Create(
             int idUser,
             string? name,
@@ -128,12 +137,13 @@ namespace LifeManager.Domain.Habits
             int? targetValue = null,
             string? targetUnit = null,
             int? targetStep = null,
-            decimal? relapseCost = null)
+            decimal? relapseCost = null,
+            HabitAutoTrigger autoTrigger = HabitAutoTrigger.None)
         {
             if (!Enum.IsDefined(kind))
                 return HabitErrors.InvalidKind;
 
-            var valuesResult = Validate(kind, name, description, trigger, difficulty, frequencyType, weekDays, timesPerWeek, targetValue, targetUnit, targetStep, relapseCost);
+            var valuesResult = Validate(kind, name, description, trigger, difficulty, frequencyType, weekDays, timesPerWeek, targetValue, targetUnit, targetStep, relapseCost, autoTrigger);
             if (!valuesResult.IsSuccess)
                 return valuesResult.Error;
 
@@ -158,7 +168,8 @@ namespace LifeManager.Domain.Habits
                 values.Target?.Value,
                 values.Target?.Unit,
                 values.Target?.Step,
-                values.RelapseCost?.Value);
+                values.RelapseCost?.Value,
+                autoTrigger);
         }
 
         /// <summary>
@@ -177,12 +188,13 @@ namespace LifeManager.Domain.Habits
             int? targetValue = null,
             string? targetUnit = null,
             int? targetStep = null,
-            decimal? relapseCost = null)
+            decimal? relapseCost = null,
+            HabitAutoTrigger autoTrigger = HabitAutoTrigger.None)
         {
             if (IsArchived)
                 return HabitErrors.Archived;
 
-            var valuesResult = Validate(Kind, name, description, trigger, difficulty, frequencyType, weekDays, timesPerWeek, targetValue, targetUnit, targetStep, relapseCost);
+            var valuesResult = Validate(Kind, name, description, trigger, difficulty, frequencyType, weekDays, timesPerWeek, targetValue, targetUnit, targetStep, relapseCost, autoTrigger);
             if (!valuesResult.IsSuccess)
                 return valuesResult.Error;
 
@@ -200,6 +212,7 @@ namespace LifeManager.Domain.Habits
             TargetUnit = values.Target?.Unit;
             TargetStep = values.Target?.Step;
             RelapseCost = values.RelapseCost?.Value;
+            AutoTrigger = autoTrigger;
 
             return this;
         }
@@ -323,7 +336,8 @@ namespace LifeManager.Domain.Habits
             int? targetValue = null,
             string? targetUnit = null,
             int? targetStep = null,
-            decimal? relapseCost = null)
+            decimal? relapseCost = null,
+            HabitAutoTrigger autoTrigger = HabitAutoTrigger.None)
         {
             var habit = new Habit(
                 new UserId(idUser),
@@ -344,7 +358,8 @@ namespace LifeManager.Domain.Habits
                 targetValue,
                 targetUnit,
                 targetStep,
-                relapseCost);
+                relapseCost,
+                autoTrigger);
             habit.AssignId(id);
 
             return habit;
@@ -367,7 +382,8 @@ namespace LifeManager.Domain.Habits
             int? targetValue,
             string? targetUnit,
             int? targetStep,
-            decimal? relapseCost)
+            decimal? relapseCost,
+            HabitAutoTrigger autoTrigger)
         {
             var nameResult = HabitName.Create(name);
             if (!nameResult.IsSuccess)
@@ -401,6 +417,12 @@ namespace LifeManager.Domain.Habits
 
             if (relapseCostResult.Value is not null && kind != HabitKind.Negative)
                 return HabitErrors.RelapseCostNotAllowed;
+
+            if (!Enum.IsDefined(autoTrigger))
+                return HabitErrors.InvalidAutoTrigger;
+
+            if (autoTrigger != HabitAutoTrigger.None && (kind != HabitKind.Positive || targetResult.Value is not null))
+                return HabitErrors.AutoTriggerNotAllowed;
 
             return new ValidatedValues(nameResult.Value, descriptionResult.Value, triggerResult.Value, frequencyResult.Value, targetResult.Value, relapseCostResult.Value);
         }

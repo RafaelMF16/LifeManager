@@ -68,6 +68,16 @@ namespace LifeManager.Infrastructure.Habits
                 .ToListAsync(cancellationToken);
         }
 
+        public async Task<IReadOnlyList<Habit>> GetAutoTriggeredAsync(UserId userId, HabitAutoTrigger trigger, CancellationToken cancellationToken)
+        {
+            return await _dbContext.Habits
+                .AsNoTracking()
+                .Where(habit => habit.UserId == userId && habit.AutoTrigger == trigger && habit.ArchivedAt == null)
+                .OrderBy(habit => habit.NormalizedName)
+                .ThenBy(habit => habit.Id)
+                .ToListAsync(cancellationToken);
+        }
+
         public async Task<IReadOnlyList<Habit>> GetByIdsAsync(UserId userId, IReadOnlyCollection<HabitId> habitIds, CancellationToken cancellationToken)
         {
             if (habitIds.Count == 0)
@@ -108,6 +118,7 @@ namespace LifeManager.Infrastructure.Habits
                     .SetProperty(storedHabit => storedHabit.TargetUnit, habit.TargetUnit)
                     .SetProperty(storedHabit => storedHabit.TargetStep, habit.TargetStep)
                     .SetProperty(storedHabit => storedHabit.RelapseCost, habit.RelapseCost)
+                    .SetProperty(storedHabit => storedHabit.AutoTrigger, habit.AutoTrigger)
                     .SetProperty(storedHabit => storedHabit.ArchivedAt, habit.ArchivedAt)
                     .SetProperty(storedHabit => storedHabit.CurrentStreak, habit.CurrentStreak)
                     .SetProperty(storedHabit => storedHabit.EvaluatedUntil, habit.EvaluatedUntil), cancellationToken);

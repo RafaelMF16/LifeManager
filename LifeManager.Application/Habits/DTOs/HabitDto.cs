@@ -7,6 +7,7 @@ namespace LifeManager.Application.Habits.DTOs
     /// <param name="TimesPerWeek">Only for <see cref="HabitFrequencyType.TimesPerWeek"/>.</param>
     /// <param name="TargetValue">The daily target of a habit to build; null (with no unit or step) for a one-tap habit.</param>
     /// <param name="RelapseCost">What one relapse of a habit to avoid costs in money; null without one.</param>
+    /// <param name="AutoTrigger">The finance action that checks a one-tap habit to build in by itself.</param>
     public record HabitDto(
         string Name,
         string? Description,
@@ -19,5 +20,6 @@ namespace LifeManager.Application.Habits.DTOs
         int? TargetValue = null,
         string? TargetUnit = null,
         int? TargetStep = null,
-        decimal? RelapseCost = null);
+        decimal? RelapseCost = null,
+        HabitAutoTrigger AutoTrigger = HabitAutoTrigger.None);
 }

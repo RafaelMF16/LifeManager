@@ -524,6 +524,9 @@ namespace LifeManager.Infrastructure.Migrations
                     b.Property<DateTimeOffset?>("ArchivedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("AutoTrigger")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -600,6 +603,9 @@ namespace LifeManager.Infrastructure.Migrations
                     NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("NormalizedName"), new[] { "gin_trgm_ops" });
 
                     b.HasIndex("UserId", "ArchivedAt");
+
+                    b.HasIndex("UserId", "AutoTrigger")
+                        .HasFilter("\"AutoTrigger\" <> 0 AND \"ArchivedAt\" IS NULL");
 
                     b.HasIndex("UserId", "NormalizedName")
                         .IsUnique()

@@ -80,6 +80,20 @@ namespace LifeManager.Application.Test.Habits.Mocks
             return Task.FromResult(habits);
         }
 
+        public Task<IReadOnlyList<Habit>> GetAutoTriggeredAsync(UserId userId, HabitAutoTrigger trigger, CancellationToken cancellationToken)
+        {
+            IReadOnlyList<Habit> habits =
+            [
+                .. _instance
+                    .Where(habit => habit.UserId == userId && habit.AutoTrigger == trigger && !habit.IsArchived)
+                    .OrderBy(habit => habit.NormalizedName, StringComparer.Ordinal)
+                    .ThenBy(habit => habit.Id!.Value)
+                    .Select(ToDetachedCopy)
+            ];
+
+            return Task.FromResult(habits);
+        }
+
         public Task<IReadOnlyList<Habit>> GetActiveByUserIdAsync(UserId userId, HabitKind kind, CancellationToken cancellationToken)
         {
             IReadOnlyList<Habit> habits =
@@ -139,6 +153,7 @@ namespace LifeManager.Application.Test.Habits.Mocks
                 habit.TargetValue,
                 habit.TargetUnit,
                 habit.TargetStep,
-                habit.RelapseCost);
+                habit.RelapseCost,
+                habit.AutoTrigger);
     }
 }

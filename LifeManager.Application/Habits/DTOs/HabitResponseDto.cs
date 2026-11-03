@@ -24,7 +24,8 @@ namespace LifeManager.Application.Habits.DTOs
         int? TargetValue,
         string? TargetUnit,
         int? TargetStep,
-        decimal? RelapseCost)
+        decimal? RelapseCost,
+        HabitAutoTrigger AutoTrigger)
     {
         public static HabitResponseDto From(Habit habit)
             => new(
@@ -44,6 +45,7 @@ namespace LifeManager.Application.Habits.DTOs
                 habit.TargetValue,
                 habit.TargetUnit,
                 habit.TargetStep,
-                habit.RelapseCost);
+                habit.RelapseCost,
+                habit.AutoTrigger);
     }
 }
