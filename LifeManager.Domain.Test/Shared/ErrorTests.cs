@@ -1,4 +1,5 @@
 using System.Text.Json;
+using LifeManager.Domain.Auth.Errors;
 using LifeManager.Domain.Shared.Results;
 
 namespace LifeManager.Domain.Test.Shared
@@ -40,6 +41,16 @@ namespace LifeManager.Domain.Test.Shared
             var json = JsonSerializer.Serialize(SomeError.AtIndex(2), new JsonSerializerOptions(JsonSerializerDefaults.Web));
 
             Assert.Contains("\"index\":2", json);
+        }
+
+        [Fact]
+        public void TooManyRequests_ShouldHaveItsOwnType()
+        {
+            var error = Error.TooManyRequests("Some.Code", "Some message");
+
+            Assert.Equal(ErrorType.TooManyRequests, error.Type);
+            Assert.Equal(ErrorType.TooManyRequests, AuthErrors.TooManyRequests.Type);
+            Assert.Equal("Auth.TooManyRequests", AuthErrors.TooManyRequests.Code);
         }
     }
 }

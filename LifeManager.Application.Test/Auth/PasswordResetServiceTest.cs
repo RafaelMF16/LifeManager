@@ -60,7 +60,7 @@ namespace LifeManager.Application.Test.Auth
         }
 
         private async Task<bool> CanLogInAsync(string password)
-            => (await ServiceProvider.GetRequiredService<UserService>().AuthenticateUserAsync(new LoginDto("ana@example.com", password), CancellationToken.None)).IsSuccess;
+            => (await ServiceProvider.GetRequiredService<UserService>().AuthenticateUserAsync(new LoginDto("ana@example.com", password), "203.0.113.7", CancellationToken.None)).IsSuccess;
 
         [Fact]
         public async Task RequestAsync_ShouldStoreATokenAndSendTheLink_WhenTheEmailHasAnAccount()

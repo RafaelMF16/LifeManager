@@ -22,6 +22,7 @@ namespace LifeManager.Application.Test.Auth
             PendingRegistrationSingleton.Instance.Clear();
             PasswordResetTokenSingleton.Instance.Clear();
             EmailCooldownSingleton.Instance.Clear();
+            LoginAttemptSingleton.Instance.Clear();
 
             _authCleanupService = ServiceProvider.GetRequiredService<AuthCleanupService>();
             ((FakeTimeProvider)ServiceProvider.GetRequiredService<TimeProvider>()).UtcNow = Now;
@@ -87,11 +88,25 @@ namespace LifeManager.Application.Test.Auth
         }
 
         [Fact]
+        public async Task DeleteStaleAsync_ShouldDeleteLoginAttemptsWhoseWindowEndedLongerAgoThanTheRetention()
+        {
+            var windowEndedLongAgo = Now - LoginAttempt.Retention - LoginAttempt.Window - TimeSpan.FromMinutes(1);
+            LoginAttemptSingleton.Instance.Add(LoginAttempt.Create("old@example.com", "203.0.113.7", windowEndedLongAgo));
+            LoginAttemptSingleton.Instance.Add(LoginAttempt.Create("recent@example.com", "203.0.113.7", Now - TimeSpan.FromHours(23)));
+
+            var result = await _authCleanupService.DeleteStaleAsync(CancellationToken.None);
+
+            Assert.Equal(1, result.LoginAttempts);
+            Assert.Equal("recent@example.com", Assert.Single(LoginAttemptSingleton.Instance).Email);
+        }
+
+        [Fact]
         public async Task DeleteStaleAsync_ShouldDeleteNothing_WhenEverythingIsRecent()
         {
             SeedPendingExpired("recent@example.com", daysAgo: 0);
             SeedResetExpired("recent", daysAgo: 0);
             EmailCooldownSingleton.Instance.Add(EmailCooldown.Create("recent@example.com", EmailKind.AccountExists, Now));
+            LoginAttemptSingleton.Instance.Add(LoginAttempt.Create("recent@example.com", "203.0.113.7", Now));
 
             var result = await _authCleanupService.DeleteStaleAsync(CancellationToken.None);
 

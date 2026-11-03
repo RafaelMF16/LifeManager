@@ -71,10 +71,13 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
 - O tempo de resposta pode variar um pouco entre e-mail com conta e sem conta na recuperação (só o primeiro envia e-mail). Foi aceito para o porte do projeto.
 
 **Limpeza automática**
-- De hora em hora são apagados: cadastros pendentes vencidos há mais de **7 dias**, links de recuperação vencidos ou usados há mais de **7 dias** e os registros do limite de um minuto com mais de **1 dia**.
+- De hora em hora são apagados: cadastros pendentes vencidos há mais de **7 dias**, links de recuperação vencidos ou usados há mais de **7 dias**, os registros do limite de um minuto com mais de **1 dia** e as tentativas de login cuja janela de 15 minutos acabou há mais de **1 dia**.
 
 **Login**
-- E-mail ou senha errados retornam sempre o mesmo erro, sem revelar qual dos dois está errado.
+- E-mail ou senha errados retornam sempre o mesmo erro, sem revelar qual dos dois está errado. A resposta também leva o mesmo tempo com ou sem conta para o e-mail.
+- **Senhas erradas:** **5 senhas erradas** para o mesmo e-mail, vindas do mesmo endereço de rede (IP), em **15 minutos** contados da primeira, bloqueiam esse e-mail **naquele IP** até os 15 minutos acabarem. Durante o bloqueio, a resposta é "muitas tentativas", **mesmo com a senha certa**. O dono da conta, vindo de outro IP, continua entrando. Vale também para e-mails sem conta, para o bloqueio não revelar se a conta existe. Um login certo antes do bloqueio zera a contagem.
+- **Por IP:** no máximo **100 tentativas de login a cada 10 minutos**. É só um teto contra abuso, folgado porque, atrás do Firebase Hosting, vários usuários podem chegar com o mesmo IP.
+- As senhas são guardadas com um cálculo propositalmente lento (custo 12), para dificultar quebrá-las se o banco vazar. Contas criadas com um custo menor passam para o atual no próximo login certo, sem o usuário perceber.
 
 **Sessão**
 - O acesso vale **15 minutos** e é renovado automaticamente enquanto o usuário usa o app.
@@ -82,6 +85,7 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
 - Toda sessão tem um **teto de 30 dias** a partir do login. Depois disso é preciso entrar de novo, mesmo com uso contínuo.
 - Cada renovação troca a credencial por uma nova. Se uma credencial antiga for reapresentada, o sistema trata como roubo e **encerra todas as sessões** do usuário.
 - Credencial expirada, revogada, reutilizada ou inexistente recebe sempre a mesma resposta, sem revelar o motivo.
+- Cada sessão pode ser renovada no máximo **60 vezes a cada 10 minutos**. O acesso fica só na memória da aba, então todo recarregamento de página e toda aba nova fazem uma renovação; o limite folgado só barra abusos.
 
 **Logout**
 - Encerra a sessão no servidor. Pode ser repetido sem erro, mesmo se a sessão já tiver acabado.
@@ -559,7 +563,7 @@ A semana do ranking vai de **segunda a domingo**, a mesma da ofensiva semanal. O
 
 A API responde a falhas esperadas com `{ code, message, type }`. O frontend usa o `code` para mostrar a mensagem traduzida. Quando o envio é uma lista e um item dela falha (os titulares), a resposta também traz `index`: a posição do item, a partir de 0. **Os códigos fazem parte do contrato e não devem ser renomeados.**
 
-O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `NotFound` → 404, `Conflict` → 409. A exceção é `Auth.TooManyRequests`, que sai com 429.
+O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `NotFound` → 404, `Conflict` → 409, `TooManyRequests` → 429.
 
 ### Contas
 
@@ -576,7 +580,7 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 | `User.NotFound` | NotFound | Usuário não existe |
 | `Auth.InvalidRefreshToken` | Unauthorized | Sessão expirada, revogada ou inválida (é preciso entrar de novo) |
 | `Auth.InvalidEmailToken` | Validation | Link do e-mail (cadastro ou recuperação) vencido, já usado ou desconhecido |
-| `Auth.TooManyRequests` | Failure (429) | Muitos pedidos de cadastro/recuperação ou usos de link do mesmo IP em 10 minutos, ou tentativas de convite do mesmo jogador |
+| `Auth.TooManyRequests` | TooManyRequests (429) | Muitos pedidos de cadastro/recuperação, usos de link ou logins do mesmo IP em 10 minutos; e-mail bloqueado naquele IP por 5 senhas erradas em 15 minutos; muitas renovações da mesma sessão em 10 minutos; ou tentativas de convite do mesmo jogador |
 | `UserPreferences.InvalidTheme` | Validation | Tema desconhecido |
 | `UserPreferences.InvalidLanguage` | Validation | Idioma desconhecido |
 

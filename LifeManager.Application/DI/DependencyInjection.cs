@@ -26,6 +26,7 @@ namespace LifeManager.Application.DI
     {
         public static IServiceCollection AddApplicationServices(this IServiceCollection services)
         {
+            services.TryAddSingleton(new PasswordHashingOptions());
             services.AddScoped<AuthService>();
             services.AddScoped<TokenService>();
             services.AddScoped<UserService>();

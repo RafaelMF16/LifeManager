@@ -100,6 +100,29 @@ namespace LifeManager.Infrastructure.Migrations
                     b.ToTable("EmailCooldowns");
                 });
 
+            modelBuilder.Entity("LifeManager.Domain.Auth.LoginAttempt", b =>
+                {
+                    b.Property<string>("Email")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)");
+
+                    b.Property<int>("FailedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("WindowStartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Email", "IpAddress");
+
+                    b.HasIndex("WindowStartedAt");
+
+                    b.ToTable("LoginAttempts");
+                });
+
             modelBuilder.Entity("LifeManager.Domain.Auth.PasswordResetToken", b =>
                 {
                     b.Property<int>("Id")

@@ -1,16 +1,37 @@
-﻿namespace LifeManager.Application.Auth.Services
+﻿using System.Collections.Concurrent;
+
+namespace LifeManager.Application.Auth.Services
 {
-    public class AuthService
+    public class AuthService(PasswordHashingOptions options)
     {
-        private const short WORK_FACTOR = 10;
+        // One hash per cost, made on first use: verifying against it costs the same as verifying a real password.
+        private static readonly ConcurrentDictionary<int, string> DummyHashes = new();
+
+        private readonly int _workFactor = options.WorkFactor;
 
         public string EncryptPassword(string password)
         {
-            return BCrypt.Net.BCrypt.HashPassword(password, WORK_FACTOR);
+            return BCrypt.Net.BCrypt.HashPassword(password, _workFactor);
         }
 
-        public bool VerifyPassword(string password, string hashedPassword)
+        /// <summary>True when the hash was made with a lower cost than the current one (an account from before a raise).</summary>
+        public bool NeedsRehash(string hashedPassword)
         {
+            return BCrypt.Net.BCrypt.PasswordNeedsRehash(hashedPassword, _workFactor);
+        }
+
+        /// <summary>
+        /// Without a hash (no account for the e-mail) it still runs BCrypt, against a fixed hash, and returns false, so a
+        /// login takes as long whether or not the account exists.
+        /// </summary>
+        public bool VerifyPassword(string password, string? hashedPassword)
+        {
+            if (hashedPassword is null)
+            {
+                BCrypt.Net.BCrypt.Verify(password, DummyHashes.GetOrAdd(_workFactor, workFactor => BCrypt.Net.BCrypt.HashPassword("dummy-password", workFactor)));
+                return false;
+            }
+
             return BCrypt.Net.BCrypt.Verify(password, hashedPassword);
         }
     }
