@@ -1,4 +1,5 @@
 using LifeManager.Application.Shared.DTOs;
+using LifeManager.Application.Habits.Services;
 using LifeManager.Application.Shared.Time;
 using LifeManager.Application.StatementImports.DTOs;
 using LifeManager.Domain.AccountHolders.Interfaces;
@@ -7,6 +8,7 @@ using LifeManager.Domain.Categories.Interfaces;
 using LifeManager.Domain.Categories.ValueObjects;
 using LifeManager.Domain.Categorization;
 using LifeManager.Domain.Categorization.Interfaces;
+using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.MonthlySummaries;
 using LifeManager.Domain.MonthlySummaries.Interfaces;
 using LifeManager.Domain.Shared.Enums;
@@ -40,6 +42,7 @@ namespace LifeManager.Application.StatementImports.Services
         ICategoryRepository categoryRepository,
         IUserRepository userRepository,
         IAccountHolderRepository accountHolderRepository,
+        HabitAutoCheckInService habitAutoCheckInService,
         AppClock appClock,
         TimeProvider timeProvider)
     {
@@ -52,6 +55,7 @@ namespace LifeManager.Application.StatementImports.Services
         private readonly ICategoryRepository _categoryRepository = categoryRepository;
         private readonly IUserRepository _userRepository = userRepository;
         private readonly IAccountHolderRepository _accountHolderRepository = accountHolderRepository;
+        private readonly HabitAutoCheckInService _habitAutoCheckInService = habitAutoCheckInService;
         private readonly AppClock _appClock = appClock;
         private readonly TimeProvider _timeProvider = timeProvider;
 
@@ -209,11 +213,15 @@ namespace LifeManager.Application.StatementImports.Services
             if (outcome is null)
                 return StatementImportErrors.AlreadyCommitted;
 
+            // The commit is its own trigger: the transactions it posts don't fire TransactionCreated.
+            var autoCheckIns = await _habitAutoCheckInService.OnEventAsync(userId, HabitAutoTrigger.StatementImportCommitted, cancellationToken);
+
             return new StatementImportCommitResultDto(
                 outcome.ImportedCount,
                 outcome.SkippedCount,
                 createdMonthCount,
-                [.. months.Select(month => new StatementImportCommittedMonthDto(month.Value.MonthlySummary.Id!.Value, month.Key.ToString(), month.Value.Created))]);
+                [.. months.Select(month => new StatementImportCommittedMonthDto(month.Value.MonthlySummary.Id!.Value, month.Key.ToString(), month.Value.Created))],
+                autoCheckIns);
         }
 
         /// <summary>One row per line; a line repeated in the file (same bank line id) is kept once.</summary>

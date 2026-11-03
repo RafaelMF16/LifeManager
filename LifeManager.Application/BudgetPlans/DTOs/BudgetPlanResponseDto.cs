@@ -1,3 +1,6 @@
+using System.Text.Json.Serialization;
+using LifeManager.Application.Habits.DTOs;
+
 namespace LifeManager.Application.BudgetPlans.DTOs
 {
     /// <summary>A month's plan with what was actually spent and invested; an empty month when it has no plan.</summary>
@@ -8,6 +11,7 @@ namespace LifeManager.Application.BudgetPlans.DTOs
     /// <param name="FreeAmount">The free part in money, closing with the total; null without a plan.</param>
     /// <param name="FreeActual">Spent in the month in categories without a slice (everything spent, without a plan).</param>
     /// <param name="CopySource">The latest earlier month with a plan ("yyyy-MM"), to offer copying it; null when there is none.</param>
+    /// <param name="AutoCheckIns">Only on save: the habits saving the plan checked in by themselves (empty when none).</param>
     public record BudgetPlanResponseDto(
         string Month,
         bool Exists,
@@ -16,5 +20,6 @@ namespace LifeManager.Application.BudgetPlans.DTOs
         decimal FreePercent,
         decimal? FreeAmount,
         decimal FreeActual,
-        string? CopySource);
+        string? CopySource,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<AutoCheckInDto>? AutoCheckIns = null);
 }
