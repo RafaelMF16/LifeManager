@@ -1,8 +1,10 @@
+using LifeManager.Application.Habits.Services;
 using LifeManager.Application.Shared.DTOs;
 using LifeManager.Application.Transactions.DTOs;
 using LifeManager.Domain.Categories.Errors;
 using LifeManager.Domain.Categories.Interfaces;
 using LifeManager.Domain.Categories.ValueObjects;
+using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.MonthlySummaries.Errors;
 using LifeManager.Domain.MonthlySummaries.Interfaces;
 using LifeManager.Domain.MonthlySummaries.ValueObjects;
@@ -24,11 +26,13 @@ namespace LifeManager.Application.Transactions.Services
     public class TransactionService(
         ITransactionRepository transactionRepository,
         IMonthlySummaryRepository monthlySummaryRepository,
-        ICategoryRepository categoryRepository)
+        ICategoryRepository categoryRepository,
+        HabitAutoCheckInService habitAutoCheckInService)
     {
         private readonly ITransactionRepository _transactionRepository = transactionRepository;
         private readonly IMonthlySummaryRepository _monthlySummaryRepository = monthlySummaryRepository;
         private readonly ICategoryRepository _categoryRepository = categoryRepository;
+        private readonly HabitAutoCheckInService _habitAutoCheckInService = habitAutoCheckInService;
 
         public async Task<Result<TransactionResponseDto>> CreateAsync(int monthlySummaryId, TransactionDto transactionDto, UserId userId, CancellationToken cancellationToken)
         {
@@ -53,7 +57,10 @@ namespace LifeManager.Application.Transactions.Services
             var transaction = transactionResult.Value;
             await _transactionRepository.AddAsync(transaction, cancellationToken);
 
-            return ToResponseDto(transaction, category.Name.Value);
+            // Only a transaction typed by hand: recurrences, imports and reward expenses don't come through here.
+            var autoCheckIns = await _habitAutoCheckInService.OnEventAsync(userId, HabitAutoTrigger.TransactionCreated, cancellationToken);
+
+            return ToResponseDto(transaction, category.Name.Value) with { AutoCheckIns = autoCheckIns };
         }
 
         public async Task<Result<TransactionResponseDto>> GetByIdAsync(int monthlySummaryId, int id, UserId userId, CancellationToken cancellationToken)
