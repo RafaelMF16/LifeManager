@@ -6,6 +6,8 @@ using LifeManager.Domain.BudgetPlans;
 using LifeManager.Domain.BudgetPlans.Errors;
 using LifeManager.Domain.Categories;
 using LifeManager.Domain.Categories.Errors;
+using LifeManager.Domain.Habits;
+using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.MonthlySummaries;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.Results;
@@ -41,6 +43,10 @@ namespace LifeManager.Application.Test.BudgetPlans
             TransactionSingleton.Instance.Clear();
             MonthlySummarySingleton.Instance.Clear();
             CategorySingleton.Instance.Clear();
+            HabitSingleton.Instance.Clear();
+            HabitCheckInSingleton.Instance.Clear();
+            PlayerProfileSingleton.Instance.Clear();
+            GameLedgerEntrySingleton.Instance.Clear();
 
             SeedCategory(MarketCategoryId, FirstUserId, "Mercado");
             SeedCategory(HousingCategoryId, FirstUserId, "Moradia");
@@ -193,6 +199,37 @@ namespace LifeManager.Application.Test.BudgetPlans
             var stored = Assert.Single(BudgetPlanSingleton.Instance);
             Assert.Equal(FirstUserId, stored.UserId);
             Assert.Equal(new DateOnly(2026, 10, 1), stored.MonthStart);
+        }
+
+        private void SeedAutoHabit(HabitAutoTrigger trigger, DateOnly today)
+        {
+            ((FakeTimeProvider)ServiceProvider.GetRequiredService<TimeProvider>()).SetToday(today);
+            HabitSingleton.Instance.Add(Habit.FromPersistence(
+                HabitSingleton.Instance.Count + 1, FirstUserId.Value, "Finance routine", null, null, HabitKind.Positive, HabitDifficulty.Easy,
+                HabitFrequencyType.Daily, HabitWeekDays.None, null, today.AddDays(-10), DateTimeOffset.UnixEpoch,
+                null, currentStreak: 0, longestStreak: 0, evaluatedUntil: today.AddDays(-2), autoTrigger: trigger));
+        }
+
+        [Fact]
+        public async Task SaveAsync_ShouldCheckInTheBudgetHabits()
+        {
+            SeedAutoHabit(HabitAutoTrigger.BudgetPlanSaved, new DateOnly(2026, 10, 3));
+
+            var result = await Save("2026-10", 6000m, new BudgetSliceDto(MoneyFlowType.Expense, MarketCategoryId, 25m));
+
+            Assert.Single(result.Value.AutoCheckIns!);
+            Assert.Equal(new DateOnly(2026, 10, 3), Assert.Single(HabitCheckInSingleton.Instance).Date);
+        }
+
+        [Fact]
+        public async Task GetAsync_ShouldLeaveAutoCheckInsOut()
+        {
+            SeedAutoHabit(HabitAutoTrigger.BudgetPlanSaved, new DateOnly(2026, 10, 3));
+
+            var result = await _budgetPlanService.GetAsync("2026-10", FirstUserId, CancellationToken.None);
+
+            Assert.Null(result.Value.AutoCheckIns);
+            Assert.Empty(HabitCheckInSingleton.Instance);
         }
 
         [Fact]

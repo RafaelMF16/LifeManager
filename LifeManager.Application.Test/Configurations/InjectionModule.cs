@@ -38,6 +38,8 @@ using LifeManager.Domain.Users.Interfaces;
 using LifeManager.Domain.UsersPreferences.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace LifeManager.Application.Test.Configurations
 {
@@ -54,6 +56,7 @@ namespace LifeManager.Application.Test.Configurations
 
             services.AddSingleton(new PasswordHashingOptions(TestPasswordWorkFactor));
             services.AddApplicationServices();
+            services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
 
             services.AddScoped<IUserRepository, UserRepositoryMock>();
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepositoryMock>();

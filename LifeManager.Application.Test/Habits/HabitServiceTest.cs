@@ -263,6 +263,42 @@ namespace LifeManager.Application.Test.Habits
         }
 
         [Fact]
+        public async Task CreateAsync_ShouldKeepTheAutoTrigger()
+        {
+            var dto = new HabitDto("Log my spending", null, null, HabitKind.Positive, HabitDifficulty.Easy, HabitFrequencyType.Daily, null, null,
+                AutoTrigger: HabitAutoTrigger.TransactionCreated);
+
+            var result = await _habitService.CreateAsync(dto, FirstUserId, CancellationToken.None);
+
+            Assert.Equal(HabitAutoTrigger.TransactionCreated, result.Value.AutoTrigger);
+            Assert.Equal(HabitAutoTrigger.TransactionCreated, Assert.Single(HabitSingleton.Instance).AutoTrigger);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldReturnAutoTriggerNotAllowed_WhenHabitHasATarget()
+        {
+            var dto = new HabitDto("Read", null, null, HabitKind.Positive, HabitDifficulty.Easy, HabitFrequencyType.Daily, null, null,
+                TargetValue: 20, TargetUnit: "pages", AutoTrigger: HabitAutoTrigger.TransactionCreated);
+
+            var result = await _habitService.CreateAsync(dto, FirstUserId, CancellationToken.None);
+
+            Assert.Equal(HabitErrors.AutoTriggerNotAllowed, result.Error);
+            Assert.Empty(HabitSingleton.Instance);
+        }
+
+        [Fact]
+        public async Task UpdateAsync_ShouldChangeTheAutoTrigger()
+        {
+            var created = (await _habitService.CreateAsync(Daily("Review budget"), FirstUserId, CancellationToken.None)).Value;
+
+            var changed = await _habitService.UpdateAsync(
+                created.Id, UpdateDaily("Review budget") with { AutoTrigger = HabitAutoTrigger.BudgetPlanSaved }, FirstUserId, CancellationToken.None);
+
+            Assert.Equal(HabitAutoTrigger.BudgetPlanSaved, changed.Value.AutoTrigger);
+            Assert.Equal(HabitAutoTrigger.BudgetPlanSaved, Assert.Single(HabitSingleton.Instance).AutoTrigger);
+        }
+
+        [Fact]
         public async Task UpdateAsync_ShouldChangeAndRemoveTheRelapseCost()
         {
             var created = (await _habitService.CreateAsync(Daily("Delivery", HabitKind.Negative), FirstUserId, CancellationToken.None)).Value;

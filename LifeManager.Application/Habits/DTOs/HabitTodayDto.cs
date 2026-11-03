@@ -50,6 +50,7 @@ namespace LifeManager.Application.Habits.DTOs
     /// <param name="Target">The daily target; null for a habit checked in with one tap.</param>
     /// <param name="Progress">The total logged on the day of the list the habit is in; 0 without entries.</param>
     /// <param name="Entries">That day's entries, oldest first.</param>
+    /// <param name="AutoTrigger">The finance action that checks it in by itself; None for a habit checked in by hand only.</param>
     public record HabitTodayItemDto(
         int Id,
         string Name,
@@ -64,5 +65,6 @@ namespace LifeManager.Application.Habits.DTOs
         int CoinsPreview,
         HabitTargetDto? Target,
         int Progress,
-        IReadOnlyList<HabitProgressEntryDto> Entries);
+        IReadOnlyList<HabitProgressEntryDto> Entries,
+        HabitAutoTrigger AutoTrigger);
 }
