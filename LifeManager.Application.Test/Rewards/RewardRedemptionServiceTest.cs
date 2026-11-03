@@ -173,6 +173,56 @@ namespace LifeManager.Application.Test.Rewards
         }
 
         [Fact]
+        public async Task UndoAsync_ShouldDeleteTheExpenseAndRecalculateTheMonth()
+        {
+            SeedProfile(coins: 80);
+            SeedOctober();
+            var reward = SeedRewardWithExpense(cost: 50, expenseAmount: 120m);
+            var redeemed = await RedeemWithExpense(reward);
+
+            var result = await _service.UndoAsync(redeemed.Value.Redemption.Id, UserId, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.Empty(TransactionSingleton.Instance);
+            Assert.Equal(0m, MonthlySummarySingleton.Instance.Single().TotalExpense.Value);
+            Assert.Equal(7, result.Value.MonthlySummaryId);
+            Assert.Null(result.Value.Redemption.TransactionId);
+            Assert.Null(RewardRedemptionSingleton.Instance.Single().TransactionId);
+            Assert.Equal(80, Profile().Coins);
+        }
+
+        [Fact]
+        public async Task UndoAsync_ShouldStillRefund_WhenTheExpenseWasDeletedByHand()
+        {
+            SeedProfile(coins: 80);
+            SeedOctober();
+            var reward = SeedRewardWithExpense(cost: 50);
+            var redeemed = await RedeemWithExpense(reward);
+            TransactionSingleton.Instance.Clear();
+
+            var result = await _service.UndoAsync(redeemed.Value.Redemption.Id, UserId, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.Null(result.Value.MonthlySummaryId);
+            Assert.Equal(80, Profile().Coins);
+        }
+
+        [Fact]
+        public async Task UndoAsync_ShouldKeepOtherTransactionsOfTheMonth()
+        {
+            SeedProfile(coins: 200);
+            SeedOctober();
+            var reward = SeedRewardWithExpense(cost: 50, expenseAmount: 120m);
+            await RedeemWithExpense(reward);
+            var second = await RedeemWithExpense(reward);
+
+            await _service.UndoAsync(second.Value.Redemption.Id, UserId, CancellationToken.None);
+
+            Assert.Single(TransactionSingleton.Instance);
+            Assert.Equal(120m, MonthlySummarySingleton.Instance.Single().TotalExpense.Value);
+        }
+
+        [Fact]
         public async Task RedeemAsync_ShouldPostNothing_WhenCoinsAreShort()
         {
             SeedProfile(coins: 10);

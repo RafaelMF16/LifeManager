@@ -1,6 +1,7 @@
 using LifeManager.Application.Test.Configurations.SingletonLists;
 using LifeManager.Application.Test.Transactions.Mocks;
 using LifeManager.Domain.Habits;
+using LifeManager.Domain.MonthlySummaries.ValueObjects;
 using LifeManager.Domain.Rewards;
 using LifeManager.Domain.Rewards.Interfaces;
 using LifeManager.Domain.Rewards.ValueObjects;
@@ -65,7 +66,7 @@ namespace LifeManager.Application.Test.Rewards.Mocks
             return Task.FromResult<PlayerProfile?>(profile);
         }
 
-        public Task<PlayerProfile?> UndoAsync(
+        public Task<RewardUndoResult?> UndoAsync(
             RewardRedemption redemption,
             Func<PlayerProfile, IReadOnlyList<GameLedgerEntry>> apply,
             CancellationToken cancellationToken)
@@ -74,14 +75,28 @@ namespace LifeManager.Application.Test.Rewards.Mocks
 
             var index = _redemptions.FindIndex(stored => stored.Id == redemption.Id && stored.UserId == redemption.UserId && !stored.IsUndone);
             if (index < 0)
-                return Task.FromResult<PlayerProfile?>(null);
+                return Task.FromResult<RewardUndoResult?>(null);
+
+            // Like the repository: the expense's month is read from what is stored, since it may be gone already.
+            MonthlySummaryId? removedExpenseMonthId = null;
+            if (redemption.TransactionId is { } transactionId)
+            {
+                var expense = _transactions.SingleOrDefault(stored => stored.Id == transactionId);
+                redemption.DetachExpense();
+                if (expense is not null)
+                {
+                    _transactions.Remove(expense);
+                    TransactionRepositoryMock.RecalculateTotals(expense.MonthlySummaryId);
+                    removedExpenseMonthId = expense.MonthlySummaryId;
+                }
+            }
 
             _redemptions[index] = ToDetachedCopy(redemption);
 
             var profile = Copy(_profiles[profileIndex]);
             Save(profileIndex, profile, apply(profile));
 
-            return Task.FromResult<PlayerProfile?>(profile);
+            return Task.FromResult<RewardUndoResult?>(new RewardUndoResult(profile, removedExpenseMonthId));
         }
 
         /// <summary>Like PlayerWallet.LockAsync: creates the default profile if missing.</summary>

@@ -99,7 +99,7 @@ namespace LifeManager.Application.Rewards.Services
                 RewardRedemptionResponseDto.From(redemption, today), WalletChangeDto.From(profile, outcome!), expense?.MonthlySummaryId.Value);
         }
 
-        /// <summary>Gives the price paid back, the same day only.</summary>
+        /// <summary>Gives the price paid back, the same day only, and deletes the expense it posted (if still there).</summary>
         public async Task<Result<RewardRedemptionResultDto>> UndoAsync(int redemptionId, UserId userId, CancellationToken cancellationToken)
         {
             var redemption = await _rewardRedemptionRepository.GetByIdAsync(new RewardRedemptionId(redemptionId), userId, cancellationToken);
@@ -115,17 +115,18 @@ namespace LifeManager.Application.Rewards.Services
 
             GameOutcome? outcome = null;
 
-            var profile = await _rewardRedemptionRepository.UndoAsync(redemption, lockedProfile =>
+            var undone = await _rewardRedemptionRepository.UndoAsync(redemption, lockedProfile =>
             {
                 outcome = lockedProfile.Apply(new GameDelta(redemption.CostPaid, 0, 0));
                 return GameLedgerEntry.FromOutcome(
                     userId, GameLedgerEntryKind.Undo, today, now, redemption.RewardName, outcome, rewardId: redemption.RewardId);
             }, cancellationToken);
 
-            if (profile is null)
+            if (undone is null)
                 return RewardErrors.AlreadyUndone;
 
-            return new RewardRedemptionResultDto(RewardRedemptionResponseDto.From(redemption, today), WalletChangeDto.From(profile, outcome!));
+            return new RewardRedemptionResultDto(
+                RewardRedemptionResponseDto.From(redemption, today), WalletChangeDto.From(undone.Profile, outcome!), undone.RemovedExpenseMonthId?.Value);
         }
 
         public async Task<Result<PagedResponseDto<RewardRedemptionResponseDto>>> GetPagedAsync(

@@ -87,6 +87,17 @@ namespace LifeManager.Domain.Test.Rewards
         }
 
         [Fact]
+        public void DetachExpense_ShouldForgetTheTransaction()
+        {
+            var redemption = RewardRedemption.Create(StoredReward(), Today, Now).Value!;
+            redemption.AttachExpense(new TransactionId(42));
+
+            redemption.DetachExpense();
+
+            Assert.Null(redemption.TransactionId);
+        }
+
+        [Fact]
         public void Create_ShouldHaveNoExpense()
         {
             var redemption = RewardRedemption.Create(StoredReward(), Today, Now).Value!;

@@ -119,6 +119,12 @@ namespace LifeManager.Domain.Rewards
             TransactionId = transactionId;
         }
 
+        /// <summary>Drops the link once the expense is gone (deleted with the undo).</summary>
+        public void DetachExpense()
+        {
+            TransactionId = null;
+        }
+
         public void AssignId(int id)
         {
             Id = new RewardRedemptionId(id);
