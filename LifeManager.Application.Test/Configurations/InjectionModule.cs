@@ -3,6 +3,7 @@ using LifeManager.Domain.Achievements.Interfaces;
 using LifeManager.Application.Test.AccountHolders.Mocks;
 using LifeManager.Domain.AccountHolders.Interfaces;
 using LifeManager.Application.Auth.Emails;
+using LifeManager.Application.Auth.Services;
 using LifeManager.Application.DI;
 using LifeManager.Application.Test.Auth.Mocks;
 using LifeManager.Application.Test.Categories.Mocks;
@@ -44,10 +45,14 @@ namespace LifeManager.Application.Test.Configurations
     {
         public const string TestFrontendBaseUrl = "https://frontend.test";
 
+        // Low on purpose: BCrypt doubles its cost per step, and the production 12 would slow every hashing test down.
+        public const int TestPasswordWorkFactor = 5;
+
         public static IServiceCollection AddServicesInScope(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddSingleton(configuration);
 
+            services.AddSingleton(new PasswordHashingOptions(TestPasswordWorkFactor));
             services.AddApplicationServices();
 
             services.AddScoped<IUserRepository, UserRepositoryMock>();

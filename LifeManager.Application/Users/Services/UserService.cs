@@ -34,7 +34,7 @@ namespace LifeManager.Application.Users.Services
                 return UserErrors.InvalidCredentials;
 
             var user = await _userRepository.GetByEmailAsync(emailResult.Value, cancellationToken);
-            if (user is null || !_authService.VerifyPassword(loginDto.Password, user.PasswordHash.Value))
+            if (!_authService.VerifyPassword(loginDto.Password, user?.PasswordHash.Value) || user is null)
                 return UserErrors.InvalidCredentials;
 
             return await _tokenService.GenerateTokensAsync(user.Id!.Value, cancellationToken);
