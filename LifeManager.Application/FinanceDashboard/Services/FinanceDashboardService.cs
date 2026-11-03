@@ -5,6 +5,8 @@ using LifeManager.Domain.FinanceDashboard;
 using LifeManager.Domain.FinanceDashboard.Errors;
 using LifeManager.Domain.FinanceDashboard.Interfaces;
 using LifeManager.Domain.FinanceDashboard.ValueObjects;
+using LifeManager.Domain.Habits;
+using LifeManager.Domain.Habits.Interfaces;
 using LifeManager.Domain.MonthlySummaries.Interfaces;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.Results;
@@ -16,7 +18,8 @@ namespace LifeManager.Application.FinanceDashboard.Services
     public class FinanceDashboardService(
         IFinanceDashboardRepository financeDashboardRepository,
         IBudgetPlanRepository budgetPlanRepository,
-        IMonthlySummaryRepository monthlySummaryRepository)
+        IMonthlySummaryRepository monthlySummaryRepository,
+        IHabitCheckInRepository habitCheckInRepository)
     {
         /// <summary>How many categories each breakdown lists before grouping the rest into "others".</summary>
         public const int TopCategoryCount = 8;
@@ -27,6 +30,7 @@ namespace LifeManager.Application.FinanceDashboard.Services
         private readonly IFinanceDashboardRepository _financeDashboardRepository = financeDashboardRepository;
         private readonly IBudgetPlanRepository _budgetPlanRepository = budgetPlanRepository;
         private readonly IMonthlySummaryRepository _monthlySummaryRepository = monthlySummaryRepository;
+        private readonly IHabitCheckInRepository _habitCheckInRepository = habitCheckInRepository;
 
         public async Task<Result<FinanceDashboardResponseDto>> GetAsync(FinanceDashboardQueryDto query, UserId userId, CancellationToken cancellationToken)
         {
@@ -51,6 +55,7 @@ namespace LifeManager.Application.FinanceDashboard.Services
             var months = period.Months();
 
             var plans = await _budgetPlanRepository.GetOverlappingAsync(userId, period.From, period.To, cancellationToken);
+            var cleanDays = await _habitCheckInRepository.GetCleanDaysAsync(userId, period.FirstDay, period.LastDay, cancellationToken);
 
             return new FinanceDashboardResponseDto(
                 ToPeriodDto(period),
@@ -59,7 +64,8 @@ namespace LifeManager.Application.FinanceDashboard.Services
                 [.. months.Select(month => ToMonthDto(month, current))],
                 ToBreakdownDto(MoneyFlowType.Expense, current, previous, months),
                 ToBreakdownDto(MoneyFlowType.Investment, current, previous, months),
-                ToBudgetsDto(plans, current, months));
+                ToBudgetsDto(plans, current, months),
+                DashboardHabitSavingsDto.From(HabitSavings.ForPeriod(cleanDays)));
         }
 
         /// <summary>

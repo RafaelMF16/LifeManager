@@ -6,6 +6,8 @@ using LifeManager.Domain.BudgetPlans;
 using LifeManager.Domain.Categories;
 using LifeManager.Domain.FinanceDashboard.Enums;
 using LifeManager.Domain.FinanceDashboard.Errors;
+using LifeManager.Domain.Habits;
+using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.MonthlySummaries;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.Results;
@@ -43,6 +45,8 @@ namespace LifeManager.Application.Test.FinanceDashboard
             MonthlySummarySingleton.Instance.Clear();
             CategorySingleton.Instance.Clear();
             BudgetPlanSingleton.Instance.Clear();
+            HabitSingleton.Instance.Clear();
+            HabitCheckInSingleton.Instance.Clear();
 
             SeedCategory(MarketCategoryId, FirstUserId, "Mercado");
             SeedCategory(SalaryCategoryId, FirstUserId, "Salário");
@@ -495,6 +499,55 @@ namespace LifeManager.Application.Test.FinanceDashboard
             Assert.Equal(dashboard.Value.Months.Single().Expense, days.Value.Total);
             Assert.Equal(days.Value.Total, days.Value.Days.Sum(day => day.Total));
         }
+
+        [Fact]
+        public async Task GetAsync_ShouldReturnTheHabitSavingsOfThePeriodOnly()
+        {
+            var delivery = SeedHabitToAvoid(FirstUserId, "Delivery", 45m);
+            var smoking = SeedHabitToAvoid(FirstUserId, "Cigarro", 15m);
+            var noCost = SeedHabitToAvoid(FirstUserId, "Doces", null);
+            var otherUser = SeedHabitToAvoid(SecondUserId, "Delivery", 45m);
+            SeedHabitDay(delivery, new DateOnly(2026, 5, 10), HabitCheckInStatus.Clean);
+            SeedHabitDay(delivery, new DateOnly(2026, 6, 30), HabitCheckInStatus.Clean);
+            SeedHabitDay(delivery, new DateOnly(2026, 6, 29), HabitCheckInStatus.Relapse);
+            // Outside the period: not counted.
+            SeedHabitDay(delivery, new DateOnly(2026, 7, 1), HabitCheckInStatus.Clean);
+            SeedHabitDay(smoking, new DateOnly(2026, 4, 1), HabitCheckInStatus.Clean);
+            SeedHabitDay(noCost, new DateOnly(2026, 5, 1), HabitCheckInStatus.Clean);
+            SeedHabitDay(otherUser, new DateOnly(2026, 5, 1), HabitCheckInStatus.Clean);
+
+            var result = await Get("2026-04", "2026-06");
+
+            var savings = result.Value.HabitSavings;
+            Assert.Equal(105m, savings.Total);
+            Assert.Equal(
+                [new DashboardHabitSavingsItemDto(delivery.Id!.Value, "Delivery", 2, 90m), new DashboardHabitSavingsItemDto(smoking.Id!.Value, "Cigarro", 1, 15m)],
+                savings.Habits);
+        }
+
+        [Fact]
+        public async Task GetAsync_ShouldReturnNoHabitSavings_WhenNoHabitHasACost()
+        {
+            var result = await Get("2026-04", "2026-06");
+
+            Assert.Equal(0m, result.Value.HabitSavings.Total);
+            Assert.Empty(result.Value.HabitSavings.Habits);
+        }
+
+        private static Habit SeedHabitToAvoid(UserId userId, string name, decimal? relapseCost)
+        {
+            var habit = Habit.FromPersistence(
+                HabitSingleton.Instance.Count + 1, userId.Value, name, null, null, HabitKind.Negative, HabitDifficulty.Easy,
+                HabitFrequencyType.Daily, HabitWeekDays.None, null, new DateOnly(2026, 1, 1), DateTimeOffset.UnixEpoch, null, 0, 0,
+                new DateOnly(2026, 1, 1), relapseCost: relapseCost);
+            HabitSingleton.Instance.Add(habit);
+
+            return habit;
+        }
+
+        private static void SeedHabitDay(Habit habit, DateOnly date, HabitCheckInStatus status)
+            => HabitCheckInSingleton.Instance.Add(HabitCheckIn.FromPersistence(
+                HabitCheckInSingleton.Instance.Count + 1, habit.Id!.Value, habit.UserId.Value, date, status, DateTimeOffset.UnixEpoch, 0, 0, 0));
 
         private Task<Result<DashboardDaysResponseDto>> GetDays(string? month)
             => _financeDashboardService.GetDaysAsync(new DashboardDaysQueryDto { Month = month }, FirstUserId, CancellationToken.None);

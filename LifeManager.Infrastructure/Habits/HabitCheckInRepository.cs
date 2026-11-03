@@ -35,6 +35,32 @@ namespace LifeManager.Infrastructure.Habits
                     && (checkIn.Status == HabitCheckInStatus.Done || checkIn.Status == HabitCheckInStatus.Clean), cancellationToken);
         }
 
+        public async Task<IReadOnlyList<HabitCleanDays>> GetCleanDaysAsync(UserId userId, DateOnly from, DateOnly to, CancellationToken cancellationToken)
+        {
+            var counts = await _dbContext.HabitCheckIns
+                .AsNoTracking()
+                .Where(checkIn => checkIn.UserId == userId
+                    && checkIn.Status == HabitCheckInStatus.Clean
+                    && checkIn.Date >= from
+                    && checkIn.Date <= to)
+                .GroupBy(checkIn => checkIn.HabitId)
+                .Select(group => new { HabitId = group.Key, CleanDays = group.Count() })
+                .ToListAsync(cancellationToken);
+
+            if (counts.Count == 0)
+                return [];
+
+            // Names come from a second query: grouping by the converted name isn't translated reliably.
+            var habitIds = counts.Select(count => count.HabitId).ToList();
+            var habits = await _dbContext.Habits
+                .AsNoTracking()
+                .Where(habit => habit.UserId == userId && habitIds.Contains(habit.Id!) && habit.RelapseCost != null)
+                .ToListAsync(cancellationToken);
+            var cleanDaysByHabit = counts.ToDictionary(count => count.HabitId, count => count.CleanDays);
+
+            return [.. habits.Select(habit => new HabitCleanDays(habit.Id!.Value, habit.Name.Value, habit.RelapseCost!.Value, cleanDaysByHabit[habit.Id!]))];
+        }
+
         public async Task<HabitCheckInEffects?> RecordAsync(
             Habit habit,
             DateOnly date,

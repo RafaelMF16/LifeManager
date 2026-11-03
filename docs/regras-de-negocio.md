@@ -23,6 +23,7 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
   - [Check-in (hábitos para construir)](#check-in-hábitos-para-construir)
   - [Meta diária (hábitos mensuráveis)](#meta-diária-hábitos-mensuráveis)
   - [Recaídas (hábitos para evitar)](#recaídas-hábitos-para-evitar)
+  - [Economia (hábitos para evitar)](#economia-hábitos-para-evitar)
   - [Ofensiva, marcos e proteções](#ofensiva-marcos-e-proteções)
   - [Fechamento do dia](#fechamento-do-dia)
   - [Estatísticas e extrato](#estatísticas-e-extrato)
@@ -240,6 +241,7 @@ Cada mês tem **no máximo um orçamento**: um **total** (quanto se pretende gas
 - Meses sem lançamentos aparecem zerados.
 - As quebras por categoria mostram as **8 maiores**; o resto é somado em "Outras", de modo que as partes sempre fecham com o total.
 - **Orçamento no painel:** cada mês é avaliado com o seu próprio orçamento. O **limite de gastos do mês** é o total menos a fatia de investimentos (o Livre conta como gasto permitido), e o **alvo de investimento** é a fatia de investimentos. Meses sem orçamento ficam sem meta. A contagem "dentro do limite em X de N meses fechados" **deixa de fora o mês em andamento**. As categorias que mais passaram do valor da fatia aparecem primeiro (até 5).
+- **Economia com hábitos:** soma, no período, os dias limpos × o custo por recaída de cada hábito para evitar que tem custo (ver [Economia](#economia-hábitos-para-evitar)). Não tem comparação com o período anterior.
 - **Gastos por dia:** o calendário do painel soma só os **gastos** de cada dia do mês (receitas e investimentos ficam de fora), pela data do lançamento, com o mesmo critério dos totais do mês, então os dias sempre fecham com o gasto do mês. Uma linha de extrato jogada para o mês seguinte conta no dia em que foi lançada (o dia 1º). Todos os dias do mês aparecem, zerados quando não há gasto.
 
 ## Hábitos
@@ -335,6 +337,16 @@ Hábitos para evitar não recebem check-in. **Cada dia sem recaída vira um "dia
 - A recaída **zera a ofensiva na hora**.
 - **Desfazer** devolve o HP perdido. Se a recaída causou um nocaute, as moedas perdidas no nocaute não voltam.
 
+### Economia (hábitos para evitar)
+
+Um hábito para evitar pode ter um **custo por recaída** em dinheiro ("um delivery: R$ 45"). Só hábitos para evitar têm custo; ele é opcional, positivo, com até 2 casas decimais, e pode ser mudado ou removido a qualquer momento.
+
+- **Economia = dias limpos × custo.** Vale para qualquer frequência: no limite semanal, cada dia sem recaída de uma semana dentro do limite já é um dia limpo.
+- Os dias limpos só existem depois do fechamento do dia, então a economia de hoje e de ontem aparece depois.
+- Mudar o custo **recalcula todo o histórico** com o novo valor.
+- A economia é só informativa: não cria lançamento, não mexe em moedas e não registra se foi investida. O botão "Investir" do painel abre um lançamento de investimento já preenchido, que o usuário confere e salva.
+- Aparece no detalhe do hábito (economia desde o início) e no **painel** (economia do período, por hábito, do que mais economizou para o que menos). Hábitos arquivados continuam contando.
+
 ### Ofensiva, marcos e proteções
 
 **Ofensiva** é a sequência atual de dias (ou semanas) cumpridos.
@@ -387,6 +399,7 @@ Um processo do servidor roda a cada hora (e ao iniciar a API) e **fecha os dias 
 - **Consistência:**
   - Hábitos diários e de dias fixos: parte dos dias agendados dos últimos 30 dias que foram cumpridos (dias protegidos ficam fora da conta).
   - Hábitos semanais: parte das últimas 4 semanas fechadas que bateram a meta ou ficaram dentro do limite.
+- **Economia:** num hábito para evitar com custo por recaída, os dias limpos desde o início × o custo.
 - **Rumo ao automático:** total de dias cumpridos, rumo aos 66 dias (média para um hábito virar automático). Falhar um dia não zera esse total.
 - Hábitos arquivados também têm estatísticas.
 
@@ -684,6 +697,10 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 | `Habit.InvalidTargetStep` | Validation | Incremento fora de 1 até o valor da meta |
 | `Habit.InvalidTargetCombination` | Validation | Unidade ou incremento informados sem meta |
 | `Habit.TargetNotAllowed` | Validation | Meta diária num hábito para evitar |
+| `Habit.RelapseCostNotPositive` | Validation | Custo por recaída zero ou negativo |
+| `Habit.RelapseCostTooManyDecimals` | Validation | Custo por recaída com mais de 2 casas decimais |
+| `Habit.RelapseCostTooLarge` | Validation | Custo por recaída grande demais |
+| `Habit.RelapseCostNotAllowed` | Validation | Custo por recaída num hábito para construir |
 | `Habit.NotMeasurable` | Validation | Registro de progresso num hábito sem meta |
 | `Habit.InvalidProgressValue` | Validation | Registro de progresso fora de 1 a 100.000 |
 | `Habit.TooManyProgressEntries` | Validation | Mais de 50 registros de progresso no dia |
