@@ -15,6 +15,10 @@ namespace LifeManager.Application.Auth.Services
 {
     public class TokenService(IRefreshTokenRepository refreshTokenRepository, EnvironmentVariableService environmentVariableService)
     {
+        /// <summary>Who issues the access tokens and who they're for; the API's JWT validation requires both.</summary>
+        public const string AccessTokenIssuer = "LifeManager.Api";
+        public const string AccessTokenAudience = "LifeManager.Web";
+
         private const string ACCESS_TOKEN_SECRET_KEY_ENVIRONMENT_VARIABLE = "accessTokenSecretKey";
         private const string REFRESH_TOKEN_SECRET_KEY_ENVIRONMENT_VARIABLE = "refreshTokenSecretKey";
         private const short ACCESS_TOKEN_EXPIRATION_MINUTES = 15;
@@ -113,6 +117,8 @@ namespace LifeManager.Application.Auth.Services
                     var tokenConfig = new SecurityTokenDescriptor
                     {
                         Subject = claims,
+                        Issuer = AccessTokenIssuer,
+                        Audience = AccessTokenAudience,
                         Expires = DateTime.UtcNow.AddMinutes(ACCESS_TOKEN_EXPIRATION_MINUTES),
                         SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(encodedSecretKey), SecurityAlgorithms.HmacSha256Signature)
                     };

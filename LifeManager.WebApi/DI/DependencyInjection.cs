@@ -1,4 +1,5 @@
 ﻿using LifeManager.Application.Auth.Emails;
+using LifeManager.Application.Auth.Services;
 using LifeManager.Domain.Auth.Interfaces;
 using LifeManager.Infrastructure.Emails;
 using LifeManager.WebApi.Auth;
@@ -132,8 +133,10 @@ namespace LifeManager.WebApi.DI
                 {
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new SymmetricSecurityKey(encodedSecretKey),
-                    ValidateIssuer = false,
-                    ValidateAudience = false,
+                    ValidateIssuer = true,
+                    ValidIssuer = TokenService.AccessTokenIssuer,
+                    ValidateAudience = true,
+                    ValidAudience = TokenService.AccessTokenAudience,
                     ClockSkew = TimeSpan.Zero
                 };
             });
