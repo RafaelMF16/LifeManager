@@ -5,12 +5,16 @@ using LifeManager.Application.Shared.Time;
 using LifeManager.Domain.Habits;
 using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.Habits.Interfaces;
+using LifeManager.Domain.MonthlySummaries;
+using LifeManager.Domain.MonthlySummaries.Interfaces;
 using LifeManager.Domain.Rewards;
 using LifeManager.Domain.Rewards.Errors;
 using LifeManager.Domain.Rewards.Interfaces;
 using LifeManager.Domain.Rewards.ValueObjects;
 using LifeManager.Domain.Shared.Paging;
 using LifeManager.Domain.Shared.Results;
+using LifeManager.Domain.Shared.ValueObjects;
+using LifeManager.Domain.Transactions;
 using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Application.Rewards.Services
@@ -23,20 +27,34 @@ namespace LifeManager.Application.Rewards.Services
         IRewardRepository rewardRepository,
         IRewardRedemptionRepository rewardRedemptionRepository,
         IGameLedgerRepository gameLedgerRepository,
+        IMonthlySummaryRepository monthlySummaryRepository,
         AppClock appClock,
         TimeProvider timeProvider)
     {
         private readonly IRewardRepository _rewardRepository = rewardRepository;
         private readonly IRewardRedemptionRepository _rewardRedemptionRepository = rewardRedemptionRepository;
         private readonly IGameLedgerRepository _gameLedgerRepository = gameLedgerRepository;
+        private readonly IMonthlySummaryRepository _monthlySummaryRepository = monthlySummaryRepository;
         private readonly AppClock _appClock = appClock;
         private readonly TimeProvider _timeProvider = timeProvider;
 
-        public async Task<Result<RewardRedemptionResultDto>> RedeemAsync(int rewardId, UserId userId, CancellationToken cancellationToken)
+        /// <summary>
+        /// Pays the reward's price; with <see cref="RewardRedeemDto.RegisterExpense"/>, also posts its expense into
+        /// today's month (opened if missing), in the same database transaction.
+        /// </summary>
+        public async Task<Result<RewardRedemptionResultDto>> RedeemAsync(
+            int rewardId,
+            RewardRedeemDto? redeemDto,
+            UserId userId,
+            CancellationToken cancellationToken)
         {
             var reward = await _rewardRepository.GetByIdAsync(new RewardId(rewardId), userId, cancellationToken);
             if (reward is null)
                 return RewardErrors.NotFound;
+
+            var registerExpense = redeemDto?.RegisterExpense ?? false;
+            if (registerExpense && !reward.HasExpense)
+                return RewardErrors.ExpenseNotConfigured;
 
             var today = _appClock.Today();
             var now = _timeProvider.GetUtcNow();
@@ -46,10 +64,25 @@ namespace LifeManager.Application.Rewards.Services
                 return redemptionResult.Error;
 
             var redemption = redemptionResult.Value;
+
+            Transaction? expense = null;
+            if (registerExpense)
+            {
+                // An archived reward fails above, so the month is only opened for a redemption that can happen.
+                var month = await _monthlySummaryRepository.AddIfMissingAsync(
+                    MonthlySummary.OpenForRecurringPosting(userId, YearMonth.From(today)), cancellationToken);
+
+                var expenseResult = Transaction.CreateFromRedemption(reward, today, month);
+                if (!expenseResult.IsSuccess)
+                    return expenseResult.Error;
+
+                expense = expenseResult.Value;
+            }
+
             GameOutcome? outcome = null;
 
             // The balance is checked inside the profile's lock: two redemptions at once can't spend the same coins.
-            var profile = await _rewardRedemptionRepository.RedeemAsync(redemption, lockedProfile =>
+            var profile = await _rewardRedemptionRepository.RedeemAsync(redemption, expense, lockedProfile =>
             {
                 if (lockedProfile.Coins < redemption.CostPaid)
                     return null;
@@ -62,7 +95,8 @@ namespace LifeManager.Application.Rewards.Services
             if (profile is null)
                 return RewardErrors.InsufficientCoins;
 
-            return new RewardRedemptionResultDto(RewardRedemptionResponseDto.From(redemption, today), WalletChangeDto.From(profile, outcome!));
+            return new RewardRedemptionResultDto(
+                RewardRedemptionResponseDto.From(redemption, today), WalletChangeDto.From(profile, outcome!), expense?.MonthlySummaryId.Value);
         }
 
         /// <summary>Gives the price paid back, the same day only.</summary>

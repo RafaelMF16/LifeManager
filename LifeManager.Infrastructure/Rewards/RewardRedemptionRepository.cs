@@ -3,10 +3,12 @@ using LifeManager.Domain.Rewards;
 using LifeManager.Domain.Rewards.Interfaces;
 using LifeManager.Domain.Rewards.ValueObjects;
 using LifeManager.Domain.Shared.Paging;
+using LifeManager.Domain.Transactions;
 using LifeManager.Domain.Users.ValueObjects;
 using LifeManager.Infrastructure.Habits;
 using LifeManager.Infrastructure.Postgres;
 using LifeManager.Infrastructure.Postgres.Extensions;
+using LifeManager.Infrastructure.Transactions;
 using Microsoft.EntityFrameworkCore;
 
 namespace LifeManager.Infrastructure.Rewards
@@ -34,6 +36,7 @@ namespace LifeManager.Infrastructure.Rewards
 
         public async Task<PlayerProfile?> RedeemAsync(
             RewardRedemption redemption,
+            Transaction? expense,
             Func<PlayerProfile, IReadOnlyList<GameLedgerEntry>?> decide,
             CancellationToken cancellationToken)
         {
@@ -44,6 +47,18 @@ namespace LifeManager.Infrastructure.Rewards
             var entries = decide(profile);
             if (entries is null)
                 return null;
+
+            // Profile first, then the month: the same order as every game write that touches a month.
+            if (expense is not null)
+            {
+                var lockedSummary = await MonthlySummaryTotals.LockAsync(_dbContext, expense.MonthlySummaryId, cancellationToken);
+
+                _dbContext.Transactions.Add(expense);
+                await _dbContext.SaveChangesAsync(cancellationToken);
+                redemption.AttachExpense(expense.Id!);
+
+                await MonthlySummaryTotals.RecalculateAsync(_dbContext, lockedSummary, cancellationToken);
+            }
 
             _dbContext.RewardRedemptions.Add(redemption);
             await PlayerWallet.SaveAsync(_dbContext, profile, entries, cancellationToken);

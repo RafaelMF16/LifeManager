@@ -1,5 +1,7 @@
 using LifeManager.Domain.MonthlySummaries;
 using LifeManager.Domain.RecurringTransactions;
+using LifeManager.Domain.Rewards;
+using LifeManager.Domain.Rewards.Errors;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Transactions;
 using LifeManager.Domain.Transactions.Errors;
@@ -179,6 +181,33 @@ namespace LifeManager.Domain.Test.Transactions
             var result = Transaction.CreateFromRecurrence(recurrence, March());
 
             Assert.Equal(TransactionErrors.DateOutsideMonth, result.Error);
+        }
+
+        [Fact]
+        public void CreateFromRedemption_ShouldPostTheRewardsExpense_OnTheGivenDay()
+        {
+            var reward = Reward.Create(1, "Jantar fora", 300, null, DateTimeOffset.UnixEpoch, expenseCategoryId: 4, expenseAmount: 120m).Value!;
+
+            var result = Transaction.CreateFromRedemption(reward, MarchDay(10), March());
+
+            var transaction = result.Value!;
+            Assert.Equal(MoneyFlowType.Expense, transaction.Type);
+            Assert.Equal(4, transaction.CategoryId.Value);
+            Assert.Equal(120m, transaction.Amount.Value);
+            Assert.Equal(-120m, transaction.SignedAmount);
+            Assert.Equal("Jantar fora", transaction.Description.Value);
+            Assert.Equal(MarchDay(10), transaction.TransactionDate);
+            Assert.Equal(7, transaction.MonthlySummaryId.Value);
+        }
+
+        [Fact]
+        public void CreateFromRedemption_ShouldReturnExpenseNotConfigured_WhenTheRewardHasNoExpense()
+        {
+            var reward = Reward.Create(1, "Cochilo", 10, null, DateTimeOffset.UnixEpoch).Value!;
+
+            var result = Transaction.CreateFromRedemption(reward, MarchDay(10), March());
+
+            Assert.Equal(RewardErrors.ExpenseNotConfigured, result.Error);
         }
 
         [Fact]

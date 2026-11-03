@@ -1084,6 +1084,9 @@ namespace LifeManager.Infrastructure.Migrations
                         .HasMaxLength(60)
                         .HasColumnType("character varying(60)");
 
+                    b.Property<int?>("TransactionId")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset?>("UndoneAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1093,6 +1096,8 @@ namespace LifeManager.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("RewardId");
+
+                    b.HasIndex("TransactionId");
 
                     b.HasIndex("UserId", "RedeemedAt", "Id");
 
@@ -1682,6 +1687,11 @@ namespace LifeManager.Infrastructure.Migrations
                         .HasForeignKey("RewardId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("LifeManager.Domain.Transactions.Transaction", null)
+                        .WithMany()
+                        .HasForeignKey("TransactionId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("LifeManager.Domain.Users.User", null)
                         .WithMany()

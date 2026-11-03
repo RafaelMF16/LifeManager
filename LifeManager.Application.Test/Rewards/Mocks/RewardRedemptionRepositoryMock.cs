@@ -1,9 +1,11 @@
 using LifeManager.Application.Test.Configurations.SingletonLists;
+using LifeManager.Application.Test.Transactions.Mocks;
 using LifeManager.Domain.Habits;
 using LifeManager.Domain.Rewards;
 using LifeManager.Domain.Rewards.Interfaces;
 using LifeManager.Domain.Rewards.ValueObjects;
 using LifeManager.Domain.Shared.Paging;
+using LifeManager.Domain.Transactions;
 using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Application.Test.Rewards.Mocks
@@ -14,6 +16,7 @@ namespace LifeManager.Application.Test.Rewards.Mocks
         private readonly RewardRedemptionSingleton _redemptions = RewardRedemptionSingleton.Instance;
         private readonly PlayerProfileSingleton _profiles = PlayerProfileSingleton.Instance;
         private readonly GameLedgerEntrySingleton _ledger = GameLedgerEntrySingleton.Instance;
+        private readonly TransactionSingleton _transactions = TransactionSingleton.Instance;
 
         public Task<RewardRedemption?> GetByIdAsync(RewardRedemptionId redemptionId, UserId userId, CancellationToken cancellationToken)
         {
@@ -36,6 +39,7 @@ namespace LifeManager.Application.Test.Rewards.Mocks
 
         public Task<PlayerProfile?> RedeemAsync(
             RewardRedemption redemption,
+            Transaction? expense,
             Func<PlayerProfile, IReadOnlyList<GameLedgerEntry>?> decide,
             CancellationToken cancellationToken)
         {
@@ -45,6 +49,14 @@ namespace LifeManager.Application.Test.Rewards.Mocks
             var entries = decide(profile);
             if (entries is null)
                 return Task.FromResult<PlayerProfile?>(null);
+
+            if (expense is not null)
+            {
+                expense.AssignId(_transactions.Count == 0 ? 1 : _transactions.Max(stored => stored.Id!.Value) + 1);
+                _transactions.Add(TransactionRepositoryMock.ToDetachedCopy(expense));
+                TransactionRepositoryMock.RecalculateTotals(expense.MonthlySummaryId);
+                redemption.AttachExpense(expense.Id!);
+            }
 
             redemption.AssignId(_redemptions.Count == 0 ? 1 : _redemptions.Max(stored => stored.Id!.Value) + 1);
             _redemptions.Add(ToDetachedCopy(redemption));
@@ -119,6 +131,7 @@ namespace LifeManager.Application.Test.Rewards.Mocks
                 redemption.CostPaid,
                 redemption.RedeemedOn,
                 redemption.RedeemedAt,
-                redemption.UndoneAt);
+                redemption.UndoneAt,
+                redemption.TransactionId?.Value);
     }
 }

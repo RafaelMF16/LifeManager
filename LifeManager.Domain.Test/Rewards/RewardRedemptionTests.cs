@@ -1,5 +1,6 @@
 using LifeManager.Domain.Rewards;
 using LifeManager.Domain.Rewards.Errors;
+using LifeManager.Domain.Transactions.ValueObjects;
 
 namespace LifeManager.Domain.Test.Rewards
 {
@@ -73,6 +74,24 @@ namespace LifeManager.Domain.Test.Rewards
 
             Assert.False(result.IsSuccess);
             Assert.Equal(RewardErrors.AlreadyUndone, result.Error);
+        }
+
+        [Fact]
+        public void AttachExpense_ShouldRememberTheTransactionPosted()
+        {
+            var redemption = RewardRedemption.Create(StoredReward(), Today, Now).Value!;
+
+            redemption.AttachExpense(new TransactionId(42));
+
+            Assert.Equal(42, redemption.TransactionId!.Value);
+        }
+
+        [Fact]
+        public void Create_ShouldHaveNoExpense()
+        {
+            var redemption = RewardRedemption.Create(StoredReward(), Today, Now).Value!;
+
+            Assert.Null(redemption.TransactionId);
         }
     }
 }

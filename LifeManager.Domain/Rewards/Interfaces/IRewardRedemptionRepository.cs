@@ -1,6 +1,7 @@
 using LifeManager.Domain.Habits;
 using LifeManager.Domain.Rewards.ValueObjects;
 using LifeManager.Domain.Shared.Paging;
+using LifeManager.Domain.Transactions;
 using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Domain.Rewards.Interfaces
@@ -19,11 +20,13 @@ namespace LifeManager.Domain.Rewards.Interfaces
         /// <summary>
         /// In one database transaction: locks the profile and calls <paramref name="decide"/>, which pays for the
         /// redemption and returns the ledger entries, or null to refuse it (not enough coins). Then stores the
-        /// redemption, the entries and the profile.
+        /// redemption, the entries and the profile. With an <paramref name="expense"/>, it also locks its month (after the
+        /// profile), inserts it, links it to the redemption and recalculates the month's totals.
         /// </summary>
         /// <returns>The profile after paying; null, with nothing written, when <paramref name="decide"/> refused.</returns>
         Task<PlayerProfile?> RedeemAsync(
             RewardRedemption redemption,
+            Transaction? expense,
             Func<PlayerProfile, IReadOnlyList<GameLedgerEntry>?> decide,
             CancellationToken cancellationToken);
 
