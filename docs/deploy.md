@@ -121,7 +121,7 @@ Sem domínio próprio, o remetente é um endereço comum (ex.: um Gmail) verific
 - Sem domínio próprio (sem SPF/DKIM do remetente), parte dos e-mails pode cair no spam. As telas pedem para o usuário conferir a caixa de spam.
 - Os secrets precisam existir **antes** do deploy que passa a usá-los. Se faltarem, o `gcloud run jobs deploy lifemanager-migrate` falha e nada muda em produção.
 - Uma falha de envio (chave inválida, limite diário) não aparece para o usuário: a API registra o erro no log (`Brevo rejected the e-mail` / `Could not reach Brevo`) e responde normalmente.
-- O limite por IP dos endpoints de e-mail usa o IP do cliente que chega pelos cabeçalhos repassados. No primeiro deploy, confira nos logs (`Rate limit hit on ... for <IP>`, só aparece quando o limite é atingido) se o IP é do usuário e não do Firebase Hosting; se for do Hosting, todos os usuários dividem o mesmo limite.
+- Os limites por IP (endpoints de e-mail e login) usam o IP do cliente que chega pelos cabeçalhos repassados. A API lê só a última entrada do `X-Forwarded-For` (`ForwardLimit = 1`), a que quem chama não consegue forjar: a URL `*.run.app` é pública, e ler mais entradas deixaria uma chamada direta inventar o próprio IP e escapar de todos os limites. O aviso `Rate limit hit on <rota> for <IP> (X-Forwarded-For left: <...>; X-Original-For: <...>)` só aparece quando um limite é atingido e mostra o resto da cadeia. Se o IP real do usuário aparecer em `X-Forwarded-For left`, o IP usado é o do Firebase Hosting e todos os usuários dividem os limites por IP. Por isso o do login é folgado (100 a cada 10 min), o do refresh é por sessão e o bloqueio de senhas erradas é por e-mail + IP.
 
 ### 4. Service accounts
 
