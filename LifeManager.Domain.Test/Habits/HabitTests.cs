@@ -329,5 +329,57 @@ namespace LifeManager.Domain.Test.Habits
             Assert.Equal("min", habit.Target.Unit);
             Assert.Null(habit.Target.Step);
         }
+
+        [Fact]
+        public void Create_ShouldKeepTheRelapseCost_WhenHabitIsToAvoid()
+        {
+            var result = Habit.Create(1, "Delivery", null, null, HabitKind.Negative, HabitDifficulty.Medium, HabitFrequencyType.Daily,
+                HabitWeekDays.None, null, Today, Now, relapseCost: 45m);
+
+            Assert.Equal(45m, result.Value!.RelapseCost);
+        }
+
+        [Fact]
+        public void Create_ShouldReturnRelapseCostNotAllowed_WhenHabitIsToBuild()
+        {
+            var result = Habit.Create(1, "Read", null, null, HabitKind.Positive, HabitDifficulty.Medium, HabitFrequencyType.Daily,
+                HabitWeekDays.None, null, Today, Now, relapseCost: 10m);
+
+            Assert.Equal(HabitErrors.RelapseCostNotAllowed, result.Error);
+        }
+
+        [Fact]
+        public void Create_ShouldReturnTheCostError_WhenRelapseCostIsInvalid()
+        {
+            var result = Habit.Create(1, "Delivery", null, null, HabitKind.Negative, HabitDifficulty.Medium, HabitFrequencyType.Daily,
+                HabitWeekDays.None, null, Today, Now, relapseCost: 0m);
+
+            Assert.Equal(HabitErrors.RelapseCostNotPositive, result.Error);
+        }
+
+        [Fact]
+        public void Update_ShouldChangeAndRemoveTheRelapseCost()
+        {
+            var habit = Habit.Create(1, "Delivery", null, null, HabitKind.Negative, HabitDifficulty.Medium, HabitFrequencyType.Daily,
+                HabitWeekDays.None, null, Today, Now, relapseCost: 45m).Value!;
+
+            habit.Update("Delivery", null, null, HabitDifficulty.Medium, HabitFrequencyType.Daily, HabitWeekDays.None, null, relapseCost: 60m);
+            Assert.Equal(60m, habit.RelapseCost);
+
+            habit.Update("Delivery", null, null, HabitDifficulty.Medium, HabitFrequencyType.Daily, HabitWeekDays.None, null);
+            Assert.Null(habit.RelapseCost);
+        }
+
+        [Fact]
+        public void FromPersistence_ShouldKeepTheRelapseCost()
+        {
+            var habit = Habit.FromPersistence(
+                1, 1, "Delivery", null, null, HabitKind.Negative, HabitDifficulty.Easy,
+                HabitFrequencyType.Daily, HabitWeekDays.None, null,
+                startDate: Today, createdAt: Now, archivedAt: null, currentStreak: 0, longestStreak: 0, evaluatedUntil: Today.AddDays(-1),
+                relapseCost: 15.50m);
+
+            Assert.Equal(15.50m, habit.RelapseCost);
+        }
     }
 }

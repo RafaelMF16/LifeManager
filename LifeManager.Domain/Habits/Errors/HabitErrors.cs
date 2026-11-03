@@ -22,6 +22,10 @@ namespace LifeManager.Domain.Habits.Errors
         public static readonly Error InvalidTargetStep = Error.Validation("Habit.InvalidTargetStep", "The quick-add step must be between 1 and the daily target");
         public static readonly Error InvalidTargetCombination = Error.Validation("Habit.InvalidTargetCombination", "A unit or step only applies with a daily target");
         public static readonly Error TargetNotAllowed = Error.Validation("Habit.TargetNotAllowed", "Only a habit to build can have a daily target");
+        public static readonly Error RelapseCostNotPositive = Error.Validation("Habit.RelapseCostNotPositive", "The cost of a relapse must be greater than zero");
+        public static readonly Error RelapseCostTooManyDecimals = Error.Validation("Habit.RelapseCostTooManyDecimals", "The cost of a relapse can have at most 2 decimal places");
+        public static readonly Error RelapseCostTooLarge = Error.Validation("Habit.RelapseCostTooLarge", "The cost of a relapse is too large");
+        public static readonly Error RelapseCostNotAllowed = Error.Validation("Habit.RelapseCostNotAllowed", "Only a habit to avoid can have a cost per relapse");
         public static readonly Error NotCheckable =Error.Validation("Habit.NotCheckable", "A habit to avoid isn't checked in: each day without a relapse counts by itself");
         public static readonly Error NotScheduled = Error.Validation("Habit.NotScheduled", "The habit isn't scheduled on this day");
         public static readonly Error CheckInOutsideWindow = Error.Validation("Habit.CheckInOutsideWindow", "Only today and yesterday can be checked in or undone, from the habit's start date");
