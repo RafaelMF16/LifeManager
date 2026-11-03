@@ -21,6 +21,7 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
   - [Cadastro de hábitos](#cadastro-de-hábitos)
   - [Frequências](#frequências)
   - [Check-in (hábitos para construir)](#check-in-hábitos-para-construir)
+  - [Check-in automático (rotinas financeiras)](#check-in-automático-rotinas-financeiras)
   - [Meta diária (hábitos mensuráveis)](#meta-diária-hábitos-mensuráveis)
   - [Recaídas (hábitos para evitar)](#recaídas-hábitos-para-evitar)
   - [Economia (hábitos para evitar)](#economia-hábitos-para-evitar)
@@ -306,6 +307,23 @@ Os dois tipos de hábito aceitam as três frequências, mas o significado muda:
 - **Recompensa:** moedas da dificuldade com o bônus de ofensiva (já contando o dia marcado), o XP da dificuldade e +1 HP.
 - **Hábito "vezes por semana"** que já bateu a meta da semana: o check-in é aceito, mas **não rende nada**.
 - **Desfazer** devolve exatamente o que foi ganho (moedas, XP, marco e proteção, veja abaixo). A exceção é o HP: o desfazer nunca derruba o jogador, então o HP para em 1.
+
+### Check-in automático (rotinas financeiras)
+
+Um hábito para construir **sem meta diária** pode ser marcado sozinho quando o usuário faz uma ação no módulo financeiro ("Registrar meus gastos", "Conciliar o extrato", "Revisar o orçamento"). Cada hábito tem no máximo um **gatilho**:
+
+- **Lançar uma transação** à mão. Lançamentos de recorrências, de importações e despesas de resgate de recompensa **não** contam.
+- **Confirmar uma importação de extrato** (o que ela lança não conta como "lançar uma transação").
+- **Salvar o orçamento** de um mês.
+
+Regras:
+
+- O hábito é marcado **hoje**, qualquer que seja a data da transação ou o mês do orçamento, e só se estiver agendado hoje, a partir da data de início, sem marcação hoje e, no hábito "vezes por semana", com a meta da semana ainda aberta.
+- Vale **um check-in normal**: mesma recompensa, ofensiva, marco e proteção. A segunda ação do dia não paga de novo.
+- O hábito continua podendo ser marcado à mão.
+- A ação financeira **nunca falha** por causa do hábito: se o check-in automático der erro, a transação, a importação ou o orçamento são salvos do mesmo jeito.
+- Apagar a transação ou desfazer a importação **não** desmarca o hábito. O usuário pode desfazer o check-in à mão, e a próxima ação do dia marca de novo.
+- Hábitos para evitar e hábitos com meta diária não podem ter gatilho.
 
 ### Meta diária (hábitos mensuráveis)
 
@@ -716,6 +734,8 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 | `Habit.RelapseCostTooManyDecimals` | Validation | Custo por recaída com mais de 2 casas decimais |
 | `Habit.RelapseCostTooLarge` | Validation | Custo por recaída grande demais |
 | `Habit.RelapseCostNotAllowed` | Validation | Custo por recaída num hábito para construir |
+| `Habit.InvalidAutoTrigger` | Validation | Gatilho de check-in automático inválido |
+| `Habit.AutoTriggerNotAllowed` | Validation | Gatilho de check-in automático num hábito para evitar ou com meta diária |
 | `Habit.NotMeasurable` | Validation | Registro de progresso num hábito sem meta |
 | `Habit.InvalidProgressValue` | Validation | Registro de progresso fora de 1 a 100.000 |
 | `Habit.TooManyProgressEntries` | Validation | Mais de 50 registros de progresso no dia |
