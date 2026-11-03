@@ -553,6 +553,10 @@ namespace LifeManager.Infrastructure.Migrations
                         .HasMaxLength(60)
                         .HasColumnType("character varying(60)");
 
+                    b.Property<decimal?>("RelapseCost")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
                     b.Property<DateOnly>("StartDate")
                         .HasColumnType("date");
 

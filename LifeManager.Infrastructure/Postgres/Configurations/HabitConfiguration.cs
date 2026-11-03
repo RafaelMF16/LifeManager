@@ -46,6 +46,9 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
             builder.Property(habit => habit.TargetUnit).HasMaxLength(HabitTarget.UnitMaxLength);
             builder.Property(habit => habit.TargetStep);
 
+            // What one relapse of a habit to avoid costs; null without one. Same numeric(14, 2) as a transaction's amount.
+            builder.Property(habit => habit.RelapseCost).HasPrecision(14, 2);
+
             builder.Property(habit => habit.StartDate).IsRequired();
             builder.Property(habit => habit.CreatedAt).IsRequired();
             builder.Property(habit => habit.ArchivedAt);
