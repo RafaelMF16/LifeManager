@@ -537,6 +537,7 @@ O próprio usuário cadastra as recompensas e as compra com as moedas ganhas nos
   - **Desfazer o resgate apaga a despesa** que ele lançou e atualiza o mês. Se o usuário já tinha apagado a despesa à mão, o resgate é desfeito normalmente.
   - Apagar a despesa à mão **não desfaz o resgate**: as moedas continuam gastas.
   - Mudar o valor ou a categoria da recompensa vale só para os próximos resgates.
+  - Apagar a categoria **remove o gasto da recompensa** (categoria e valor); a recompensa continua na loja, sem gasto.
 - **Ritmo de ganho:** a loja mostra quantos dias de hábitos cada recompensa custa, com base na média de moedas por dia ganhas com hábitos nos **últimos 14 dias**. Resgates, compras de itens, bônus de conquistas e nocautes não entram nessa média.
 
 ### Itens de jogo
