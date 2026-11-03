@@ -58,6 +58,9 @@ namespace LifeManager.Application.Test.Habits.Mocks
             return Task.FromResult(cleanDays);
         }
 
+        /// <summary>Makes the next <see cref="RecordAsync"/> it matches throw, like a database failure; cleared once it fires.</summary>
+        public static Func<Habit, DateOnly, bool>? FailNextRecord { get; set; }
+
         public Task<HabitCheckInEffects?> RecordAsync(
             Habit habit,
             DateOnly date,
@@ -66,6 +69,12 @@ namespace LifeManager.Application.Test.Habits.Mocks
             Func<HabitCheckInContext, HabitCheckInEffects> decide,
             CancellationToken cancellationToken)
         {
+            if (FailNextRecord is { } fail && fail(habit, date))
+            {
+                FailNextRecord = null;
+                throw new InvalidOperationException("Simulated database failure");
+            }
+
             var profileIndex = LockProfile(habit.UserId);
 
             if (_checkIns.Any(checkIn => checkIn.HabitId == habit.Id && checkIn.Date == date))

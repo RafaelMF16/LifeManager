@@ -46,6 +46,7 @@ namespace LifeManager.Application.DI
             services.AddScoped<PlayerWalletService>();
             services.AddScoped<HabitService>();
             services.AddScoped<HabitCheckInService>();
+            services.AddScoped<HabitAutoCheckInService>();
             services.AddScoped<HabitProgressService>();
             services.AddScoped<HabitRelapseService>();
             services.AddScoped<HabitEvaluationService>();
