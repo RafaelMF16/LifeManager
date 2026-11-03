@@ -38,6 +38,9 @@ namespace LifeManager.Domain.Shared.Results
         public static Error Conflict(string code, string message)
             => new(code, message, ErrorType.Conflict);
 
+        public static Error TooManyRequests(string code, string message)
+            => new(code, message, ErrorType.TooManyRequests);
+
         /// <summary>The same error, about the item at <paramref name="index"/> of the list that was sent.</summary>
         public Error AtIndex(int index) => this with { Index = index };
     }
