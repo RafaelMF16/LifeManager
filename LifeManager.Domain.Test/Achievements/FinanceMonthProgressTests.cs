@@ -108,6 +108,17 @@ namespace LifeManager.Domain.Test.Achievements
         }
 
         [Fact]
+        public void Count_ShouldLeaveOutTheSavingsOfMonthsAfterTheLastClosedOne()
+        {
+            var counts = Count(
+                [Month(September, income: 5000, expense: 1000), Month(October, income: 5000, expense: 1000)],
+                [],
+                lastClosed: September);
+
+            Assert.Equal(1, counts.SavingsMonths);
+        }
+
+        [Fact]
         public void Count_ShouldCountTheInvestment_WhenTheSliceWasReached()
         {
             var counts = Count([Month(October, investment: 1000), Month(September, investment: 999.99m)], [Plan(October), Plan(September)]);

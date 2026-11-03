@@ -214,11 +214,12 @@ namespace LifeManager.Domain.Test.Rewards
         }
 
         [Fact]
-        public void FromPersistence_ShouldHaveNoExpense_WhenTheCategoryWasDeleted()
+        public void FromPersistence_ShouldDropTheAmount_WhenTheCategoryWasDeleted()
         {
+            // The FK sets the category to null and leaves the amount: an edit form would get an amount without a category.
             var reward = Reward.FromPersistence(1, 1, "Dinner out", 300, null, Now, null, expenseCategoryId: null, expenseAmount: 120m);
 
-            Assert.Equal(120m, reward.ExpenseAmount);
+            Assert.Null(reward.ExpenseAmount);
             Assert.False(reward.HasExpense);
         }
     }

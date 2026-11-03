@@ -28,6 +28,7 @@ namespace LifeManager.Application.Rewards.Services
         IRewardRedemptionRepository rewardRedemptionRepository,
         IGameLedgerRepository gameLedgerRepository,
         IMonthlySummaryRepository monthlySummaryRepository,
+        IPlayerProfileRepository playerProfileRepository,
         AppClock appClock,
         TimeProvider timeProvider)
     {
@@ -35,6 +36,7 @@ namespace LifeManager.Application.Rewards.Services
         private readonly IRewardRedemptionRepository _rewardRedemptionRepository = rewardRedemptionRepository;
         private readonly IGameLedgerRepository _gameLedgerRepository = gameLedgerRepository;
         private readonly IMonthlySummaryRepository _monthlySummaryRepository = monthlySummaryRepository;
+        private readonly IPlayerProfileRepository _playerProfileRepository = playerProfileRepository;
         private readonly AppClock _appClock = appClock;
         private readonly TimeProvider _timeProvider = timeProvider;
 
@@ -68,7 +70,12 @@ namespace LifeManager.Application.Rewards.Services
             Transaction? expense = null;
             if (registerExpense)
             {
-                // An archived reward fails above, so the month is only opened for a redemption that can happen.
+                // The month is opened outside the lock, so a short balance is turned away first: it never leaves an
+                // empty month behind. Only the check under the lock below is authoritative.
+                var currentProfile = await _playerProfileRepository.GetByUserIdAsync(userId, cancellationToken);
+                if ((currentProfile?.Coins ?? 0) < redemption.CostPaid)
+                    return RewardErrors.InsufficientCoins;
+
                 var month = await _monthlySummaryRepository.AddIfMissingAsync(
                     MonthlySummary.OpenForRecurringPosting(userId, YearMonth.From(today)), cancellationToken);
 

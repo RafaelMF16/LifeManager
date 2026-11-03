@@ -111,7 +111,8 @@ namespace LifeManager.Domain.Rewards
                 createdAt,
                 archivedAt,
                 expenseCategoryId is null ? null : new CategoryId(expenseCategoryId.Value),
-                expenseAmount);
+                // Deleting the category nulls only its column: the amount goes with it, so the expense is all or nothing.
+                expenseCategoryId is null ? null : expenseAmount);
             reward.AssignId(id);
 
             return reward;
@@ -212,7 +213,8 @@ namespace LifeManager.Domain.Rewards
                 nameResult.Value,
                 normalizedIcon,
                 expenseCategoryId is null ? null : new CategoryId(expenseCategoryId.Value),
-                expenseAmount);
+                // Deleting the category nulls only its column: the amount goes with it, so the expense is all or nothing.
+                expenseCategoryId is null ? null : expenseAmount);
         }
     }
 }

@@ -532,11 +532,12 @@ O próprio usuário cadastra as recompensas e as compra com as moedas ganhas nos
 - O resgate guarda o nome, o ícone e o **preço pago**. Mudar a recompensa depois não altera o histórico.
 - **Desfazer um resgate:** só **no mesmo dia** do resgate e só uma vez. O preço pago volta integralmente.
 - **Gasto em dinheiro (opcional):** uma recompensa pode ter uma **categoria** e um **valor em R$** (as duas coisas juntas, ou nenhuma; o valor segue as regras de valor de uma transação e a categoria tem que ser do usuário). É o custo real do prêmio ("Jantar fora", R$ 120 em Lazer).
-  - Ao resgatar, o usuário escolhe se **lança o gasto**. Se sim, o resgate cria uma **despesa de hoje** com o nome da recompensa, a categoria e o valor, no mês de hoje (criado se ainda não existir), e os totais do mês são atualizados. Moedas e despesa entram juntas: sem moedas suficientes, nenhuma das duas acontece.
+  - Ao resgatar, o usuário escolhe se **lança o gasto**. Se sim, o resgate cria uma **despesa de hoje** com o nome da recompensa, a categoria e o valor, no mês de hoje (criado se ainda não existir), e os totais do mês são atualizados. Moedas e despesa entram juntas: sem moedas suficientes, nenhuma das duas acontece (e o mês de hoje não é criado).
   - Pedir para lançar o gasto de uma recompensa sem gasto configurado é recusado.
   - **Desfazer o resgate apaga a despesa** que ele lançou e atualiza o mês. Se o usuário já tinha apagado a despesa à mão, o resgate é desfeito normalmente.
   - Apagar a despesa à mão **não desfaz o resgate**: as moedas continuam gastas.
   - Mudar o valor ou a categoria da recompensa vale só para os próximos resgates.
+  - Apagar a categoria **remove o gasto da recompensa** (categoria e valor); a recompensa continua na loja, sem gasto.
 - **Ritmo de ganho:** a loja mostra quantos dias de hábitos cada recompensa custa, com base na média de moedas por dia ganhas com hábitos nos **últimos 14 dias**. Resgates, compras de itens, bônus de conquistas e nocautes não entram nessa média.
 
 ### Itens de jogo

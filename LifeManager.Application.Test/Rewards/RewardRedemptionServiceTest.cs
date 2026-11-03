@@ -170,6 +170,7 @@ namespace LifeManager.Application.Test.Rewards
             Assert.Equal(RewardErrors.ExpenseNotConfigured, result.Error);
             Assert.Equal(80, Profile().Coins);
             Assert.Empty(RewardRedemptionSingleton.Instance);
+            Assert.Empty(MonthlySummarySingleton.Instance);
         }
 
         [Fact]
@@ -234,6 +235,18 @@ namespace LifeManager.Application.Test.Rewards
             Assert.Equal(RewardErrors.InsufficientCoins, result.Error);
             Assert.Empty(TransactionSingleton.Instance);
             Assert.Equal(0m, MonthlySummarySingleton.Instance.Single().TotalExpense.Value);
+        }
+
+        [Fact]
+        public async Task RedeemAsync_ShouldNotOpenTheMonth_WhenCoinsAreShort()
+        {
+            SeedProfile(coins: 10);
+            var reward = SeedRewardWithExpense(cost: 50);
+
+            var result = await RedeemWithExpense(reward);
+
+            Assert.Equal(RewardErrors.InsufficientCoins, result.Error);
+            Assert.Empty(MonthlySummarySingleton.Instance);
         }
 
         [Fact]
