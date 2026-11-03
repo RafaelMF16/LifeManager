@@ -3,6 +3,7 @@ using LifeManager.Application.Rewards.Services;
 using LifeManager.WebApi.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace LifeManager.WebApi.Rewards.Controllers
 {
@@ -50,10 +51,16 @@ namespace LifeManager.WebApi.Rewards.Controllers
         public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
             => (await _rewardService.ArchiveAsync(id, User.GetUserId(), cancellationToken)).Match(NoContent);
 
-        /// <summary>Spends the reward's price in coins; 409 Rewards.InsufficientCoins when the balance is short.</summary>
+        /// <summary>
+        /// Spends the reward's price in coins (409 Rewards.InsufficientCoins when the balance is short) and, with
+        /// <c>{ registerExpense: true }</c>, posts its expense today (400 Rewards.ExpenseNotConfigured without one).
+        /// </summary>
         [HttpPost("{id:int}/Redeem")]
-        public async Task<IActionResult> Redeem(int id, CancellationToken cancellationToken)
-            => (await _rewardRedemptionService.RedeemAsync(id, User.GetUserId(), cancellationToken)).Match(Ok);
+        public async Task<IActionResult> Redeem(
+            int id,
+            [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] RewardRedeemDto? redeemDto,
+            CancellationToken cancellationToken)
+            => (await _rewardRedemptionService.RedeemAsync(id, redeemDto, User.GetUserId(), cancellationToken)).Match(Ok);
 
         /// <summary>Gives a redemption's coins back; only on the day it was made.</summary>
         [HttpDelete("Redemptions/{redemptionId:int}")]

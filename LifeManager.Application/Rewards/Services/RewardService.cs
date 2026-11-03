@@ -1,5 +1,7 @@
 using LifeManager.Application.Rewards.DTOs;
 using LifeManager.Application.Shared.DTOs;
+using LifeManager.Domain.Categories.Errors;
+using LifeManager.Domain.Categories.Interfaces;
 using LifeManager.Domain.Rewards;
 using LifeManager.Domain.Rewards.Errors;
 using LifeManager.Domain.Rewards.Interfaces;
@@ -15,18 +17,23 @@ namespace LifeManager.Application.Rewards.Services
     /// Deleting a reward archives it: its redemptions keep pointing at it, its name is free for a new reward, and it can
     /// be restored as long as no active reward took that name meanwhile.
     /// </remarks>
-    public class RewardService(IRewardRepository rewardRepository, TimeProvider timeProvider)
+    public class RewardService(IRewardRepository rewardRepository, ICategoryRepository categoryRepository, TimeProvider timeProvider)
     {
         private readonly IRewardRepository _rewardRepository = rewardRepository;
+        private readonly ICategoryRepository _categoryRepository = categoryRepository;
         private readonly TimeProvider _timeProvider = timeProvider;
 
         public async Task<Result<RewardResponseDto>> CreateAsync(RewardDto rewardDto, UserId userId, CancellationToken cancellationToken)
         {
-            var rewardResult = Reward.Create(userId.Value, rewardDto.Name, rewardDto.Cost, rewardDto.Icon, _timeProvider.GetUtcNow());
+            var rewardResult = Reward.Create(
+                userId.Value, rewardDto.Name, rewardDto.Cost, rewardDto.Icon, _timeProvider.GetUtcNow(), rewardDto.ExpenseCategoryId, rewardDto.ExpenseAmount);
             if (!rewardResult.IsSuccess)
                 return rewardResult.Error;
 
             var reward = rewardResult.Value;
+
+            if (!await IsUsersCategoryAsync(reward, userId, cancellationToken))
+                return CategoryErrors.NotFound;
 
             if (await _rewardRepository.ExistsActiveByNameAsync(userId, reward.Name, null, cancellationToken))
                 return RewardErrors.NameAlreadyExists;
@@ -71,9 +78,12 @@ namespace LifeManager.Application.Rewards.Services
 
             var currentNormalizedName = reward.NormalizedName;
 
-            var updateResult = reward.Update(rewardDto.Name, rewardDto.Cost, rewardDto.Icon);
+            var updateResult = reward.Update(rewardDto.Name, rewardDto.Cost, rewardDto.Icon, rewardDto.ExpenseCategoryId, rewardDto.ExpenseAmount);
             if (!updateResult.IsSuccess)
                 return updateResult.Error;
+
+            if (!await IsUsersCategoryAsync(reward, userId, cancellationToken))
+                return CategoryErrors.NotFound;
 
             if (reward.NormalizedName != currentNormalizedName
                 && await _rewardRepository.ExistsActiveByNameAsync(userId, reward.Name, reward.Id, cancellationToken))
@@ -117,7 +127,20 @@ namespace LifeManager.Application.Rewards.Services
             return ToResponseDto(reward);
         }
 
+        /// <summary>The expense's category, when there is one, must be the user's.</summary>
+        private async Task<bool> IsUsersCategoryAsync(Reward reward, UserId userId, CancellationToken cancellationToken)
+            => reward.ExpenseCategoryId is null
+                || await _categoryRepository.GetByIdAsync(reward.ExpenseCategoryId, userId, cancellationToken) is not null;
+
         private static RewardResponseDto ToResponseDto(Reward reward)
-            => new(reward.Id!.Value, reward.Name.Value, reward.Cost, reward.Icon, reward.CreatedAt, reward.ArchivedAt);
+            => new(
+                reward.Id!.Value,
+                reward.Name.Value,
+                reward.Cost,
+                reward.Icon,
+                reward.CreatedAt,
+                reward.ArchivedAt,
+                reward.ExpenseCategoryId?.Value,
+                reward.ExpenseAmount);
     }
 }

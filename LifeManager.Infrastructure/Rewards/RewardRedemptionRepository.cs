@@ -1,12 +1,15 @@
 using LifeManager.Domain.Habits;
+using LifeManager.Domain.MonthlySummaries.ValueObjects;
 using LifeManager.Domain.Rewards;
 using LifeManager.Domain.Rewards.Interfaces;
 using LifeManager.Domain.Rewards.ValueObjects;
 using LifeManager.Domain.Shared.Paging;
+using LifeManager.Domain.Transactions;
 using LifeManager.Domain.Users.ValueObjects;
 using LifeManager.Infrastructure.Habits;
 using LifeManager.Infrastructure.Postgres;
 using LifeManager.Infrastructure.Postgres.Extensions;
+using LifeManager.Infrastructure.Transactions;
 using Microsoft.EntityFrameworkCore;
 
 namespace LifeManager.Infrastructure.Rewards
@@ -34,6 +37,7 @@ namespace LifeManager.Infrastructure.Rewards
 
         public async Task<PlayerProfile?> RedeemAsync(
             RewardRedemption redemption,
+            Transaction? expense,
             Func<PlayerProfile, IReadOnlyList<GameLedgerEntry>?> decide,
             CancellationToken cancellationToken)
         {
@@ -45,6 +49,18 @@ namespace LifeManager.Infrastructure.Rewards
             if (entries is null)
                 return null;
 
+            // Profile first, then the month: the same order as every game write that touches a month.
+            if (expense is not null)
+            {
+                var lockedSummary = await MonthlySummaryTotals.LockAsync(_dbContext, expense.MonthlySummaryId, cancellationToken);
+
+                _dbContext.Transactions.Add(expense);
+                await _dbContext.SaveChangesAsync(cancellationToken);
+                redemption.AttachExpense(expense.Id!);
+
+                await MonthlySummaryTotals.RecalculateAsync(_dbContext, lockedSummary, cancellationToken);
+            }
+
             _dbContext.RewardRedemptions.Add(redemption);
             await PlayerWallet.SaveAsync(_dbContext, profile, entries, cancellationToken);
 
@@ -53,7 +69,7 @@ namespace LifeManager.Infrastructure.Rewards
             return profile;
         }
 
-        public async Task<PlayerProfile?> UndoAsync(
+        public async Task<RewardUndoResult?> UndoAsync(
             RewardRedemption redemption,
             Func<PlayerProfile, IReadOnlyList<GameLedgerEntry>> apply,
             CancellationToken cancellationToken)
@@ -72,11 +88,43 @@ namespace LifeManager.Infrastructure.Rewards
             if (updatedRows == 0)
                 return null;
 
+            var removedExpenseMonthId = await RemoveExpenseAsync(redemption, cancellationToken);
+
             await PlayerWallet.SaveAsync(_dbContext, profile, apply(profile), cancellationToken);
 
             await databaseTransaction.CommitAsync(cancellationToken);
 
-            return profile;
+            return new RewardUndoResult(profile, removedExpenseMonthId);
+        }
+
+        /// <summary>
+        /// Deletes the redemption's expense and recalculates its month, after the profile's lock. Its month is read from
+        /// the database: the user may have deleted the expense by hand meanwhile, and then there's nothing to remove.
+        /// </summary>
+        private async Task<MonthlySummaryId?> RemoveExpenseAsync(RewardRedemption redemption, CancellationToken cancellationToken)
+        {
+            if (redemption.TransactionId is not { } transactionId)
+                return null;
+
+            var monthlySummaryId = await _dbContext.Transactions
+                .Where(transaction => transaction.Id == transactionId)
+                .Select(transaction => transaction.MonthlySummaryId)
+                .SingleOrDefaultAsync(cancellationToken);
+
+            redemption.DetachExpense();
+            if (monthlySummaryId is null)
+                return null;
+
+            var lockedSummary = await MonthlySummaryTotals.LockAsync(_dbContext, monthlySummaryId, cancellationToken);
+            var deletedRows = await _dbContext.Transactions
+                .Where(transaction => transaction.Id == transactionId)
+                .ExecuteDeleteAsync(cancellationToken);
+            if (deletedRows == 0)
+                return null;
+
+            await MonthlySummaryTotals.RecalculateAsync(_dbContext, lockedSummary, cancellationToken);
+
+            return monthlySummaryId;
         }
     }
 }

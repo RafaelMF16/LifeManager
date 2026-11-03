@@ -513,6 +513,12 @@ O próprio usuário cadastra as recompensas e as compra com as moedas ganhas nos
 - **Resgatar** desconta o preço das moedas. O saldo é conferido no momento do resgate: sem moedas suficientes, nada acontece.
 - O resgate guarda o nome, o ícone e o **preço pago**. Mudar a recompensa depois não altera o histórico.
 - **Desfazer um resgate:** só **no mesmo dia** do resgate e só uma vez. O preço pago volta integralmente.
+- **Gasto em dinheiro (opcional):** uma recompensa pode ter uma **categoria** e um **valor em R$** (as duas coisas juntas, ou nenhuma; o valor segue as regras de valor de uma transação e a categoria tem que ser do usuário). É o custo real do prêmio ("Jantar fora", R$ 120 em Lazer).
+  - Ao resgatar, o usuário escolhe se **lança o gasto**. Se sim, o resgate cria uma **despesa de hoje** com o nome da recompensa, a categoria e o valor, no mês de hoje (criado se ainda não existir), e os totais do mês são atualizados. Moedas e despesa entram juntas: sem moedas suficientes, nenhuma das duas acontece.
+  - Pedir para lançar o gasto de uma recompensa sem gasto configurado é recusado.
+  - **Desfazer o resgate apaga a despesa** que ele lançou e atualiza o mês. Se o usuário já tinha apagado a despesa à mão, o resgate é desfeito normalmente.
+  - Apagar a despesa à mão **não desfaz o resgate**: as moedas continuam gastas.
+  - Mudar o valor ou a categoria da recompensa vale só para os próximos resgates.
 - **Ritmo de ganho:** a loja mostra quantos dias de hábitos cada recompensa custa, com base na média de moedas por dia ganhas com hábitos nos **últimos 14 dias**. Resgates, compras de itens, bônus de conquistas e nocautes não entram nessa média.
 
 ### Itens de jogo
@@ -754,6 +760,8 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 | `Rewards.UndoOutsideWindow` | Validation | Desfazer um resgate que não é de hoje |
 | `Rewards.AlreadyUndone` | Conflict | O resgate já foi desfeito |
 | `Rewards.NotFound` / `RedemptionNotFound` | NotFound | Recompensa ou resgate não existe |
+| `Rewards.ExpenseIncomplete` | Validation | Gasto da recompensa com categoria sem valor, ou valor sem categoria |
+| `Rewards.ExpenseNotConfigured` | Validation | Pedido para lançar o gasto de uma recompensa que não tem gasto |
 | `GameItems.UnknownItem` | Validation | Item que não existe na loja |
 | `GameItems.InsufficientCoins` | Conflict | Moedas insuficientes para o item |
 | `GameItems.HpFull` | Conflict | Poção com o HP já no máximo |

@@ -3,6 +3,8 @@ using LifeManager.Domain.MonthlySummaries;
 using LifeManager.Domain.MonthlySummaries.ValueObjects;
 using LifeManager.Domain.RecurringTransactions;
 using LifeManager.Domain.RecurringTransactions.ValueObjects;
+using LifeManager.Domain.Rewards;
+using LifeManager.Domain.Rewards.Errors;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.Results;
 using LifeManager.Domain.StatementImports;
@@ -116,6 +118,18 @@ namespace LifeManager.Domain.Transactions
                     transaction.StatementImportId = row.StatementImportId;
                     transaction.ExternalId = row.ExternalId;
                 });
+        }
+
+        /// <summary>
+        /// Posts the real expense of a redeemed reward ("Dinner out", in its category, for its amount) on
+        /// <paramref name="date"/>, the redemption's day, into that day's month.
+        /// </summary>
+        public static Result<Transaction> CreateFromRedemption(Reward reward, DateOnly date, MonthlySummary monthlySummary)
+        {
+            if (!reward.HasExpense)
+                return RewardErrors.ExpenseNotConfigured;
+
+            return Create(MoneyFlowType.Expense, reward.ExpenseCategoryId!.Value, reward.ExpenseAmount!.Value, reward.Name.Value, date, monthlySummary);
         }
 
         /// <summary>Changes every field except the month: a transaction always stays in the month it was created in.</summary>

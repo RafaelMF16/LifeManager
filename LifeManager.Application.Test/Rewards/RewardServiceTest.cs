@@ -2,6 +2,8 @@ using LifeManager.Application.Rewards.DTOs;
 using LifeManager.Application.Rewards.Services;
 using LifeManager.Application.Test.Configurations;
 using LifeManager.Application.Test.Configurations.SingletonLists;
+using LifeManager.Domain.Categories;
+using LifeManager.Domain.Categories.Errors;
 using LifeManager.Domain.Rewards;
 using LifeManager.Domain.Rewards.Enums;
 using LifeManager.Domain.Rewards.Errors;
@@ -26,6 +28,19 @@ namespace LifeManager.Application.Test.Rewards
             ((FakeTimeProvider)ServiceProvider.GetRequiredService<TimeProvider>()).SetToday(Today);
 
             RewardSingleton.Instance.Clear();
+            CategorySingleton.Instance.Clear();
+            SeedCategory(LeisureCategoryId, UserId, "Lazer");
+            SeedCategory(OtherUsersCategoryId, OtherUserId, "Outros");
+        }
+
+        private const int LeisureCategoryId = 1;
+        private const int OtherUsersCategoryId = 2;
+
+        private static void SeedCategory(int id, UserId userId, string name)
+        {
+            var category = Category.Create(userId.Value, name).Value!;
+            category.AssignId(id);
+            CategorySingleton.Instance.Add(category);
         }
 
         private static Reward SeedReward(string name, int cost = 50, UserId? userId = null, bool archived = false)
@@ -54,6 +69,58 @@ namespace LifeManager.Application.Test.Rewards
             Assert.Equal("gamepad-2", result.Value.Icon);
             Assert.Null(result.Value.ArchivedAt);
             Assert.Single(RewardSingleton.Instance);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldStoreTheExpense_WhenTheCategoryIsTheUsers()
+        {
+            var result = await _service.CreateAsync(new RewardDto("Dinner out", 300, null, LeisureCategoryId, 120m), UserId, CancellationToken.None);
+
+            Assert.Equal(LeisureCategoryId, result.Value.ExpenseCategoryId);
+            Assert.Equal(120m, result.Value.ExpenseAmount);
+            Assert.True(Assert.Single(RewardSingleton.Instance).HasExpense);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldReturnCategoryNotFound_WhenTheCategoryIsAnotherUsers()
+        {
+            var result = await _service.CreateAsync(new RewardDto("Dinner out", 300, null, OtherUsersCategoryId, 120m), UserId, CancellationToken.None);
+
+            Assert.Equal(CategoryErrors.NotFound, result.Error);
+            Assert.Empty(RewardSingleton.Instance);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldReturnExpenseIncomplete_WhenOnlyTheAmountComes()
+        {
+            var result = await _service.CreateAsync(new RewardDto("Dinner out", 300, null, null, 120m), UserId, CancellationToken.None);
+
+            Assert.Equal(RewardErrors.ExpenseIncomplete, result.Error);
+        }
+
+        [Fact]
+        public async Task UpdateAsync_ShouldChangeAndRemoveTheExpense()
+        {
+            var reward = SeedReward("Dinner out");
+
+            var changed = await _service.UpdateAsync(reward.Id!.Value, new RewardDto("Dinner out", 300, null, LeisureCategoryId, 90m), UserId, CancellationToken.None);
+            Assert.Equal(90m, changed.Value.ExpenseAmount);
+            Assert.Equal(90m, RewardSingleton.Instance.Single().ExpenseAmount);
+
+            var removed = await _service.UpdateAsync(reward.Id!.Value, new RewardDto("Dinner out", 300, null), UserId, CancellationToken.None);
+            Assert.Null(removed.Value.ExpenseCategoryId);
+            Assert.False(RewardSingleton.Instance.Single().HasExpense);
+        }
+
+        [Fact]
+        public async Task UpdateAsync_ShouldReturnCategoryNotFound_WhenTheCategoryIsAnotherUsers()
+        {
+            var reward = SeedReward("Dinner out");
+
+            var result = await _service.UpdateAsync(reward.Id!.Value, new RewardDto("Dinner out", 300, null, OtherUsersCategoryId, 90m), UserId, CancellationToken.None);
+
+            Assert.Equal(CategoryErrors.NotFound, result.Error);
+            Assert.False(RewardSingleton.Instance.Single().HasExpense);
         }
 
         [Fact]

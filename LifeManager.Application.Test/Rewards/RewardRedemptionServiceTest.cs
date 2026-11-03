@@ -2,12 +2,16 @@ using LifeManager.Application.Rewards.DTOs;
 using LifeManager.Application.Rewards.Services;
 using LifeManager.Application.Test.Configurations;
 using LifeManager.Application.Test.Configurations.SingletonLists;
+using LifeManager.Domain.Categories;
+using LifeManager.Domain.Categories.ValueObjects;
 using LifeManager.Domain.Habits;
 using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.Habits.ValueObjects;
+using LifeManager.Domain.MonthlySummaries;
 using LifeManager.Domain.Rewards;
 using LifeManager.Domain.Rewards.Errors;
 using LifeManager.Domain.Rewards.ValueObjects;
+using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Users.ValueObjects;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -33,7 +37,44 @@ namespace LifeManager.Application.Test.Rewards
             RewardRedemptionSingleton.Instance.Clear();
             PlayerProfileSingleton.Instance.Clear();
             GameLedgerEntrySingleton.Instance.Clear();
+            CategorySingleton.Instance.Clear();
+            MonthlySummarySingleton.Instance.Clear();
+            TransactionSingleton.Instance.Clear();
         }
+
+        private const int LeisureCategoryId = 1;
+
+        private static Reward SeedRewardWithExpense(int cost = 50, decimal expenseAmount = 120m)
+        {
+            var category = Category.Create(UserId.Value, "Lazer").Value!;
+            category.AssignId(LeisureCategoryId);
+            CategorySingleton.Instance.Add(category);
+
+            var reward = Reward.FromPersistence(
+                RewardSingleton.Instance.Count + 1,
+                UserId.Value,
+                "Dinner out",
+                cost,
+                null,
+                new DateTimeOffset(2026, 9, 1, 12, 0, 0, TimeSpan.Zero),
+                null,
+                LeisureCategoryId,
+                expenseAmount);
+            RewardSingleton.Instance.Add(reward);
+
+            return reward;
+        }
+
+        private static MonthlySummary SeedOctober()
+        {
+            var month = MonthlySummary.FromPersistence(7, UserId.Value, 10, 2026, 0, 0, 0);
+            MonthlySummarySingleton.Instance.Add(month);
+
+            return month;
+        }
+
+        private Task<Domain.Shared.Results.Result<RewardRedemptionResultDto>> RedeemWithExpense(Reward reward)
+            => _service.RedeemAsync(reward.Id!.Value, new RewardRedeemDto(RegisterExpense: true), UserId, CancellationToken.None);
 
         private static Reward SeedReward(int cost = 50, bool archived = false, UserId? userId = null)
         {
@@ -64,7 +105,136 @@ namespace LifeManager.Application.Test.Rewards
         }
 
         private Task<Domain.Shared.Results.Result<RewardRedemptionResultDto>> Redeem(Reward reward)
-            => _service.RedeemAsync(reward.Id!.Value, UserId, CancellationToken.None);
+            => _service.RedeemAsync(reward.Id!.Value, null, UserId, CancellationToken.None);
+
+        [Fact]
+        public async Task RedeemAsync_ShouldPostTheExpenseIntoTodaysMonth_WhenRegisterExpense()
+        {
+            SeedProfile(coins: 80);
+            SeedOctober();
+            var reward = SeedRewardWithExpense(cost: 50, expenseAmount: 120m);
+
+            var result = await RedeemWithExpense(reward);
+
+            Assert.True(result.IsSuccess);
+            var expense = Assert.Single(TransactionSingleton.Instance);
+            Assert.Equal(MoneyFlowType.Expense, expense.Type);
+            Assert.Equal(120m, expense.Amount.Value);
+            Assert.Equal("Dinner out", expense.Description.Value);
+            Assert.Equal(Today, expense.TransactionDate);
+            Assert.Equal(new CategoryId(LeisureCategoryId), expense.CategoryId);
+            Assert.Equal(expense.Id!.Value, result.Value.Redemption.TransactionId);
+            Assert.Equal(7, result.Value.MonthlySummaryId);
+            Assert.Equal(expense.Id, RewardRedemptionSingleton.Instance.Single().TransactionId);
+            Assert.Equal(120m, MonthlySummarySingleton.Instance.Single().TotalExpense.Value);
+            Assert.Equal(30, Profile().Coins);
+        }
+
+        [Fact]
+        public async Task RedeemAsync_ShouldOpenTodaysMonth_WhenItIsMissing()
+        {
+            SeedProfile(coins: 80);
+            var reward = SeedRewardWithExpense();
+
+            var result = await RedeemWithExpense(reward);
+
+            Assert.True(result.IsSuccess);
+            var month = Assert.Single(MonthlySummarySingleton.Instance);
+            Assert.Equal((2026, 10), (month.Year.Value, month.Month.Value));
+            Assert.Equal(month.Id!.Value, result.Value.MonthlySummaryId);
+            Assert.Equal(120m, month.TotalExpense.Value);
+        }
+
+        [Fact]
+        public async Task RedeemAsync_ShouldNotPostTheExpense_WithoutRegisterExpense()
+        {
+            SeedProfile(coins: 80);
+            var reward = SeedRewardWithExpense();
+
+            var result = await Redeem(reward);
+
+            Assert.True(result.IsSuccess);
+            Assert.Empty(TransactionSingleton.Instance);
+            Assert.Null(result.Value.Redemption.TransactionId);
+            Assert.Null(result.Value.MonthlySummaryId);
+        }
+
+        [Fact]
+        public async Task RedeemAsync_ShouldReturnExpenseNotConfigured_WhenTheRewardHasNoExpense()
+        {
+            SeedProfile(coins: 80);
+            var reward = SeedReward(cost: 50);
+
+            var result = await _service.RedeemAsync(reward.Id!.Value, new RewardRedeemDto(RegisterExpense: true), UserId, CancellationToken.None);
+
+            Assert.Equal(RewardErrors.ExpenseNotConfigured, result.Error);
+            Assert.Equal(80, Profile().Coins);
+            Assert.Empty(RewardRedemptionSingleton.Instance);
+        }
+
+        [Fact]
+        public async Task UndoAsync_ShouldDeleteTheExpenseAndRecalculateTheMonth()
+        {
+            SeedProfile(coins: 80);
+            SeedOctober();
+            var reward = SeedRewardWithExpense(cost: 50, expenseAmount: 120m);
+            var redeemed = await RedeemWithExpense(reward);
+
+            var result = await _service.UndoAsync(redeemed.Value.Redemption.Id, UserId, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.Empty(TransactionSingleton.Instance);
+            Assert.Equal(0m, MonthlySummarySingleton.Instance.Single().TotalExpense.Value);
+            Assert.Equal(7, result.Value.MonthlySummaryId);
+            Assert.Null(result.Value.Redemption.TransactionId);
+            Assert.Null(RewardRedemptionSingleton.Instance.Single().TransactionId);
+            Assert.Equal(80, Profile().Coins);
+        }
+
+        [Fact]
+        public async Task UndoAsync_ShouldStillRefund_WhenTheExpenseWasDeletedByHand()
+        {
+            SeedProfile(coins: 80);
+            SeedOctober();
+            var reward = SeedRewardWithExpense(cost: 50);
+            var redeemed = await RedeemWithExpense(reward);
+            TransactionSingleton.Instance.Clear();
+
+            var result = await _service.UndoAsync(redeemed.Value.Redemption.Id, UserId, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.Null(result.Value.MonthlySummaryId);
+            Assert.Equal(80, Profile().Coins);
+        }
+
+        [Fact]
+        public async Task UndoAsync_ShouldKeepOtherTransactionsOfTheMonth()
+        {
+            SeedProfile(coins: 200);
+            SeedOctober();
+            var reward = SeedRewardWithExpense(cost: 50, expenseAmount: 120m);
+            await RedeemWithExpense(reward);
+            var second = await RedeemWithExpense(reward);
+
+            await _service.UndoAsync(second.Value.Redemption.Id, UserId, CancellationToken.None);
+
+            Assert.Single(TransactionSingleton.Instance);
+            Assert.Equal(120m, MonthlySummarySingleton.Instance.Single().TotalExpense.Value);
+        }
+
+        [Fact]
+        public async Task RedeemAsync_ShouldPostNothing_WhenCoinsAreShort()
+        {
+            SeedProfile(coins: 10);
+            SeedOctober();
+            var reward = SeedRewardWithExpense(cost: 50);
+
+            var result = await RedeemWithExpense(reward);
+
+            Assert.Equal(RewardErrors.InsufficientCoins, result.Error);
+            Assert.Empty(TransactionSingleton.Instance);
+            Assert.Equal(0m, MonthlySummarySingleton.Instance.Single().TotalExpense.Value);
+        }
 
         [Fact]
         public async Task RedeemAsync_ShouldSpendTheCoinsAndRecordIt()

@@ -1,6 +1,7 @@
 using LifeManager.Domain.Rewards;
 using LifeManager.Domain.Rewards.Errors;
 using LifeManager.Domain.Rewards.ValueObjects;
+using LifeManager.Domain.Transactions.Errors;
 
 namespace LifeManager.Domain.Test.Rewards
 {
@@ -159,6 +160,66 @@ namespace LifeManager.Domain.Test.Rewards
             reward.Archive(Now);
 
             Assert.Equal(RewardErrors.Archived, reward.EnsureCanRedeem().Error);
+        }
+
+        [Fact]
+        public void Create_ShouldKeepTheExpense_WhenCategoryAndAmountComeTogether()
+        {
+            var reward = Reward.Create(1, "Dinner out", 300, null, Now, expenseCategoryId: 4, expenseAmount: 120m).Value!;
+
+            Assert.Equal(4, reward.ExpenseCategoryId!.Value);
+            Assert.Equal(120m, reward.ExpenseAmount);
+            Assert.True(reward.HasExpense);
+        }
+
+        [Fact]
+        public void Create_ShouldHaveNoExpense_ByDefault()
+        {
+            var reward = CreateReward();
+
+            Assert.Null(reward.ExpenseCategoryId);
+            Assert.Null(reward.ExpenseAmount);
+            Assert.False(reward.HasExpense);
+        }
+
+        [Theory]
+        [InlineData(4, null)]
+        [InlineData(null, 120.0)]
+        public void Create_ShouldReturnExpenseIncomplete_WhenOnlyOneOfThePairComes(int? categoryId, double? amount)
+        {
+            var result = Reward.Create(1, "Dinner out", 300, null, Now, expenseCategoryId: categoryId, expenseAmount: (decimal?)amount);
+
+            Assert.Equal(RewardErrors.ExpenseIncomplete, result.Error);
+        }
+
+        [Fact]
+        public void Create_ShouldReturnTheAmountError_WhenTheExpenseAmountIsInvalid()
+        {
+            var result = Reward.Create(1, "Dinner out", 300, null, Now, expenseCategoryId: 4, expenseAmount: 1.234m);
+
+            Assert.Equal(TransactionErrors.AmountTooManyDecimals, result.Error);
+        }
+
+        [Fact]
+        public void Update_ShouldChangeAndRemoveTheExpense()
+        {
+            var reward = Reward.Create(1, "Dinner out", 300, null, Now, expenseCategoryId: 4, expenseAmount: 120m).Value!;
+
+            reward.Update("Dinner out", 300, null, expenseCategoryId: 5, expenseAmount: 150m);
+            Assert.Equal(5, reward.ExpenseCategoryId!.Value);
+            Assert.Equal(150m, reward.ExpenseAmount);
+
+            reward.Update("Dinner out", 300, null);
+            Assert.False(reward.HasExpense);
+        }
+
+        [Fact]
+        public void FromPersistence_ShouldHaveNoExpense_WhenTheCategoryWasDeleted()
+        {
+            var reward = Reward.FromPersistence(1, 1, "Dinner out", 300, null, Now, null, expenseCategoryId: null, expenseAmount: 120m);
+
+            Assert.Equal(120m, reward.ExpenseAmount);
+            Assert.False(reward.HasExpense);
         }
     }
 }

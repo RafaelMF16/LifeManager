@@ -5,6 +5,7 @@ namespace LifeManager.Application.Rewards.DTOs
     /// <summary>One redemption, with the reward's name, icon and price as they were then.</summary>
     /// <param name="RedeemedOn">"yyyy-MM-dd", the game day.</param>
     /// <param name="CanUndo">Whether it can still be undone: not undone, and made today (the backend's today).</param>
+    /// <param name="TransactionId">The expense posted with it, when the user registered one and it wasn't deleted.</param>
     public record RewardRedemptionResponseDto(
         int Id,
         int RewardId,
@@ -14,7 +15,8 @@ namespace LifeManager.Application.Rewards.DTOs
         DateOnly RedeemedOn,
         DateTimeOffset RedeemedAt,
         DateTimeOffset? UndoneAt,
-        bool CanUndo)
+        bool CanUndo,
+        int? TransactionId)
     {
         public static RewardRedemptionResponseDto From(RewardRedemption redemption, DateOnly today)
             => new(
@@ -26,6 +28,7 @@ namespace LifeManager.Application.Rewards.DTOs
                 redemption.RedeemedOn,
                 redemption.RedeemedAt,
                 redemption.UndoneAt,
-                redemption.CanUndo(today));
+                redemption.CanUndo(today),
+                redemption.TransactionId?.Value);
     }
 }

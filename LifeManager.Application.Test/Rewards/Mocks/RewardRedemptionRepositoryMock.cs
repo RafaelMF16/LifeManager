@@ -1,9 +1,12 @@
 using LifeManager.Application.Test.Configurations.SingletonLists;
+using LifeManager.Application.Test.Transactions.Mocks;
 using LifeManager.Domain.Habits;
+using LifeManager.Domain.MonthlySummaries.ValueObjects;
 using LifeManager.Domain.Rewards;
 using LifeManager.Domain.Rewards.Interfaces;
 using LifeManager.Domain.Rewards.ValueObjects;
 using LifeManager.Domain.Shared.Paging;
+using LifeManager.Domain.Transactions;
 using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Application.Test.Rewards.Mocks
@@ -14,6 +17,7 @@ namespace LifeManager.Application.Test.Rewards.Mocks
         private readonly RewardRedemptionSingleton _redemptions = RewardRedemptionSingleton.Instance;
         private readonly PlayerProfileSingleton _profiles = PlayerProfileSingleton.Instance;
         private readonly GameLedgerEntrySingleton _ledger = GameLedgerEntrySingleton.Instance;
+        private readonly TransactionSingleton _transactions = TransactionSingleton.Instance;
 
         public Task<RewardRedemption?> GetByIdAsync(RewardRedemptionId redemptionId, UserId userId, CancellationToken cancellationToken)
         {
@@ -36,6 +40,7 @@ namespace LifeManager.Application.Test.Rewards.Mocks
 
         public Task<PlayerProfile?> RedeemAsync(
             RewardRedemption redemption,
+            Transaction? expense,
             Func<PlayerProfile, IReadOnlyList<GameLedgerEntry>?> decide,
             CancellationToken cancellationToken)
         {
@@ -46,6 +51,14 @@ namespace LifeManager.Application.Test.Rewards.Mocks
             if (entries is null)
                 return Task.FromResult<PlayerProfile?>(null);
 
+            if (expense is not null)
+            {
+                expense.AssignId(_transactions.Count == 0 ? 1 : _transactions.Max(stored => stored.Id!.Value) + 1);
+                _transactions.Add(TransactionRepositoryMock.ToDetachedCopy(expense));
+                TransactionRepositoryMock.RecalculateTotals(expense.MonthlySummaryId);
+                redemption.AttachExpense(expense.Id!);
+            }
+
             redemption.AssignId(_redemptions.Count == 0 ? 1 : _redemptions.Max(stored => stored.Id!.Value) + 1);
             _redemptions.Add(ToDetachedCopy(redemption));
             Save(profileIndex, profile, entries);
@@ -53,7 +66,7 @@ namespace LifeManager.Application.Test.Rewards.Mocks
             return Task.FromResult<PlayerProfile?>(profile);
         }
 
-        public Task<PlayerProfile?> UndoAsync(
+        public Task<RewardUndoResult?> UndoAsync(
             RewardRedemption redemption,
             Func<PlayerProfile, IReadOnlyList<GameLedgerEntry>> apply,
             CancellationToken cancellationToken)
@@ -62,14 +75,28 @@ namespace LifeManager.Application.Test.Rewards.Mocks
 
             var index = _redemptions.FindIndex(stored => stored.Id == redemption.Id && stored.UserId == redemption.UserId && !stored.IsUndone);
             if (index < 0)
-                return Task.FromResult<PlayerProfile?>(null);
+                return Task.FromResult<RewardUndoResult?>(null);
+
+            // Like the repository: the expense's month is read from what is stored, since it may be gone already.
+            MonthlySummaryId? removedExpenseMonthId = null;
+            if (redemption.TransactionId is { } transactionId)
+            {
+                var expense = _transactions.SingleOrDefault(stored => stored.Id == transactionId);
+                redemption.DetachExpense();
+                if (expense is not null)
+                {
+                    _transactions.Remove(expense);
+                    TransactionRepositoryMock.RecalculateTotals(expense.MonthlySummaryId);
+                    removedExpenseMonthId = expense.MonthlySummaryId;
+                }
+            }
 
             _redemptions[index] = ToDetachedCopy(redemption);
 
             var profile = Copy(_profiles[profileIndex]);
             Save(profileIndex, profile, apply(profile));
 
-            return Task.FromResult<PlayerProfile?>(profile);
+            return Task.FromResult<RewardUndoResult?>(new RewardUndoResult(profile, removedExpenseMonthId));
         }
 
         /// <summary>Like PlayerWallet.LockAsync: creates the default profile if missing.</summary>
@@ -119,6 +146,7 @@ namespace LifeManager.Application.Test.Rewards.Mocks
                 redemption.CostPaid,
                 redemption.RedeemedOn,
                 redemption.RedeemedAt,
-                redemption.UndoneAt);
+                redemption.UndoneAt,
+                redemption.TransactionId?.Value);
     }
 }

@@ -1,6 +1,7 @@
 using LifeManager.Domain.Rewards.Errors;
 using LifeManager.Domain.Rewards.ValueObjects;
 using LifeManager.Domain.Shared.Results;
+using LifeManager.Domain.Transactions.ValueObjects;
 using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Domain.Rewards
@@ -27,6 +28,12 @@ namespace LifeManager.Domain.Rewards
         public DateTimeOffset RedeemedAt { get; }
 
         public DateTimeOffset? UndoneAt { get; private set; }
+
+        /// <summary>
+        /// The expense the redemption posted, when the user chose to register it; undoing the redemption deletes it.
+        /// Null again when the user deletes that transaction by hand, which keeps the redemption.
+        /// </summary>
+        public TransactionId? TransactionId { get; private set; }
 
         public bool IsUndone => UndoneAt is not null;
 
@@ -70,11 +77,13 @@ namespace LifeManager.Domain.Rewards
             int costPaid,
             DateOnly redeemedOn,
             DateTimeOffset redeemedAt,
-            DateTimeOffset? undoneAt)
+            DateTimeOffset? undoneAt,
+            int? idTransaction = null)
         {
             var redemption = new RewardRedemption(
                 new RewardId(idReward), new UserId(idUser), rewardName, rewardIcon, costPaid, redeemedOn, redeemedAt, undoneAt);
             redemption.AssignId(id);
+            redemption.TransactionId = idTransaction is null ? null : new TransactionId(idTransaction.Value);
 
             return redemption;
         }
@@ -102,6 +111,18 @@ namespace LifeManager.Domain.Rewards
 
             UndoneAt = now;
             return Result.Success();
+        }
+
+        /// <summary>Links the expense posted with the redemption, once it has its id.</summary>
+        public void AttachExpense(TransactionId transactionId)
+        {
+            TransactionId = transactionId;
+        }
+
+        /// <summary>Drops the link once the expense is gone (deleted with the undo).</summary>
+        public void DetachExpense()
+        {
+            TransactionId = null;
         }
 
         public void AssignId(int id)
