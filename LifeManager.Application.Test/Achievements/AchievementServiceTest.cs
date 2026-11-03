@@ -7,11 +7,17 @@ using LifeManager.Application.Test.Configurations;
 using LifeManager.Application.Test.Configurations.SingletonLists;
 using LifeManager.Domain.Achievements;
 using LifeManager.Domain.Achievements.Enums;
+using LifeManager.Domain.BudgetPlans;
+using LifeManager.Domain.Categories;
 using LifeManager.Domain.Habits;
 using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.Habits.ValueObjects;
+using LifeManager.Domain.MonthlySummaries;
 using LifeManager.Domain.Ranking;
 using LifeManager.Domain.Rewards;
+using LifeManager.Domain.Shared.Enums;
+using LifeManager.Domain.Shared.ValueObjects;
+using LifeManager.Domain.Transactions;
 using LifeManager.Domain.Users.ValueObjects;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -39,6 +45,10 @@ namespace LifeManager.Application.Test.Achievements
             RewardRedemptionSingleton.Instance.Clear();
             PlayerProfileSingleton.Instance.Clear();
             GameLedgerEntrySingleton.Instance.Clear();
+            BudgetPlanSingleton.Instance.Clear();
+            MonthlySummarySingleton.Instance.Clear();
+            TransactionSingleton.Instance.Clear();
+            CategorySingleton.Instance.Clear();
             AchievementRepositoryMock.UnlockCalls = 0;
             AchievementRepositoryMock.BeforeLockedRead = null;
         }
@@ -533,6 +543,77 @@ namespace LifeManager.Application.Test.Achievements
             var result = await _service.SyncAsync(UserId, CancellationToken.None);
 
             Assert.Equal([AchievementCode.RankingWins1, AchievementCode.RankingPodiums3], result.NewlyUnlocked.Select(unlock => unlock.Code));
+        }
+
+        // Today is 2026-10-28: September is the last closed month.
+        private static void SeedFinanceMonth(int monthNumber, decimal income, decimal expense, decimal investment, UserId? userId = null, DateTimeOffset? planCreatedAt = null)
+        {
+            var owner = userId ?? UserId;
+            var categoryId = CategorySingleton.Instance.Count + 1;
+            var category = Category.Create(owner.Value, $"Categoria {categoryId}").Value!;
+            category.AssignId(categoryId);
+            CategorySingleton.Instance.Add(category);
+
+            var monthId = MonthlySummarySingleton.Instance.Count + 1;
+            MonthlySummarySingleton.Instance.Add(MonthlySummary.FromPersistence(monthId, owner.Value, monthNumber, 2026, 0, 0, 0));
+            var day = new DateOnly(2026, monthNumber, 10);
+            foreach (var (type, amount) in new[] { (MoneyFlowType.Income, income), (MoneyFlowType.Expense, expense), (MoneyFlowType.Investment, investment) })
+            {
+                if (amount > 0)
+                    TransactionSingleton.Instance.Add(Transaction.FromPersistence(
+                        TransactionSingleton.Instance.Count + 1, monthId, type, categoryId, amount, "lançamento", day));
+            }
+
+            // 5000 with a 20% investment slice: a 4000 spending limit and a 1000 investment goal.
+            var createdAt = planCreatedAt ?? new DateTimeOffset(2026, monthNumber, 1, 12, 0, 0, TimeSpan.Zero);
+            var month = YearMonth.From(new DateOnly(2026, monthNumber, 1));
+            var plan = BudgetPlan.FromPersistence(
+                BudgetPlanSingleton.Instance.Count + 1, owner.Value, month.FirstDay, 5000m,
+                [BudgetSlice.Create(MoneyFlowType.Investment, null, 20m).Value!], createdAt, createdAt);
+            BudgetPlanSingleton.Instance.Add(plan);
+        }
+
+        [Fact]
+        public async Task SyncAsync_ShouldUnlockTheFinanceAchievements_FromClosedMonthsOnly()
+        {
+            SeedProfile();
+            SeedFinanceMonth(8, income: 6000, expense: 3000, investment: 1000);
+            SeedFinanceMonth(9, income: 6000, expense: 3500, investment: 1000);
+            // The running month never counts, however good it looks.
+            SeedFinanceMonth(10, income: 6000, expense: 3500, investment: 1000);
+
+            var result = await _service.SyncAsync(UserId, CancellationToken.None);
+
+            Assert.Equal(
+                [AchievementCode.BudgetMonths1, AchievementCode.InvestmentMonths2, AchievementCode.SavingsMonths1],
+                result.NewlyUnlocked.Select(unlock => unlock.Code));
+            Assert.Equal(2, result.Progress.BudgetMonths);
+            Assert.Equal(2, result.Progress.InvestmentMonths);
+            Assert.Equal(2, result.Progress.SavingsMonths);
+            Assert.Equal(3, Ledger(GameLedgerEntryKind.AchievementUnlocked).Count());
+        }
+
+        [Fact]
+        public async Task SyncAsync_ShouldNotCountAPlanMadeLateInTheMonth()
+        {
+            SeedProfile();
+            SeedFinanceMonth(9, income: 0, expense: 3500, investment: 1000, planCreatedAt: new DateTimeOffset(2026, 9, 20, 12, 0, 0, TimeSpan.Zero));
+
+            var result = await _service.SyncAsync(UserId, CancellationToken.None);
+
+            Assert.Empty(result.NewlyUnlocked);
+            Assert.Equal(0, result.Progress.BudgetMonths);
+        }
+
+        [Fact]
+        public async Task SyncAsync_ShouldNotCountAnotherUsersMoney()
+        {
+            SeedProfile();
+            SeedFinanceMonth(9, income: 6000, expense: 3500, investment: 1000, userId: OtherUserId);
+
+            var result = await _service.SyncAsync(UserId, CancellationToken.None);
+
+            Assert.Empty(result.NewlyUnlocked);
         }
     }
 }

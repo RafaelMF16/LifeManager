@@ -414,7 +414,7 @@ Um processo do servidor roda a cada hora (e ao iniciar a API) e **fecha os dias 
 
 ### Conquistas
 
-São **22 conquistas fixas**, em três níveis: **bronze, prata e ouro**. Cada uma é ganha **uma vez só**, paga um **bônus único** e libera um **título**.
+São **31 conquistas fixas**, em três níveis: **bronze, prata e ouro**. Cada uma é ganha **uma vez só**, paga um **bônus único** e libera um **título**.
 
 | Família | Bronze | Prata | Ouro |
 |---|---|---|---|
@@ -427,6 +427,9 @@ São **22 conquistas fixas**, em três níveis: **bronze, prata e ouro**. Cada u
 | **Piloto automático**: dias cumpridos de um mesmo hábito | — | — | 66 |
 | **Ranking: vitórias** (semanas em 1º num grupo) | 1 | 5 | 20 |
 | **Ranking: pódios** (semanas entre os 3 primeiros) | 3 | 10 | 30 |
+| **Finanças: orçamento** (meses dentro do limite de gastos) | 1 | 3 | 6 |
+| **Finanças: investimento** (meses que bateram a fatia de investimentos) | 2 | 6 | 12 |
+| **Finanças: poupança** (meses que pouparam 20% das receitas) | 1 | 3 | 12 |
 
 **Bônus por nível**
 
@@ -443,6 +446,12 @@ São **22 conquistas fixas**, em três níveis: **bronze, prata e ouro**. Cada u
   - um check-in desfeito ou um resgate desfeito deixa de contar;
   - compras de itens de jogo não contam como resgate;
   - **ranking:** só vale uma semana **fechada** de um grupo com **3 ou mais membros desde segunda**, em que o jogador também estava desde segunda e fez pontos. Empate em 1º vale vitória para todos os empatados. Contam **semanas diferentes**: vencer a mesma semana em dois grupos conta uma vez só.
+  - **finanças:** só contam **meses fechados** (o mês em andamento nunca conta).
+    - **Orçamento e investimento** exigem um orçamento do mês **criado até o dia 5** desse mês (pode ser antes do mês começar) e **não alterado depois que o mês acabou**. Assim não dá para criar ou afrouxar a meta depois de saber o resultado.
+    - **Orçamento:** os gastos ficaram dentro do limite de gastos (total menos a fatia de investimentos) **e** chegaram a pelo menos **metade** dele. Um total inflado para passar fácil não conta.
+    - **Investimento:** o investido no mês chegou à fatia de investimentos. Um orçamento sem essa fatia não conta.
+    - **Poupança:** receitas − gastos ≥ **20% das receitas** (investir conta como poupar, como no painel). Não precisa de orçamento; um mês sem receitas não conta.
+    - Os orçamentos salvos antes desta regra existir contam como criados no início do próprio mês.
 - **Para sempre:** desfazer o check-in, arquivar o hábito ou perder XP **não** tira a conquista nem o bônus.
 - **Bônus:** entra no extrato como "conquista". Se o XP do bônus subir o nível, a subida vem com HP cheio, como sempre, e pode liberar uma conquista de nível na mesma hora.
 - **Quando é ganha:** sempre que o perfil do jogador é lido, o que o app faz ao abrir e depois de toda mudança. Uma conquista que o fechamento do dia liberou de madrugada aparece quando o jogador abre o app, com a data desse dia.
