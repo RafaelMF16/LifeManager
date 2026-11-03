@@ -13,6 +13,9 @@ namespace LifeManager.Domain.Achievements.Enums
         Overcoming = 6,
 
         /// <summary>Weeks won or on the podium of a ranking group.</summary>
-        Ranking = 7
+        Ranking = 7,
+
+        /// <summary>Closed months within the budget, with the investment goal reached, or saving part of the income.</summary>
+        Finance = 8
     }
 }

@@ -310,7 +310,7 @@ namespace LifeManager.Application.Test.Achievements
 
             var result = await _service.GetAsync(UserId, CancellationToken.None);
 
-            Assert.Equal(22, result.Total);
+            Assert.Equal(31, result.Total);
             Assert.Equal(1, result.UnlockedCount);
             Assert.Equal(AchievementCatalog.All, result.Achievements.Select(achievement => achievement.Code));
 
