@@ -23,5 +23,12 @@ namespace LifeManager.Infrastructure.Users
                 .AsNoTracking()
                 .SingleOrDefaultAsync(user => user.Email == email, cancellationToken);
         }
+
+        public async Task UpdatePasswordHashAsync(UserId id, PasswordHash passwordHash, CancellationToken cancellationToken)
+        {
+            await _dbContext.Users
+                .Where(user => user.Id == id)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(user => user.PasswordHash, passwordHash), cancellationToken);
+        }
     }
 }

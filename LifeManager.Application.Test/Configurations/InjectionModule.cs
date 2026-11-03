@@ -3,6 +3,7 @@ using LifeManager.Domain.Achievements.Interfaces;
 using LifeManager.Application.Test.AccountHolders.Mocks;
 using LifeManager.Domain.AccountHolders.Interfaces;
 using LifeManager.Application.Auth.Emails;
+using LifeManager.Application.Auth.Services;
 using LifeManager.Application.DI;
 using LifeManager.Application.Test.Auth.Mocks;
 using LifeManager.Application.Test.Categories.Mocks;
@@ -37,6 +38,8 @@ using LifeManager.Domain.Users.Interfaces;
 using LifeManager.Domain.UsersPreferences.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace LifeManager.Application.Test.Configurations
 {
@@ -44,11 +47,16 @@ namespace LifeManager.Application.Test.Configurations
     {
         public const string TestFrontendBaseUrl = "https://frontend.test";
 
+        // Low on purpose: BCrypt doubles its cost per step, and the production 12 would slow every hashing test down.
+        public const int TestPasswordWorkFactor = 5;
+
         public static IServiceCollection AddServicesInScope(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddSingleton(configuration);
 
+            services.AddSingleton(new PasswordHashingOptions(TestPasswordWorkFactor));
             services.AddApplicationServices();
+            services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
 
             services.AddScoped<IUserRepository, UserRepositoryMock>();
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepositoryMock>();
@@ -81,6 +89,7 @@ namespace LifeManager.Application.Test.Configurations
 
             services.AddScoped<IEmailSender, EmailSenderMock>();
             services.AddScoped<IEmailCooldownRepository, EmailCooldownRepositoryMock>();
+            services.AddScoped<ILoginAttemptRepository, LoginAttemptRepositoryMock>();
             services.AddScoped<IPendingRegistrationRepository, PendingRegistrationRepositoryMock>();
             services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepositoryMock>();
             services.AddSingleton(new FrontendLinks(TestFrontendBaseUrl));

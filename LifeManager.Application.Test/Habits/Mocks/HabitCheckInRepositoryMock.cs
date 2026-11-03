@@ -38,6 +38,29 @@ namespace LifeManager.Application.Test.Habits.Mocks
         public Task<int> CountKeptAsync(HabitId habitId, CancellationToken cancellationToken)
             => Task.FromResult(_checkIns.Count(checkIn => checkIn.HabitId == habitId && HabitStats.IsKept(checkIn.Status)));
 
+        public Task<IReadOnlyList<HabitCleanDays>> GetCleanDaysAsync(UserId userId, DateOnly from, DateOnly to, CancellationToken cancellationToken)
+        {
+            IReadOnlyList<HabitCleanDays> cleanDays =
+            [
+                .. _habits
+                    .Where(habit => habit.UserId == userId && habit.RelapseCost is not null)
+                    .Select(habit => new HabitCleanDays(
+                        habit.Id!.Value,
+                        habit.Name.Value,
+                        habit.RelapseCost!.Value,
+                        _checkIns.Count(checkIn => checkIn.HabitId == habit.Id
+                            && checkIn.Status == HabitCheckInStatus.Clean
+                            && checkIn.Date >= from
+                            && checkIn.Date <= to)))
+                    .Where(habit => habit.CleanDays > 0)
+            ];
+
+            return Task.FromResult(cleanDays);
+        }
+
+        /// <summary>Makes the next <see cref="RecordAsync"/> it matches throw, like a database failure; cleared once it fires.</summary>
+        public static Func<Habit, DateOnly, bool>? FailNextRecord { get; set; }
+
         public Task<HabitCheckInEffects?> RecordAsync(
             Habit habit,
             DateOnly date,
@@ -46,6 +69,12 @@ namespace LifeManager.Application.Test.Habits.Mocks
             Func<HabitCheckInContext, HabitCheckInEffects> decide,
             CancellationToken cancellationToken)
         {
+            if (FailNextRecord is { } fail && fail(habit, date))
+            {
+                FailNextRecord = null;
+                throw new InvalidOperationException("Simulated database failure");
+            }
+
             var profileIndex = LockProfile(habit.UserId);
 
             if (_checkIns.Any(checkIn => checkIn.HabitId == habit.Id && checkIn.Date == date))

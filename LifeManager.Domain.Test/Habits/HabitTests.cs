@@ -329,5 +329,143 @@ namespace LifeManager.Domain.Test.Habits
             Assert.Equal("min", habit.Target.Unit);
             Assert.Null(habit.Target.Step);
         }
+
+        [Fact]
+        public void Create_ShouldKeepTheRelapseCost_WhenHabitIsToAvoid()
+        {
+            var result = Habit.Create(1, "Delivery", null, null, HabitKind.Negative, HabitDifficulty.Medium, HabitFrequencyType.Daily,
+                HabitWeekDays.None, null, Today, Now, relapseCost: 45m);
+
+            Assert.Equal(45m, result.Value!.RelapseCost);
+        }
+
+        [Fact]
+        public void Create_ShouldReturnRelapseCostNotAllowed_WhenHabitIsToBuild()
+        {
+            var result = Habit.Create(1, "Read", null, null, HabitKind.Positive, HabitDifficulty.Medium, HabitFrequencyType.Daily,
+                HabitWeekDays.None, null, Today, Now, relapseCost: 10m);
+
+            Assert.Equal(HabitErrors.RelapseCostNotAllowed, result.Error);
+        }
+
+        [Fact]
+        public void Create_ShouldReturnTheCostError_WhenRelapseCostIsInvalid()
+        {
+            var result = Habit.Create(1, "Delivery", null, null, HabitKind.Negative, HabitDifficulty.Medium, HabitFrequencyType.Daily,
+                HabitWeekDays.None, null, Today, Now, relapseCost: 0m);
+
+            Assert.Equal(HabitErrors.RelapseCostNotPositive, result.Error);
+        }
+
+        [Fact]
+        public void Update_ShouldChangeAndRemoveTheRelapseCost()
+        {
+            var habit = Habit.Create(1, "Delivery", null, null, HabitKind.Negative, HabitDifficulty.Medium, HabitFrequencyType.Daily,
+                HabitWeekDays.None, null, Today, Now, relapseCost: 45m).Value!;
+
+            habit.Update("Delivery", null, null, HabitDifficulty.Medium, HabitFrequencyType.Daily, HabitWeekDays.None, null, relapseCost: 60m);
+            Assert.Equal(60m, habit.RelapseCost);
+
+            habit.Update("Delivery", null, null, HabitDifficulty.Medium, HabitFrequencyType.Daily, HabitWeekDays.None, null);
+            Assert.Null(habit.RelapseCost);
+        }
+
+        [Fact]
+        public void FromPersistence_ShouldKeepTheRelapseCost()
+        {
+            var habit = Habit.FromPersistence(
+                1, 1, "Delivery", null, null, HabitKind.Negative, HabitDifficulty.Easy,
+                HabitFrequencyType.Daily, HabitWeekDays.None, null,
+                startDate: Today, createdAt: Now, archivedAt: null, currentStreak: 0, longestStreak: 0, evaluatedUntil: Today.AddDays(-1),
+                relapseCost: 15.50m);
+
+            Assert.Equal(15.50m, habit.RelapseCost);
+        }
+
+        [Fact]
+        public void Create_ShouldHaveNoAutoTrigger_ByDefault()
+        {
+            var habit = Habit.Create(1, "Read", null, null, HabitKind.Positive, HabitDifficulty.Medium, HabitFrequencyType.Daily,
+                HabitWeekDays.None, null, Today, Now).Value!;
+
+            Assert.Equal(HabitAutoTrigger.None, habit.AutoTrigger);
+        }
+
+        [Theory]
+        [InlineData(HabitFrequencyType.Daily, HabitWeekDays.None, null)]
+        [InlineData(HabitFrequencyType.WeekDays, HabitWeekDays.Monday, null)]
+        [InlineData(HabitFrequencyType.TimesPerWeek, HabitWeekDays.None, 3)]
+        public void Create_ShouldKeepTheAutoTrigger_WhenHabitIsToBuildWithoutTarget(HabitFrequencyType frequencyType, HabitWeekDays weekDays, int? timesPerWeek)
+        {
+            var result = Habit.Create(1, "Log my spending", null, null, HabitKind.Positive, HabitDifficulty.Easy, frequencyType,
+                weekDays, timesPerWeek, Today, Now, autoTrigger: HabitAutoTrigger.TransactionCreated);
+
+            Assert.Equal(HabitAutoTrigger.TransactionCreated, result.Value!.AutoTrigger);
+        }
+
+        [Fact]
+        public void Create_ShouldReturnAutoTriggerNotAllowed_WhenHabitIsToAvoid()
+        {
+            var result = Habit.Create(1, "Delivery", null, null, HabitKind.Negative, HabitDifficulty.Medium, HabitFrequencyType.Daily,
+                HabitWeekDays.None, null, Today, Now, autoTrigger: HabitAutoTrigger.TransactionCreated);
+
+            Assert.Equal(HabitErrors.AutoTriggerNotAllowed, result.Error);
+        }
+
+        [Fact]
+        public void Create_ShouldReturnAutoTriggerNotAllowed_WhenHabitHasATarget()
+        {
+            var result = Habit.Create(1, "Read", null, null, HabitKind.Positive, HabitDifficulty.Medium, HabitFrequencyType.Daily,
+                HabitWeekDays.None, null, Today, Now, targetValue: 20, targetUnit: "pages", autoTrigger: HabitAutoTrigger.BudgetPlanSaved);
+
+            Assert.Equal(HabitErrors.AutoTriggerNotAllowed, result.Error);
+        }
+
+        [Fact]
+        public void Create_ShouldReturnInvalidAutoTrigger_WhenTheValueIsUndefined()
+        {
+            var result = Habit.Create(1, "Read", null, null, HabitKind.Positive, HabitDifficulty.Medium, HabitFrequencyType.Daily,
+                HabitWeekDays.None, null, Today, Now, autoTrigger: (HabitAutoTrigger)99);
+
+            Assert.Equal(HabitErrors.InvalidAutoTrigger, result.Error);
+        }
+
+        [Fact]
+        public void Update_ShouldChangeAndRemoveTheAutoTrigger()
+        {
+            var habit = Habit.Create(1, "Review budget", null, null, HabitKind.Positive, HabitDifficulty.Easy, HabitFrequencyType.Daily,
+                HabitWeekDays.None, null, Today, Now).Value!;
+
+            habit.Update("Review budget", null, null, HabitDifficulty.Easy, HabitFrequencyType.Daily, HabitWeekDays.None, null,
+                autoTrigger: HabitAutoTrigger.BudgetPlanSaved);
+            Assert.Equal(HabitAutoTrigger.BudgetPlanSaved, habit.AutoTrigger);
+
+            habit.Update("Review budget", null, null, HabitDifficulty.Easy, HabitFrequencyType.Daily, HabitWeekDays.None, null);
+            Assert.Equal(HabitAutoTrigger.None, habit.AutoTrigger);
+        }
+
+        [Fact]
+        public void Update_ShouldReturnAutoTriggerNotAllowed_WhenAddingATargetToAnAutomaticHabit()
+        {
+            var habit = Habit.Create(1, "Reconcile", null, null, HabitKind.Positive, HabitDifficulty.Easy, HabitFrequencyType.Daily,
+                HabitWeekDays.None, null, Today, Now, autoTrigger: HabitAutoTrigger.StatementImportCommitted).Value!;
+
+            var result = habit.Update("Reconcile", null, null, HabitDifficulty.Easy, HabitFrequencyType.Daily, HabitWeekDays.None, null,
+                targetValue: 10, targetUnit: "min", autoTrigger: HabitAutoTrigger.StatementImportCommitted);
+
+            Assert.Equal(HabitErrors.AutoTriggerNotAllowed, result.Error);
+        }
+
+        [Fact]
+        public void FromPersistence_ShouldKeepTheAutoTrigger()
+        {
+            var habit = Habit.FromPersistence(
+                1, 1, "Reconcile", null, null, HabitKind.Positive, HabitDifficulty.Easy,
+                HabitFrequencyType.Daily, HabitWeekDays.None, null,
+                startDate: Today, createdAt: Now, archivedAt: null, currentStreak: 0, longestStreak: 0, evaluatedUntil: Today.AddDays(-1),
+                autoTrigger: HabitAutoTrigger.StatementImportCommitted);
+
+            Assert.Equal(HabitAutoTrigger.StatementImportCommitted, habit.AutoTrigger);
+        }
     }
 }

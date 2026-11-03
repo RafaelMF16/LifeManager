@@ -7,12 +7,14 @@ namespace LifeManager.Application.Habits.DTOs
     /// <param name="Today">The backend's today (<c>yyyy-MM-dd</c>), the heatmap's last day.</param>
     /// <param name="Days">The heatmap's days (<see cref="HabitStats.HeatmapDays"/>), oldest first.</param>
     /// <param name="TotalKept">Days done (or clean, to avoid) since the habit started.</param>
+    /// <param name="SavedAmount">A habit to avoid with a cost per relapse: <paramref name="TotalKept"/> clean days times that cost; null otherwise.</param>
     public record HabitStatsDto(
         HabitResponseDto Habit,
         DateOnly Today,
         IReadOnlyList<HabitDayDto> Days,
         HabitConsistencyDto Consistency,
-        int TotalKept);
+        int TotalKept,
+        decimal? SavedAmount);
 
     /// <param name="Amount">The day's total progress towards the daily target; null when nothing was logged.</param>
     public record HabitDayDto(DateOnly Date, HabitDayState State, int? Amount);

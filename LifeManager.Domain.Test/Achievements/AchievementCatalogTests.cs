@@ -15,14 +15,18 @@ namespace LifeManager.Domain.Test.Achievements
             int keptDaysAfterFirstKnockout = 0,
             int mostKeptDaysInOneHabit = 0,
             int rankingWins = 0,
-            int rankingPodiums = 0)
-            => new(checkIns, longestStreakDays, level, redemptions, cleanDays, keptDaysAfterFirstKnockout, mostKeptDaysInOneHabit, rankingWins, rankingPodiums);
+            int rankingPodiums = 0,
+            int budgetMonths = 0,
+            int investmentMonths = 0,
+            int savingsMonths = 0)
+            => new(checkIns, longestStreakDays, level, redemptions, cleanDays, keptDaysAfterFirstKnockout, mostKeptDaysInOneHabit, rankingWins, rankingPodiums,
+                budgetMonths, investmentMonths, savingsMonths);
 
         [Fact]
-        public void All_ShouldListTheTwentyTwoCodesInOrder()
+        public void All_ShouldListTheThirtyOneCodesInOrder()
         {
             Assert.Equal(Enum.GetValues<AchievementCode>(), AchievementCatalog.All);
-            Assert.Equal(22, AchievementCatalog.All.Count);
+            Assert.Equal(31, AchievementCatalog.All.Count);
         }
 
         [Theory]
@@ -48,6 +52,15 @@ namespace LifeManager.Domain.Test.Achievements
         [InlineData(AchievementCode.RankingPodiums3, AchievementFamily.Ranking, AchievementTier.Bronze, 3)]
         [InlineData(AchievementCode.RankingPodiums10, AchievementFamily.Ranking, AchievementTier.Silver, 10)]
         [InlineData(AchievementCode.RankingPodiums30, AchievementFamily.Ranking, AchievementTier.Gold, 30)]
+        [InlineData(AchievementCode.BudgetMonths1, AchievementFamily.Finance, AchievementTier.Bronze, 1)]
+        [InlineData(AchievementCode.BudgetMonths3, AchievementFamily.Finance, AchievementTier.Silver, 3)]
+        [InlineData(AchievementCode.BudgetMonths6, AchievementFamily.Finance, AchievementTier.Gold, 6)]
+        [InlineData(AchievementCode.InvestmentMonths2, AchievementFamily.Finance, AchievementTier.Bronze, 2)]
+        [InlineData(AchievementCode.InvestmentMonths6, AchievementFamily.Finance, AchievementTier.Silver, 6)]
+        [InlineData(AchievementCode.InvestmentMonths12, AchievementFamily.Finance, AchievementTier.Gold, 12)]
+        [InlineData(AchievementCode.SavingsMonths1, AchievementFamily.Finance, AchievementTier.Bronze, 1)]
+        [InlineData(AchievementCode.SavingsMonths3, AchievementFamily.Finance, AchievementTier.Silver, 3)]
+        [InlineData(AchievementCode.SavingsMonths12, AchievementFamily.Finance, AchievementTier.Gold, 12)]
         public void Catalog_ShouldDescribeEveryAchievement(AchievementCode code, AchievementFamily family, AchievementTier tier, int threshold)
         {
             Assert.Equal(family, AchievementCatalog.Family(code));
@@ -118,6 +131,16 @@ namespace LifeManager.Domain.Test.Achievements
             var unlocked = AchievementCatalog.NewlyUnlocked(Progress(rankingWins: 1, rankingPodiums: 3), []);
 
             Assert.Equal([AchievementCode.RankingWins1, AchievementCode.RankingPodiums3], unlocked);
+        }
+
+        [Fact]
+        public void NewlyUnlocked_ShouldUnlockTheFinanceAchievements_FromTheirMonthCounts()
+        {
+            var unlocked = AchievementCatalog.NewlyUnlocked(Progress(budgetMonths: 3, investmentMonths: 2, savingsMonths: 1), []);
+
+            Assert.Equal(
+                [AchievementCode.BudgetMonths1, AchievementCode.BudgetMonths3, AchievementCode.InvestmentMonths2, AchievementCode.SavingsMonths1],
+                unlocked);
         }
     }
 }

@@ -11,6 +11,8 @@ namespace LifeManager.Domain.Rewards.Errors
         public static readonly Error NameTooLong = Error.Validation("Rewards.NameTooLong", "Reward name cannot be longer than 60 characters");
         public static readonly Error InvalidCost = Error.Validation("Rewards.InvalidCost", "Reward cost must be between 1 and 100000 coins");
         public static readonly Error IconTooLong = Error.Validation("Rewards.IconTooLong", "Reward icon cannot be longer than 30 characters");
+        public static readonly Error ExpenseIncomplete = Error.Validation("Rewards.ExpenseIncomplete", "A reward's expense needs both a category and an amount");
+        public static readonly Error ExpenseNotConfigured = Error.Validation("Rewards.ExpenseNotConfigured", "This reward has no expense to register");
         public static readonly Error UndoOutsideWindow = Error.Validation("Rewards.UndoOutsideWindow", "A redemption can only be undone on the day it was made");
 
         public static readonly Error NameAlreadyExists = Error.Conflict("Rewards.NameAlreadyExists", "An active reward with this name already exists");

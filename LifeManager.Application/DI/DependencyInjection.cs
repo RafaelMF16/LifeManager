@@ -26,6 +26,7 @@ namespace LifeManager.Application.DI
     {
         public static IServiceCollection AddApplicationServices(this IServiceCollection services)
         {
+            services.TryAddSingleton(new PasswordHashingOptions());
             services.AddScoped<AuthService>();
             services.AddScoped<TokenService>();
             services.AddScoped<UserService>();
@@ -45,6 +46,7 @@ namespace LifeManager.Application.DI
             services.AddScoped<PlayerWalletService>();
             services.AddScoped<HabitService>();
             services.AddScoped<HabitCheckInService>();
+            services.AddScoped<HabitAutoCheckInService>();
             services.AddScoped<HabitProgressService>();
             services.AddScoped<HabitRelapseService>();
             services.AddScoped<HabitEvaluationService>();

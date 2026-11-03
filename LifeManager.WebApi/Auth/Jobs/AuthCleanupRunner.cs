@@ -3,8 +3,8 @@ using LifeManager.Application.Auth.Services;
 namespace LifeManager.WebApi.Auth.Jobs
 {
     /// <summary>
-    /// One run of the auth cleanup (<see cref="AuthCleanupService"/>): expired sign-ups, stale reset links and old e-mail
-    /// cooldowns. Triggered every hour by <see cref="AuthCleanupJob"/> (local) or by the <c>--run-jobs</c> mode (Cloud Run
+    /// One run of the auth cleanup (<see cref="AuthCleanupService"/>): expired sign-ups, stale reset links, old e-mail
+    /// cooldowns and old login attempts. Triggered every hour by <see cref="AuthCleanupJob"/> (local) or by the <c>--run-jobs</c> mode (Cloud Run
     /// Job); running it more often than needed only finds nothing to delete.
     /// </summary>
     public sealed class AuthCleanupRunner(
@@ -25,8 +25,8 @@ namespace LifeManager.WebApi.Auth.Jobs
                 var deleted = await authCleanupService.DeleteStaleAsync(stoppingToken);
                 if (deleted.Total > 0)
                     _logger.LogInformation(
-                        "Deleted {PendingRegistrations} expired sign-up(s), {PasswordResetTokens} stale reset link(s) and {EmailCooldowns} old e-mail cooldown(s)",
-                        deleted.PendingRegistrations, deleted.PasswordResetTokens, deleted.EmailCooldowns);
+                        "Deleted {PendingRegistrations} expired sign-up(s), {PasswordResetTokens} stale reset link(s), {EmailCooldowns} old e-mail cooldown(s) and {LoginAttempts} old login attempt(s)",
+                        deleted.PendingRegistrations, deleted.PasswordResetTokens, deleted.EmailCooldowns, deleted.LoginAttempts);
             }
             catch (Exception exception) when (!stoppingToken.IsCancellationRequested)
             {

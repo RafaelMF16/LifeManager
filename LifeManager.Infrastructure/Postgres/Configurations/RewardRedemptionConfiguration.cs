@@ -1,5 +1,7 @@
 using LifeManager.Domain.Rewards;
 using LifeManager.Domain.Rewards.ValueObjects;
+using LifeManager.Domain.Transactions;
+using LifeManager.Domain.Transactions.ValueObjects;
 using LifeManager.Domain.Users;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -30,6 +32,9 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
             builder.Property(redemption => redemption.RedeemedAt).IsRequired();
             builder.Property(redemption => redemption.UndoneAt);
 
+            builder.Property(redemption => redemption.TransactionId)
+                .HasConversion(id => id!.Value, id => new TransactionId(id));
+
             builder.Ignore(redemption => redemption.IsUndone);
 
             // The history lists a user's redemptions newest first.
@@ -46,6 +51,12 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
                 .WithMany()
                 .HasForeignKey(redemption => redemption.RewardId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // Deleting the expense by hand keeps the redemption (and its coins): only the link goes.
+            builder.HasOne<Transaction>()
+                .WithMany()
+                .HasForeignKey(redemption => redemption.TransactionId)
+                .OnDelete(DeleteBehavior.SetNull);
         }
     }
 }

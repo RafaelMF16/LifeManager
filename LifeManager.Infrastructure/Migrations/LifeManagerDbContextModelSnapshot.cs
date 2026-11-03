@@ -100,6 +100,29 @@ namespace LifeManager.Infrastructure.Migrations
                     b.ToTable("EmailCooldowns");
                 });
 
+            modelBuilder.Entity("LifeManager.Domain.Auth.LoginAttempt", b =>
+                {
+                    b.Property<string>("Email")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)");
+
+                    b.Property<int>("FailedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("WindowStartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Email", "IpAddress");
+
+                    b.HasIndex("WindowStartedAt");
+
+                    b.ToTable("LoginAttempts");
+                });
+
             modelBuilder.Entity("LifeManager.Domain.Auth.PasswordResetToken", b =>
                 {
                     b.Property<int>("Id")
@@ -230,12 +253,18 @@ namespace LifeManager.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateOnly>("MonthStart")
                         .HasColumnType("date");
 
                     b.Property<decimal>("Total")
                         .HasPrecision(14, 2)
                         .HasColumnType("numeric(14,2)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
@@ -495,6 +524,9 @@ namespace LifeManager.Infrastructure.Migrations
                     b.Property<DateTimeOffset?>("ArchivedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("AutoTrigger")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -529,6 +561,10 @@ namespace LifeManager.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(60)
                         .HasColumnType("character varying(60)");
+
+                    b.Property<decimal?>("RelapseCost")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
 
                     b.Property<DateOnly>("StartDate")
                         .HasColumnType("date");
@@ -567,6 +603,9 @@ namespace LifeManager.Infrastructure.Migrations
                     NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("NormalizedName"), new[] { "gin_trgm_ops" });
 
                     b.HasIndex("UserId", "ArchivedAt");
+
+                    b.HasIndex("UserId", "AutoTrigger")
+                        .HasFilter("\"AutoTrigger\" <> 0 AND \"ArchivedAt\" IS NULL");
 
                     b.HasIndex("UserId", "NormalizedName")
                         .IsUnique()
@@ -980,6 +1019,13 @@ namespace LifeManager.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<decimal?>("ExpenseAmount")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<int?>("ExpenseCategoryId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Icon")
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
@@ -998,6 +1044,8 @@ namespace LifeManager.Infrastructure.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ExpenseCategoryId");
 
                     b.HasIndex("NormalizedName");
 
@@ -1042,6 +1090,9 @@ namespace LifeManager.Infrastructure.Migrations
                         .HasMaxLength(60)
                         .HasColumnType("character varying(60)");
 
+                    b.Property<int?>("TransactionId")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset?>("UndoneAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1051,6 +1102,8 @@ namespace LifeManager.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("RewardId");
+
+                    b.HasIndex("TransactionId");
 
                     b.HasIndex("UserId", "RedeemedAt", "Id");
 
@@ -1621,6 +1674,11 @@ namespace LifeManager.Infrastructure.Migrations
 
             modelBuilder.Entity("LifeManager.Domain.Rewards.Reward", b =>
                 {
+                    b.HasOne("LifeManager.Domain.Categories.Category", null)
+                        .WithMany()
+                        .HasForeignKey("ExpenseCategoryId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("LifeManager.Domain.Users.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
@@ -1635,6 +1693,11 @@ namespace LifeManager.Infrastructure.Migrations
                         .HasForeignKey("RewardId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("LifeManager.Domain.Transactions.Transaction", null)
+                        .WithMany()
+                        .HasForeignKey("TransactionId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("LifeManager.Domain.Users.User", null)
                         .WithMany()

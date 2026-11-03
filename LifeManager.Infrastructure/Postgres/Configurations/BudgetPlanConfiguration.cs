@@ -30,6 +30,12 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
                 .HasPrecision(AmountPrecision, AmountScale)
                 .HasConversion(total => total.Value, total => BudgetTotal.FromPersistence(total));
 
+            builder.Property(plan => plan.CreatedAt)
+                .IsRequired();
+
+            builder.Property(plan => plan.UpdatedAt)
+                .IsRequired();
+
             builder.Ignore(plan => plan.Month);
             builder.Ignore(plan => plan.InvestmentSlice);
 

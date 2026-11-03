@@ -24,6 +24,15 @@ namespace LifeManager.Domain.Achievements.Enums
         RankingWins20 = 19,
         RankingPodiums3 = 20,
         RankingPodiums10 = 21,
-        RankingPodiums30 = 22
+        RankingPodiums30 = 22,
+        BudgetMonths1 = 23,
+        BudgetMonths3 = 24,
+        BudgetMonths6 = 25,
+        InvestmentMonths2 = 26,
+        InvestmentMonths6 = 27,
+        InvestmentMonths12 = 28,
+        SavingsMonths1 = 29,
+        SavingsMonths3 = 30,
+        SavingsMonths12 = 31
     }
 }

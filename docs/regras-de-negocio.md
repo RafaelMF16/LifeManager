@@ -21,8 +21,10 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
   - [Cadastro de hábitos](#cadastro-de-hábitos)
   - [Frequências](#frequências)
   - [Check-in (hábitos para construir)](#check-in-hábitos-para-construir)
+  - [Check-in automático (rotinas financeiras)](#check-in-automático-rotinas-financeiras)
   - [Meta diária (hábitos mensuráveis)](#meta-diária-hábitos-mensuráveis)
   - [Recaídas (hábitos para evitar)](#recaídas-hábitos-para-evitar)
+  - [Economia (hábitos para evitar)](#economia-hábitos-para-evitar)
   - [Ofensiva, marcos e proteções](#ofensiva-marcos-e-proteções)
   - [Fechamento do dia](#fechamento-do-dia)
   - [Estatísticas e extrato](#estatísticas-e-extrato)
@@ -71,10 +73,13 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
 - O tempo de resposta pode variar um pouco entre e-mail com conta e sem conta na recuperação (só o primeiro envia e-mail). Foi aceito para o porte do projeto.
 
 **Limpeza automática**
-- De hora em hora são apagados: cadastros pendentes vencidos há mais de **7 dias**, links de recuperação vencidos ou usados há mais de **7 dias** e os registros do limite de um minuto com mais de **1 dia**.
+- De hora em hora são apagados: cadastros pendentes vencidos há mais de **7 dias**, links de recuperação vencidos ou usados há mais de **7 dias**, os registros do limite de um minuto com mais de **1 dia** e as tentativas de login cuja janela de 15 minutos acabou há mais de **1 dia**.
 
 **Login**
-- E-mail ou senha errados retornam sempre o mesmo erro, sem revelar qual dos dois está errado.
+- E-mail ou senha errados retornam sempre o mesmo erro, sem revelar qual dos dois está errado. A resposta também leva o mesmo tempo com ou sem conta para o e-mail.
+- **Senhas erradas:** **5 senhas erradas** para o mesmo e-mail, vindas do mesmo endereço de rede (IP), em **15 minutos** contados da primeira, bloqueiam esse e-mail **naquele IP** até os 15 minutos acabarem. Durante o bloqueio, a resposta é "muitas tentativas", **mesmo com a senha certa**. O dono da conta, vindo de outro IP, continua entrando. Vale também para e-mails sem conta, para o bloqueio não revelar se a conta existe. Um login certo antes do bloqueio zera a contagem.
+- **Por IP:** no máximo **100 tentativas de login a cada 10 minutos**. É só um teto contra abuso, folgado porque, atrás do Firebase Hosting, vários usuários podem chegar com o mesmo IP.
+- As senhas são guardadas com um cálculo propositalmente lento (custo 12), para dificultar quebrá-las se o banco vazar. Contas criadas com um custo menor passam para o atual no próximo login certo, sem o usuário perceber.
 
 **Sessão**
 - O acesso vale **15 minutos** e é renovado automaticamente enquanto o usuário usa o app.
@@ -82,6 +87,7 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
 - Toda sessão tem um **teto de 30 dias** a partir do login. Depois disso é preciso entrar de novo, mesmo com uso contínuo.
 - Cada renovação troca a credencial por uma nova. Se uma credencial antiga for reapresentada, o sistema trata como roubo e **encerra todas as sessões** do usuário.
 - Credencial expirada, revogada, reutilizada ou inexistente recebe sempre a mesma resposta, sem revelar o motivo.
+- Cada sessão pode ser renovada no máximo **60 vezes a cada 10 minutos**. O acesso fica só na memória da aba, então todo recarregamento de página e toda aba nova fazem uma renovação; o limite folgado só barra abusos.
 
 **Logout**
 - Encerra a sessão no servidor. Pode ser repetido sem erro, mesmo se a sessão já tiver acabado.
@@ -236,6 +242,7 @@ Cada mês tem **no máximo um orçamento**: um **total** (quanto se pretende gas
 - Meses sem lançamentos aparecem zerados.
 - As quebras por categoria mostram as **8 maiores**; o resto é somado em "Outras", de modo que as partes sempre fecham com o total.
 - **Orçamento no painel:** cada mês é avaliado com o seu próprio orçamento. O **limite de gastos do mês** é o total menos a fatia de investimentos (o Livre conta como gasto permitido), e o **alvo de investimento** é a fatia de investimentos. Meses sem orçamento ficam sem meta. A contagem "dentro do limite em X de N meses fechados" **deixa de fora o mês em andamento**. As categorias que mais passaram do valor da fatia aparecem primeiro (até 5).
+- **Economia com hábitos:** soma, no período, os dias limpos × o custo por recaída de cada hábito para evitar que tem custo (ver [Economia](#economia-hábitos-para-evitar)). Não tem comparação com o período anterior.
 - **Gastos por dia:** o calendário do painel soma só os **gastos** de cada dia do mês (receitas e investimentos ficam de fora), pela data do lançamento, com o mesmo critério dos totais do mês, então os dias sempre fecham com o gasto do mês. Uma linha de extrato jogada para o mês seguinte conta no dia em que foi lançada (o dia 1º). Todos os dias do mês aparecem, zerados quando não há gasto.
 
 ## Hábitos
@@ -301,6 +308,23 @@ Os dois tipos de hábito aceitam as três frequências, mas o significado muda:
 - **Hábito "vezes por semana"** que já bateu a meta da semana: o check-in é aceito, mas **não rende nada**.
 - **Desfazer** devolve exatamente o que foi ganho (moedas, XP, marco e proteção, veja abaixo). A exceção é o HP: o desfazer nunca derruba o jogador, então o HP para em 1.
 
+### Check-in automático (rotinas financeiras)
+
+Um hábito para construir **sem meta diária** pode ser marcado sozinho quando o usuário faz uma ação no módulo financeiro ("Registrar meus gastos", "Conciliar o extrato", "Revisar o orçamento"). Cada hábito tem no máximo um **gatilho**:
+
+- **Lançar uma transação** à mão. Lançamentos de recorrências, de importações e despesas de resgate de recompensa **não** contam.
+- **Confirmar uma importação de extrato** (o que ela lança não conta como "lançar uma transação").
+- **Salvar o orçamento** de um mês.
+
+Regras:
+
+- O hábito é marcado **hoje**, qualquer que seja a data da transação ou o mês do orçamento, e só se estiver agendado hoje, a partir da data de início, sem marcação hoje e, no hábito "vezes por semana", com a meta da semana ainda aberta.
+- Vale **um check-in normal**: mesma recompensa, ofensiva, marco e proteção. A segunda ação do dia não paga de novo.
+- O hábito continua podendo ser marcado à mão.
+- A ação financeira **nunca falha** por causa do hábito: se o check-in automático der erro, a transação, a importação ou o orçamento são salvos do mesmo jeito.
+- Apagar a transação ou desfazer a importação **não** desmarca o hábito. O usuário pode desfazer o check-in à mão, e a próxima ação do dia marca de novo.
+- Hábitos para evitar e hábitos com meta diária não podem ter gatilho.
+
 ### Meta diária (hábitos mensuráveis)
 
 Um hábito para construir pode ter uma **meta diária** de quantidade ("2.000 ml de água", "20 páginas"). Em vez de marcar o dia com um toque, o usuário **registra o progresso** ao longo do dia.
@@ -330,6 +354,16 @@ Hábitos para evitar não recebem check-in. **Cada dia sem recaída vira um "dia
 - **Custo:** o HP da dificuldade. No limite semanal, as primeiras N recaídas da semana são grátis e só as seguintes custam HP.
 - A recaída **zera a ofensiva na hora**.
 - **Desfazer** devolve o HP perdido. Se a recaída causou um nocaute, as moedas perdidas no nocaute não voltam.
+
+### Economia (hábitos para evitar)
+
+Um hábito para evitar pode ter um **custo por recaída** em dinheiro ("um delivery: R$ 45"). Só hábitos para evitar têm custo; ele é opcional, positivo, com até 2 casas decimais, e pode ser mudado ou removido a qualquer momento.
+
+- **Economia = dias limpos × custo.** Vale para qualquer frequência: no limite semanal, cada dia sem recaída de uma semana dentro do limite já é um dia limpo.
+- Os dias limpos só existem depois do fechamento do dia, então a economia de hoje e de ontem aparece depois.
+- Mudar o custo **recalcula todo o histórico** com o novo valor.
+- A economia é só informativa: não cria lançamento, não mexe em moedas e não registra se foi investida. O botão "Investir" do painel abre um lançamento de investimento já preenchido, que o usuário confere e salva.
+- Aparece no detalhe do hábito (economia desde o início) e no **painel** (economia do período, por hábito, do que mais economizou para o que menos). Hábitos arquivados continuam contando.
 
 ### Ofensiva, marcos e proteções
 
@@ -383,6 +417,7 @@ Um processo do servidor roda a cada hora (e ao iniciar a API) e **fecha os dias 
 - **Consistência:**
   - Hábitos diários e de dias fixos: parte dos dias agendados dos últimos 30 dias que foram cumpridos (dias protegidos ficam fora da conta).
   - Hábitos semanais: parte das últimas 4 semanas fechadas que bateram a meta ou ficaram dentro do limite.
+- **Economia:** num hábito para evitar com custo por recaída, os dias limpos desde o início × o custo.
 - **Rumo ao automático:** total de dias cumpridos, rumo aos 66 dias (média para um hábito virar automático). Falhar um dia não zera esse total.
 - Hábitos arquivados também têm estatísticas.
 
@@ -397,7 +432,7 @@ Um processo do servidor roda a cada hora (e ao iniciar a API) e **fecha os dias 
 
 ### Conquistas
 
-São **22 conquistas fixas**, em três níveis: **bronze, prata e ouro**. Cada uma é ganha **uma vez só**, paga um **bônus único** e libera um **título**.
+São **31 conquistas fixas**, em três níveis: **bronze, prata e ouro**. Cada uma é ganha **uma vez só**, paga um **bônus único** e libera um **título**.
 
 | Família | Bronze | Prata | Ouro |
 |---|---|---|---|
@@ -410,6 +445,9 @@ São **22 conquistas fixas**, em três níveis: **bronze, prata e ouro**. Cada u
 | **Piloto automático**: dias cumpridos de um mesmo hábito | — | — | 66 |
 | **Ranking: vitórias** (semanas em 1º num grupo) | 1 | 5 | 20 |
 | **Ranking: pódios** (semanas entre os 3 primeiros) | 3 | 10 | 30 |
+| **Finanças: orçamento** (meses dentro do limite de gastos) | 1 | 3 | 6 |
+| **Finanças: investimento** (meses que bateram a fatia de investimentos) | 2 | 6 | 12 |
+| **Finanças: poupança** (meses que pouparam 20% das receitas) | 1 | 3 | 12 |
 
 **Bônus por nível**
 
@@ -426,6 +464,12 @@ São **22 conquistas fixas**, em três níveis: **bronze, prata e ouro**. Cada u
   - um check-in desfeito ou um resgate desfeito deixa de contar;
   - compras de itens de jogo não contam como resgate;
   - **ranking:** só vale uma semana **fechada** de um grupo com **3 ou mais membros desde segunda**, em que o jogador também estava desde segunda e fez pontos. Empate em 1º vale vitória para todos os empatados. Contam **semanas diferentes**: vencer a mesma semana em dois grupos conta uma vez só.
+  - **finanças:** só contam **meses fechados** (o mês em andamento nunca conta).
+    - **Orçamento e investimento** exigem um orçamento do mês **criado até o dia 5** desse mês (pode ser antes do mês começar) e **não alterado depois que o mês acabou**. Assim não dá para criar ou afrouxar a meta depois de saber o resultado.
+    - **Orçamento:** os gastos ficaram dentro do limite de gastos (total menos a fatia de investimentos) **e** chegaram a pelo menos **metade** dele. Um total inflado para passar fácil não conta.
+    - **Investimento:** o investido no mês chegou à fatia de investimentos. Um orçamento sem essa fatia não conta.
+    - **Poupança:** receitas − gastos ≥ **20% das receitas** (investir conta como poupar, como no painel). Não precisa de orçamento; um mês sem receitas não conta.
+    - Os orçamentos salvos antes desta regra existir contam como criados no início do próprio mês.
 - **Para sempre:** desfazer o check-in, arquivar o hábito ou perder XP **não** tira a conquista nem o bônus.
 - **Bônus:** entra no extrato como "conquista". Se o XP do bônus subir o nível, a subida vem com HP cheio, como sempre, e pode liberar uma conquista de nível na mesma hora.
 - **Quando é ganha:** sempre que o perfil do jogador é lido, o que o app faz ao abrir e depois de toda mudança. Uma conquista que o fechamento do dia liberou de madrugada aparece quando o jogador abre o app, com a data desse dia.
@@ -487,6 +531,13 @@ O próprio usuário cadastra as recompensas e as compra com as moedas ganhas nos
 - **Resgatar** desconta o preço das moedas. O saldo é conferido no momento do resgate: sem moedas suficientes, nada acontece.
 - O resgate guarda o nome, o ícone e o **preço pago**. Mudar a recompensa depois não altera o histórico.
 - **Desfazer um resgate:** só **no mesmo dia** do resgate e só uma vez. O preço pago volta integralmente.
+- **Gasto em dinheiro (opcional):** uma recompensa pode ter uma **categoria** e um **valor em R$** (as duas coisas juntas, ou nenhuma; o valor segue as regras de valor de uma transação e a categoria tem que ser do usuário). É o custo real do prêmio ("Jantar fora", R$ 120 em Lazer).
+  - Ao resgatar, o usuário escolhe se **lança o gasto**. Se sim, o resgate cria uma **despesa de hoje** com o nome da recompensa, a categoria e o valor, no mês de hoje (criado se ainda não existir), e os totais do mês são atualizados. Moedas e despesa entram juntas: sem moedas suficientes, nenhuma das duas acontece (e o mês de hoje não é criado).
+  - Pedir para lançar o gasto de uma recompensa sem gasto configurado é recusado.
+  - **Desfazer o resgate apaga a despesa** que ele lançou e atualiza o mês. Se o usuário já tinha apagado a despesa à mão, o resgate é desfeito normalmente.
+  - Apagar a despesa à mão **não desfaz o resgate**: as moedas continuam gastas.
+  - Mudar o valor ou a categoria da recompensa vale só para os próximos resgates.
+  - Apagar a categoria **remove o gasto da recompensa** (categoria e valor); a recompensa continua na loja, sem gasto.
 - **Ritmo de ganho:** a loja mostra quantos dias de hábitos cada recompensa custa, com base na média de moedas por dia ganhas com hábitos nos **últimos 14 dias**. Resgates, compras de itens, bônus de conquistas e nocautes não entram nessa média.
 
 ### Itens de jogo
@@ -559,7 +610,7 @@ A semana do ranking vai de **segunda a domingo**, a mesma da ofensiva semanal. O
 
 A API responde a falhas esperadas com `{ code, message, type }`. O frontend usa o `code` para mostrar a mensagem traduzida. Quando o envio é uma lista e um item dela falha (os titulares), a resposta também traz `index`: a posição do item, a partir de 0. **Os códigos fazem parte do contrato e não devem ser renomeados.**
 
-O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `NotFound` → 404, `Conflict` → 409. A exceção é `Auth.TooManyRequests`, que sai com 429.
+O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `NotFound` → 404, `Conflict` → 409, `TooManyRequests` → 429.
 
 ### Contas
 
@@ -576,7 +627,7 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 | `User.NotFound` | NotFound | Usuário não existe |
 | `Auth.InvalidRefreshToken` | Unauthorized | Sessão expirada, revogada ou inválida (é preciso entrar de novo) |
 | `Auth.InvalidEmailToken` | Validation | Link do e-mail (cadastro ou recuperação) vencido, já usado ou desconhecido |
-| `Auth.TooManyRequests` | Failure (429) | Muitos pedidos de cadastro/recuperação ou usos de link do mesmo IP em 10 minutos, ou tentativas de convite do mesmo jogador |
+| `Auth.TooManyRequests` | TooManyRequests (429) | Muitos pedidos de cadastro/recuperação, usos de link ou logins do mesmo IP em 10 minutos; e-mail bloqueado naquele IP por 5 senhas erradas em 15 minutos; muitas renovações da mesma sessão em 10 minutos; ou tentativas de convite do mesmo jogador |
 | `UserPreferences.InvalidTheme` | Validation | Tema desconhecido |
 | `UserPreferences.InvalidLanguage` | Validation | Idioma desconhecido |
 
@@ -680,6 +731,12 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 | `Habit.InvalidTargetStep` | Validation | Incremento fora de 1 até o valor da meta |
 | `Habit.InvalidTargetCombination` | Validation | Unidade ou incremento informados sem meta |
 | `Habit.TargetNotAllowed` | Validation | Meta diária num hábito para evitar |
+| `Habit.RelapseCostNotPositive` | Validation | Custo por recaída zero ou negativo |
+| `Habit.RelapseCostTooManyDecimals` | Validation | Custo por recaída com mais de 2 casas decimais |
+| `Habit.RelapseCostTooLarge` | Validation | Custo por recaída grande demais |
+| `Habit.RelapseCostNotAllowed` | Validation | Custo por recaída num hábito para construir |
+| `Habit.InvalidAutoTrigger` | Validation | Gatilho de check-in automático inválido |
+| `Habit.AutoTriggerNotAllowed` | Validation | Gatilho de check-in automático num hábito para evitar ou com meta diária |
 | `Habit.NotMeasurable` | Validation | Registro de progresso num hábito sem meta |
 | `Habit.InvalidProgressValue` | Validation | Registro de progresso fora de 1 a 100.000 |
 | `Habit.TooManyProgressEntries` | Validation | Mais de 50 registros de progresso no dia |
@@ -724,6 +781,8 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 | `Rewards.UndoOutsideWindow` | Validation | Desfazer um resgate que não é de hoje |
 | `Rewards.AlreadyUndone` | Conflict | O resgate já foi desfeito |
 | `Rewards.NotFound` / `RedemptionNotFound` | NotFound | Recompensa ou resgate não existe |
+| `Rewards.ExpenseIncomplete` | Validation | Gasto da recompensa com categoria sem valor, ou valor sem categoria |
+| `Rewards.ExpenseNotConfigured` | Validation | Pedido para lançar o gasto de uma recompensa que não tem gasto |
 | `GameItems.UnknownItem` | Validation | Item que não existe na loja |
 | `GameItems.InsufficientCoins` | Conflict | Moedas insuficientes para o item |
 | `GameItems.HpFull` | Conflict | Poção com o HP já no máximo |

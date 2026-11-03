@@ -38,7 +38,9 @@ namespace LifeManager.Application.Habits.Services
                 _timeProvider.GetUtcNow(),
                 habitDto.TargetValue,
                 habitDto.TargetUnit,
-                habitDto.TargetStep);
+                habitDto.TargetStep,
+                habitDto.RelapseCost,
+                habitDto.AutoTrigger);
             if (!habitResult.IsSuccess)
                 return habitResult.Error;
 
@@ -97,7 +99,9 @@ namespace LifeManager.Application.Habits.Services
                 habitDto.TimesPerWeek,
                 habitDto.TargetValue,
                 habitDto.TargetUnit,
-                habitDto.TargetStep);
+                habitDto.TargetStep,
+                habitDto.RelapseCost,
+                habitDto.AutoTrigger);
             if (!updateResult.IsSuccess)
                 return updateResult.Error;
 

@@ -30,6 +30,7 @@ namespace LifeManager.WebApi.Extensions
                 ErrorType.Conflict => new ConflictObjectResult(error),
                 ErrorType.Unauthorized => new UnauthorizedObjectResult(error),
                 ErrorType.NotFound => new NotFoundObjectResult(error),
+                ErrorType.TooManyRequests => new ObjectResult(error) { StatusCode = (int)HttpStatusCode.TooManyRequests },
                 _ => new ObjectResult(error) { StatusCode = (int)HttpStatusCode.InternalServerError }
             };
         }

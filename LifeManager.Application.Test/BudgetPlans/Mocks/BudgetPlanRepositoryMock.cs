@@ -73,11 +73,6 @@ namespace LifeManager.Application.Test.BudgetPlans.Mocks
 
         // Slices are immutable, so the copy can share them.
         private static BudgetPlan ToDetachedCopy(BudgetPlan plan)
-        {
-            var copy = BudgetPlan.Create(plan.UserId.Value, plan.Month, plan.Total.Value, plan.Slices).Value!;
-            copy.AssignId(plan.Id!.Value);
-
-            return copy;
-        }
+            => BudgetPlan.FromPersistence(plan.Id!.Value, plan.UserId.Value, plan.MonthStart, plan.Total.Value, plan.Slices, plan.CreatedAt, plan.UpdatedAt);
     }
 }

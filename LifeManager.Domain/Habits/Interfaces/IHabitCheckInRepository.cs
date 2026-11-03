@@ -37,6 +37,12 @@ namespace LifeManager.Domain.Habits.Interfaces
         Task<int> CountKeptAsync(HabitId habitId, CancellationToken cancellationToken);
 
         /// <summary>
+        /// The clean days from <paramref name="from"/> to <paramref name="to"/> (inclusive) of each of the user's habits
+        /// with a cost per relapse, archived ones included; habits without a clean day in it are left out.
+        /// </summary>
+        Task<IReadOnlyList<HabitCleanDays>> GetCleanDaysAsync(UserId userId, DateOnly from, DateOnly to, CancellationToken cancellationToken);
+
+        /// <summary>
         /// In one database transaction: locks the profile, checks the day is free, calls <paramref name="decide"/> and
         /// stores a <paramref name="status"/> day (<see cref="HabitCheckInStatus.Done"/> or
         /// <see cref="HabitCheckInStatus.Relapse"/>) with what it applied, the habit's streak, the ledger entries and the

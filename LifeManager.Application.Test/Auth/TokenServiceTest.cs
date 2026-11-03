@@ -52,6 +52,20 @@ namespace LifeManager.Application.Test.Auth
         }
 
         [Fact]
+        public async Task GenerateTokensAsync_ShouldSetIssuerAndAudienceInAccessToken_WhenUserIdIsValid()
+        {
+            var tokens = await _tokenService.GenerateTokensAsync(1, CancellationToken.None);
+
+            Assert.True(tokens.IsSuccess);
+            var jwt = new JwtSecurityTokenHandler().ReadJwtToken(tokens.Value.AccessToken);
+
+            Assert.Equal("LifeManager.Api", jwt.Issuer);
+            Assert.Equal(["LifeManager.Web"], jwt.Audiences);
+            Assert.Equal(TokenService.AccessTokenIssuer, jwt.Issuer);
+            Assert.Equal(TokenService.AccessTokenAudience, jwt.Audiences.Single());
+        }
+
+        [Fact]
         public async Task GenerateTokensAsync_ShouldSetAccessTokenExpiration_WhenUserIdIsValid()
         {
             const int userId = 1;

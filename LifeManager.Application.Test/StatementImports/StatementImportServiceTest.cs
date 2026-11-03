@@ -9,6 +9,8 @@ using LifeManager.Domain.Categories.Errors;
 using LifeManager.Domain.Categories.ValueObjects;
 using LifeManager.Domain.Categorization;
 using LifeManager.Domain.Categorization.Enums;
+using LifeManager.Domain.Habits;
+using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.MonthlySummaries;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.Paging;
@@ -60,6 +62,10 @@ namespace LifeManager.Application.Test.StatementImports
             CategorySingleton.Instance.Clear();
             UserSingleton.Instance.Clear();
             AccountHolderSingleton.Instance.Clear();
+            HabitSingleton.Instance.Clear();
+            HabitCheckInSingleton.Instance.Clear();
+            PlayerProfileSingleton.Instance.Clear();
+            GameLedgerEntrySingleton.Instance.Clear();
 
             SeedCategory(Restaurants, FirstUserId, "Restaurantes");
             SeedCategory(Market, FirstUserId, "Mercado");
@@ -369,6 +375,41 @@ namespace LifeManager.Application.Test.StatementImports
             Assert.Equal(99.9m, june2021.TotalExpense.Value);
 
             Assert.All(TransactionSingleton.Instance, transaction => Assert.Equal(created.Value.Id, transaction.StatementImportId!.Value));
+        }
+
+        private void SeedAutoHabit(HabitAutoTrigger trigger, DateOnly today)
+        {
+            ((FakeTimeProvider)ServiceProvider.GetRequiredService<TimeProvider>()).SetToday(today);
+            HabitSingleton.Instance.Add(Habit.FromPersistence(
+                HabitSingleton.Instance.Count + 1, FirstUserId.Value, "Finance routine", null, null, HabitKind.Positive, HabitDifficulty.Easy,
+                HabitFrequencyType.Daily, HabitWeekDays.None, null, today.AddDays(-10), DateTimeOffset.UnixEpoch,
+                null, currentStreak: 0, longestStreak: 0, evaluatedUntil: today.AddDays(-2), autoTrigger: trigger));
+        }
+
+        [Fact]
+        public async Task CommitAsync_ShouldCheckInTheImportHabits_ButNotTheTransactionOnes()
+        {
+            SeedAutoHabit(HabitAutoTrigger.StatementImportCommitted, Today);
+            SeedAutoHabit(HabitAutoTrigger.TransactionCreated, Today);
+            var created = await CreateAsync(Line(2024, 3, 5, -40m, "IFOOD *RESTAURANTE"));
+            await FileRowAsync("ifood restaurante", Restaurants);
+
+            var result = await _service.CommitAsync(created.Value!.Id, FirstUserId, CancellationToken.None);
+
+            var autoCheckIn = Assert.Single(result.Value.AutoCheckIns);
+            Assert.Equal(1, autoCheckIn.HabitId);
+            Assert.Equal(Today, Assert.Single(HabitCheckInSingleton.Instance).Date);
+        }
+
+        [Fact]
+        public async Task CommitAsync_ShouldReturnNoAutoCheckIns_WithoutImportHabits()
+        {
+            var created = await CreateAsync(Line(2024, 3, 5, -40m, "IFOOD *RESTAURANTE"));
+            await FileRowAsync("ifood restaurante", Restaurants);
+
+            var result = await _service.CommitAsync(created.Value!.Id, FirstUserId, CancellationToken.None);
+
+            Assert.Empty(result.Value.AutoCheckIns);
         }
 
         [Fact]

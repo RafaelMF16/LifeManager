@@ -46,6 +46,18 @@ namespace LifeManager.Domain.Habits
         /// <summary>Null for a habit checked in with one tap; set for one completed by logging progress up to it.</summary>
         public HabitTarget? Target => HabitTarget.FromPersistence(TargetValue, TargetUnit, TargetStep);
 
+        /// <summary>
+        /// What one relapse costs in money (<see cref="HabitRelapseCost"/>), only on a habit to avoid; null without one.
+        /// Each clean day is that much saved.
+        /// </summary>
+        public decimal? RelapseCost { get; private set; }
+
+        /// <summary>
+        /// The finance action that checks this habit in today by itself; <see cref="HabitAutoTrigger.None"/> for most.
+        /// Only a habit to build without a daily target takes one, and it can still be checked in by hand.
+        /// </summary>
+        public HabitAutoTrigger AutoTrigger { get; private set; }
+
         /// <summary>First day the habit counts on.</summary>
         public DateOnly StartDate { get; }
 
@@ -79,7 +91,9 @@ namespace LifeManager.Domain.Habits
             DateOnly evaluatedUntil,
             int? targetValue,
             string? targetUnit,
-            int? targetStep)
+            int? targetStep,
+            decimal? relapseCost,
+            HabitAutoTrigger autoTrigger)
         {
             UserId = userId;
             Name = name;
@@ -100,10 +114,14 @@ namespace LifeManager.Domain.Habits
             TargetValue = targetValue;
             TargetUnit = targetUnit;
             TargetStep = targetStep;
+            RelapseCost = relapseCost;
+            AutoTrigger = autoTrigger;
         }
 
         /// <param name="today">The user's current date: the habit starts counting on it.</param>
         /// <param name="targetValue">The daily target; null (with no unit or step) for a habit checked in with one tap.</param>
+        /// <param name="relapseCost">What one relapse costs; only a habit to avoid takes one.</param>
+        /// <param name="autoTrigger">The finance action that checks it in by itself; only a one-tap habit to build takes one.</param>
         public static Result<Habit> Create(
             int idUser,
             string? name,
@@ -118,12 +136,14 @@ namespace LifeManager.Domain.Habits
             DateTimeOffset now,
             int? targetValue = null,
             string? targetUnit = null,
-            int? targetStep = null)
+            int? targetStep = null,
+            decimal? relapseCost = null,
+            HabitAutoTrigger autoTrigger = HabitAutoTrigger.None)
         {
             if (!Enum.IsDefined(kind))
                 return HabitErrors.InvalidKind;
 
-            var valuesResult = Validate(kind, name, description, trigger, difficulty, frequencyType, weekDays, timesPerWeek, targetValue, targetUnit, targetStep);
+            var valuesResult = Validate(kind, name, description, trigger, difficulty, frequencyType, weekDays, timesPerWeek, targetValue, targetUnit, targetStep, relapseCost, autoTrigger);
             if (!valuesResult.IsSuccess)
                 return valuesResult.Error;
 
@@ -147,7 +167,9 @@ namespace LifeManager.Domain.Habits
                 evaluatedUntil: today.AddDays(-1),
                 values.Target?.Value,
                 values.Target?.Unit,
-                values.Target?.Step);
+                values.Target?.Step,
+                values.RelapseCost?.Value,
+                autoTrigger);
         }
 
         /// <summary>
@@ -165,12 +187,14 @@ namespace LifeManager.Domain.Habits
             int? timesPerWeek,
             int? targetValue = null,
             string? targetUnit = null,
-            int? targetStep = null)
+            int? targetStep = null,
+            decimal? relapseCost = null,
+            HabitAutoTrigger autoTrigger = HabitAutoTrigger.None)
         {
             if (IsArchived)
                 return HabitErrors.Archived;
 
-            var valuesResult = Validate(Kind, name, description, trigger, difficulty, frequencyType, weekDays, timesPerWeek, targetValue, targetUnit, targetStep);
+            var valuesResult = Validate(Kind, name, description, trigger, difficulty, frequencyType, weekDays, timesPerWeek, targetValue, targetUnit, targetStep, relapseCost, autoTrigger);
             if (!valuesResult.IsSuccess)
                 return valuesResult.Error;
 
@@ -187,6 +211,8 @@ namespace LifeManager.Domain.Habits
             TargetValue = values.Target?.Value;
             TargetUnit = values.Target?.Unit;
             TargetStep = values.Target?.Step;
+            RelapseCost = values.RelapseCost?.Value;
+            AutoTrigger = autoTrigger;
 
             return this;
         }
@@ -309,7 +335,9 @@ namespace LifeManager.Domain.Habits
             DateOnly evaluatedUntil,
             int? targetValue = null,
             string? targetUnit = null,
-            int? targetStep = null)
+            int? targetStep = null,
+            decimal? relapseCost = null,
+            HabitAutoTrigger autoTrigger = HabitAutoTrigger.None)
         {
             var habit = new Habit(
                 new UserId(idUser),
@@ -329,7 +357,9 @@ namespace LifeManager.Domain.Habits
                 evaluatedUntil,
                 targetValue,
                 targetUnit,
-                targetStep);
+                targetStep,
+                relapseCost,
+                autoTrigger);
             habit.AssignId(id);
 
             return habit;
@@ -351,7 +381,9 @@ namespace LifeManager.Domain.Habits
             int? timesPerWeek,
             int? targetValue,
             string? targetUnit,
-            int? targetStep)
+            int? targetStep,
+            decimal? relapseCost,
+            HabitAutoTrigger autoTrigger)
         {
             var nameResult = HabitName.Create(name);
             if (!nameResult.IsSuccess)
@@ -379,7 +411,20 @@ namespace LifeManager.Domain.Habits
             if (targetResult.Value is not null && kind != HabitKind.Positive)
                 return HabitErrors.TargetNotAllowed;
 
-            return new ValidatedValues(nameResult.Value, descriptionResult.Value, triggerResult.Value, frequencyResult.Value, targetResult.Value);
+            var relapseCostResult = HabitRelapseCost.Create(relapseCost);
+            if (!relapseCostResult.IsSuccess)
+                return relapseCostResult.Error;
+
+            if (relapseCostResult.Value is not null && kind != HabitKind.Negative)
+                return HabitErrors.RelapseCostNotAllowed;
+
+            if (!Enum.IsDefined(autoTrigger))
+                return HabitErrors.InvalidAutoTrigger;
+
+            if (autoTrigger != HabitAutoTrigger.None && (kind != HabitKind.Positive || targetResult.Value is not null))
+                return HabitErrors.AutoTriggerNotAllowed;
+
+            return new ValidatedValues(nameResult.Value, descriptionResult.Value, triggerResult.Value, frequencyResult.Value, targetResult.Value, relapseCostResult.Value);
         }
 
         private record ValidatedValues(
@@ -387,7 +432,8 @@ namespace LifeManager.Domain.Habits
             HabitDescription? Description,
             HabitTrigger? Trigger,
             HabitFrequency Frequency,
-            HabitTarget? Target);
+            HabitTarget? Target,
+            HabitRelapseCost? RelapseCost);
 
         public override bool Equals(object? obj)
         {

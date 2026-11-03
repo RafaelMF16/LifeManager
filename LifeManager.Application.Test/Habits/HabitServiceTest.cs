@@ -239,6 +239,79 @@ namespace LifeManager.Application.Test.Habits
         }
 
         [Fact]
+        public async Task CreateAsync_ShouldKeepTheRelapseCost_WhenHabitIsToAvoid()
+        {
+            var dto = new HabitDto("Delivery", null, null, HabitKind.Negative, HabitDifficulty.Medium, HabitFrequencyType.Daily, null, null,
+                RelapseCost: 45m);
+
+            var result = await _habitService.CreateAsync(dto, FirstUserId, CancellationToken.None);
+
+            Assert.Equal(45m, result.Value.RelapseCost);
+            Assert.Equal(45m, Assert.Single(HabitSingleton.Instance).RelapseCost);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldReturnValidationError_WhenHabitToBuildHasRelapseCost()
+        {
+            var dto = new HabitDto("Read", null, null, HabitKind.Positive, HabitDifficulty.Medium, HabitFrequencyType.Daily, null, null,
+                RelapseCost: 10m);
+
+            var result = await _habitService.CreateAsync(dto, FirstUserId, CancellationToken.None);
+
+            Assert.Equal(HabitErrors.RelapseCostNotAllowed, result.Error);
+            Assert.Empty(HabitSingleton.Instance);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldKeepTheAutoTrigger()
+        {
+            var dto = new HabitDto("Log my spending", null, null, HabitKind.Positive, HabitDifficulty.Easy, HabitFrequencyType.Daily, null, null,
+                AutoTrigger: HabitAutoTrigger.TransactionCreated);
+
+            var result = await _habitService.CreateAsync(dto, FirstUserId, CancellationToken.None);
+
+            Assert.Equal(HabitAutoTrigger.TransactionCreated, result.Value.AutoTrigger);
+            Assert.Equal(HabitAutoTrigger.TransactionCreated, Assert.Single(HabitSingleton.Instance).AutoTrigger);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldReturnAutoTriggerNotAllowed_WhenHabitHasATarget()
+        {
+            var dto = new HabitDto("Read", null, null, HabitKind.Positive, HabitDifficulty.Easy, HabitFrequencyType.Daily, null, null,
+                TargetValue: 20, TargetUnit: "pages", AutoTrigger: HabitAutoTrigger.TransactionCreated);
+
+            var result = await _habitService.CreateAsync(dto, FirstUserId, CancellationToken.None);
+
+            Assert.Equal(HabitErrors.AutoTriggerNotAllowed, result.Error);
+            Assert.Empty(HabitSingleton.Instance);
+        }
+
+        [Fact]
+        public async Task UpdateAsync_ShouldChangeTheAutoTrigger()
+        {
+            var created = (await _habitService.CreateAsync(Daily("Review budget"), FirstUserId, CancellationToken.None)).Value;
+
+            var changed = await _habitService.UpdateAsync(
+                created.Id, UpdateDaily("Review budget") with { AutoTrigger = HabitAutoTrigger.BudgetPlanSaved }, FirstUserId, CancellationToken.None);
+
+            Assert.Equal(HabitAutoTrigger.BudgetPlanSaved, changed.Value.AutoTrigger);
+            Assert.Equal(HabitAutoTrigger.BudgetPlanSaved, Assert.Single(HabitSingleton.Instance).AutoTrigger);
+        }
+
+        [Fact]
+        public async Task UpdateAsync_ShouldChangeAndRemoveTheRelapseCost()
+        {
+            var created = (await _habitService.CreateAsync(Daily("Delivery", HabitKind.Negative), FirstUserId, CancellationToken.None)).Value;
+
+            var changed = await _habitService.UpdateAsync(created.Id, UpdateDaily("Delivery") with { RelapseCost = 30m }, FirstUserId, CancellationToken.None);
+            Assert.Equal(30m, changed.Value.RelapseCost);
+            Assert.Equal(30m, Assert.Single(HabitSingleton.Instance).RelapseCost);
+
+            var removed = await _habitService.UpdateAsync(created.Id, UpdateDaily("Delivery"), FirstUserId, CancellationToken.None);
+            Assert.Null(removed.Value.RelapseCost);
+        }
+
+        [Fact]
         public async Task UpdateAsync_ShouldAddAndRemoveTheDailyTarget()
         {
             var created = await CreateHabit("Read");

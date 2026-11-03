@@ -46,6 +46,12 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
             builder.Property(habit => habit.TargetUnit).HasMaxLength(HabitTarget.UnitMaxLength);
             builder.Property(habit => habit.TargetStep);
 
+            // What one relapse of a habit to avoid costs; null without one. Same numeric(14, 2) as a transaction's amount.
+            builder.Property(habit => habit.RelapseCost).HasPrecision(14, 2);
+
+            // HabitAutoTrigger as a number; the migration fills 0 (None) for the habits that existed before it.
+            builder.Property(habit => habit.AutoTrigger).IsRequired();
+
             builder.Property(habit => habit.StartDate).IsRequired();
             builder.Property(habit => habit.CreatedAt).IsRequired();
             builder.Property(habit => habit.ArchivedAt);
@@ -63,6 +69,10 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
                 .HasFilter("\"ArchivedAt\" IS NULL");
 
             builder.HasIndex(habit => new { habit.UserId, habit.ArchivedAt });
+
+            // Serves a finance event's lookup of the user's automatic habits.
+            builder.HasIndex(habit => new { habit.UserId, habit.AutoTrigger })
+                .HasFilter("\"AutoTrigger\" <> 0 AND \"ArchivedAt\" IS NULL");
 
             // Serves the day close's "what is behind" query: only active habits are judged.
             builder.HasIndex(habit => habit.EvaluatedUntil)

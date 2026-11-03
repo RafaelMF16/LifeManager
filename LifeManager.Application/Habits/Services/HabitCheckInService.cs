@@ -286,7 +286,8 @@ namespace LifeManager.Application.Habits.Services
                 coinsPreview,
                 HabitTargetDto.From(habit.Target),
                 entries.Sum(entry => entry.Value),
-                [.. entries.Select(HabitProgressEntryDto.From)]);
+                [.. entries.Select(HabitProgressEntryDto.From)],
+                habit.AutoTrigger);
         }
     }
 }

@@ -40,7 +40,9 @@ namespace LifeManager.Application.Habits.Services
                 today,
                 [.. HabitStats.Days(habit, checkIns, today, amounts).Select(day => new HabitDayDto(day.Date, day.State, day.Amount))],
                 HabitConsistencyDto.From(HabitStats.Consistency(habit, checkIns, today)),
-                totalKept);
+                totalKept,
+                // A habit to avoid is only ever kept by a clean day, so its days kept are its clean days.
+                HabitSavings.Saved(habit.RelapseCost, totalKept));
         }
     }
 }

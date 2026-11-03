@@ -1,10 +1,13 @@
 using LifeManager.Application.Test.Configurations;
 using LifeManager.Application.Test.Configurations.SingletonLists;
+using LifeManager.Application.Test.Habits.Mocks;
 using LifeManager.Application.Test.Transactions.Mocks;
 using LifeManager.Application.Transactions.DTOs;
 using LifeManager.Application.Transactions.Services;
 using LifeManager.Domain.Categories;
 using LifeManager.Domain.Categories.Errors;
+using LifeManager.Domain.Habits;
+using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.MonthlySummaries;
 using LifeManager.Domain.MonthlySummaries.Errors;
 using LifeManager.Domain.Shared.Enums;
@@ -44,6 +47,11 @@ namespace LifeManager.Application.Test.Transactions
             TransactionSingleton.Instance.Clear();
             MonthlySummarySingleton.Instance.Clear();
             CategorySingleton.Instance.Clear();
+            HabitSingleton.Instance.Clear();
+            HabitCheckInSingleton.Instance.Clear();
+            PlayerProfileSingleton.Instance.Clear();
+            GameLedgerEntrySingleton.Instance.Clear();
+            HabitCheckInRepositoryMock.FailNextRecord = null;
 
             MonthlySummarySingleton.Instance.AddRange(
                 MonthlySummary.FromPersistence(MonthId, FirstUserId.Value, 3, CurrentYear, 0, 0, 0),
@@ -64,8 +72,68 @@ namespace LifeManager.Application.Test.Transactions
             Assert.True(result.IsSuccess);
             Assert.Equal(
                 new TransactionResponseDto(1, MoneyFlowType.Expense, MarketCategoryId, "Mercado", 120.50m, "Supermercado", Day(7)),
-                result.Value);
+                result.Value with { AutoCheckIns = null });
+            Assert.Empty(result.Value.AutoCheckIns!);
             AssertMonthTotals(1000m, 120.50m);
+        }
+
+        private static readonly DateOnly HabitToday = new(CurrentYear, 3, 18);
+
+        private void SeedAutoHabit(HabitAutoTrigger trigger = HabitAutoTrigger.TransactionCreated)
+        {
+            ((FakeTimeProvider)ServiceProvider.GetRequiredService<TimeProvider>()).SetToday(HabitToday);
+            HabitSingleton.Instance.Add(Habit.FromPersistence(
+                HabitSingleton.Instance.Count + 1, FirstUserId.Value, "Log my spending", null, null, HabitKind.Positive, HabitDifficulty.Easy,
+                HabitFrequencyType.Daily, HabitWeekDays.None, null, HabitToday.AddDays(-10), DateTimeOffset.UnixEpoch,
+                null, currentStreak: 0, longestStreak: 0, evaluatedUntil: HabitToday.AddDays(-2), autoTrigger: trigger));
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldCheckInTheHabitsOfTheTrigger_Today()
+        {
+            SeedAutoHabit();
+
+            // The transaction's own date doesn't matter: the habit is checked in on today.
+            var result = await Create(Expense("Supermercado", 50m, 2));
+
+            var autoCheckIn = Assert.Single(result.AutoCheckIns!);
+            Assert.Equal("Log my spending", autoCheckIn.Name);
+            Assert.Equal(HabitToday, Assert.Single(HabitCheckInSingleton.Instance).Date);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldReturnNoAutoCheckIns_ForTheSecondTransactionOfTheDay()
+        {
+            SeedAutoHabit();
+            await Create(Expense("Supermercado", 50m, 2));
+
+            var second = await Create(Expense("Farmácia", 20m, 3));
+
+            Assert.Empty(second.AutoCheckIns!);
+            Assert.Single(HabitCheckInSingleton.Instance);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldNotCheckInHabitsOfOtherTriggers()
+        {
+            SeedAutoHabit(HabitAutoTrigger.BudgetPlanSaved);
+
+            var result = await Create(Expense("Supermercado", 50m, 2));
+
+            Assert.Empty(result.AutoCheckIns!);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldStillCreateTheTransaction_WhenTheAutoCheckInFails()
+        {
+            SeedAutoHabit();
+            HabitCheckInRepositoryMock.FailNextRecord = (_, _) => true;
+
+            var result = await _transactionService.CreateAsync(MonthId, Expense("Supermercado", 50m, 2), FirstUserId, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.Empty(result.Value.AutoCheckIns!);
+            Assert.Single(TransactionSingleton.Instance);
         }
 
         [Fact]
@@ -219,7 +287,7 @@ namespace LifeManager.Application.Test.Transactions
             var result = await _transactionService.GetByIdAsync(MonthId, created.Id, FirstUserId, CancellationToken.None);
 
             Assert.True(result.IsSuccess);
-            Assert.Equal(created, result.Value);
+            Assert.Equal(created with { AutoCheckIns = null }, result.Value);
         }
 
         [Fact]

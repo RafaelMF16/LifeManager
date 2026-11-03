@@ -1,6 +1,8 @@
+using LifeManager.Domain.Categories.ValueObjects;
 using LifeManager.Domain.Rewards.Errors;
 using LifeManager.Domain.Rewards.ValueObjects;
 using LifeManager.Domain.Shared.Results;
+using LifeManager.Domain.Transactions.ValueObjects;
 using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Domain.Rewards
@@ -32,12 +34,32 @@ namespace LifeManager.Domain.Rewards
         /// <summary>The id of an icon the frontend knows; it falls back to its default icon for any other value.</summary>
         public string? Icon { get; private set; }
 
+        /// <summary>
+        /// The category of the real expense the reward stands for ("Leisure"); set together with
+        /// <see cref="ExpenseAmount"/>. Null again when the category is deleted, which leaves the reward without an expense.
+        /// </summary>
+        public CategoryId? ExpenseCategoryId { get; private set; }
+
+        /// <summary>What the reward costs in money (<see cref="TransactionAmount"/> rules); null without an expense.</summary>
+        public decimal? ExpenseAmount { get; private set; }
+
         public DateTimeOffset CreatedAt { get; }
         public DateTimeOffset? ArchivedAt { get; private set; }
 
         public bool IsArchived => ArchivedAt is not null;
 
-        private Reward(UserId userId, RewardName name, int cost, string? icon, DateTimeOffset createdAt, DateTimeOffset? archivedAt)
+        /// <summary>Whether redeeming it can register an expense: both the category and the amount are set.</summary>
+        public bool HasExpense => ExpenseCategoryId is not null && ExpenseAmount is not null;
+
+        private Reward(
+            UserId userId,
+            RewardName name,
+            int cost,
+            string? icon,
+            DateTimeOffset createdAt,
+            DateTimeOffset? archivedAt,
+            CategoryId? expenseCategoryId,
+            decimal? expenseAmount)
         {
             UserId = userId;
             Name = name;
@@ -46,44 +68,74 @@ namespace LifeManager.Domain.Rewards
             Icon = icon;
             CreatedAt = createdAt;
             ArchivedAt = archivedAt;
+            ExpenseCategoryId = expenseCategoryId;
+            ExpenseAmount = expenseAmount;
         }
 
-        public static Result<Reward> Create(int idUser, string? name, int cost, string? icon, DateTimeOffset now)
+        /// <param name="expenseCategoryId">The expense's category, checked by the caller to be the user's; with <paramref name="expenseAmount"/> or neither.</param>
+        public static Result<Reward> Create(
+            int idUser,
+            string? name,
+            int cost,
+            string? icon,
+            DateTimeOffset now,
+            int? expenseCategoryId = null,
+            decimal? expenseAmount = null)
         {
-            var valuesResult = Validate(name, cost, icon);
+            var valuesResult = Validate(name, cost, icon, expenseCategoryId, expenseAmount);
             if (!valuesResult.IsSuccess)
                 return valuesResult.Error;
 
-            var (rewardName, normalizedIcon) = valuesResult.Value;
+            var values = valuesResult.Value;
 
-            return new Reward(new UserId(idUser), rewardName, cost, normalizedIcon, now, archivedAt: null);
+            return new Reward(new UserId(idUser), values.Name, cost, values.Icon, now, archivedAt: null, values.ExpenseCategoryId, values.ExpenseAmount);
         }
 
         /// <summary>Rehydrates a stored reward, so tests can seed any state.</summary>
-        internal static Reward FromPersistence(int id, int idUser, string name, int cost, string? icon, DateTimeOffset createdAt, DateTimeOffset? archivedAt)
+        internal static Reward FromPersistence(
+            int id,
+            int idUser,
+            string name,
+            int cost,
+            string? icon,
+            DateTimeOffset createdAt,
+            DateTimeOffset? archivedAt,
+            int? expenseCategoryId = null,
+            decimal? expenseAmount = null)
         {
-            var reward = new Reward(new UserId(idUser), RewardName.FromPersistence(name), cost, icon, createdAt, archivedAt);
+            var reward = new Reward(
+                new UserId(idUser),
+                RewardName.FromPersistence(name),
+                cost,
+                icon,
+                createdAt,
+                archivedAt,
+                expenseCategoryId is null ? null : new CategoryId(expenseCategoryId.Value),
+                // Deleting the category nulls only its column: the amount goes with it, so the expense is all or nothing.
+                expenseCategoryId is null ? null : expenseAmount);
             reward.AssignId(id);
 
             return reward;
         }
 
         /// <summary>A new cost only applies to later redemptions: each one keeps the price it was paid.</summary>
-        public Result<Reward> Update(string? name, int cost, string? icon)
+        public Result<Reward> Update(string? name, int cost, string? icon, int? expenseCategoryId = null, decimal? expenseAmount = null)
         {
             if (IsArchived)
                 return RewardErrors.Archived;
 
-            var valuesResult = Validate(name, cost, icon);
+            var valuesResult = Validate(name, cost, icon, expenseCategoryId, expenseAmount);
             if (!valuesResult.IsSuccess)
                 return valuesResult.Error;
 
-            var (rewardName, normalizedIcon) = valuesResult.Value;
+            var values = valuesResult.Value;
 
-            Name = rewardName;
-            NormalizedName = rewardName.NormalizedValue;
+            Name = values.Name;
+            NormalizedName = values.Name.NormalizedValue;
             Cost = cost;
-            Icon = normalizedIcon;
+            Icon = values.Icon;
+            ExpenseCategoryId = values.ExpenseCategoryId;
+            ExpenseAmount = values.ExpenseAmount;
 
             return this;
         }
@@ -131,8 +183,10 @@ namespace LifeManager.Domain.Rewards
         public override int GetHashCode()
             => Id?.GetHashCode() ?? base.GetHashCode();
 
-        /// <summary>The name, and the icon trimmed (blank as null).</summary>
-        private static Result<(RewardName Name, string? Icon)> Validate(string? name, int cost, string? icon)
+        private record ValidatedValues(RewardName Name, string? Icon, CategoryId? ExpenseCategoryId, decimal? ExpenseAmount);
+
+        /// <summary>The name, the icon trimmed (blank as null) and the expense, both or neither.</summary>
+        private static Result<ValidatedValues> Validate(string? name, int cost, string? icon, int? expenseCategoryId, decimal? expenseAmount)
         {
             var nameResult = RewardName.Create(name);
             if (!nameResult.IsSuccess)
@@ -145,7 +199,22 @@ namespace LifeManager.Domain.Rewards
             if (normalizedIcon is not null && normalizedIcon.Length > IconMaxLength)
                 return RewardErrors.IconTooLong;
 
-            return (nameResult.Value, normalizedIcon);
+            if ((expenseCategoryId is null) != (expenseAmount is null))
+                return RewardErrors.ExpenseIncomplete;
+
+            if (expenseAmount is not null)
+            {
+                var amountResult = TransactionAmount.Create(expenseAmount.Value);
+                if (!amountResult.IsSuccess)
+                    return amountResult.Error;
+            }
+
+            return new ValidatedValues(
+                nameResult.Value,
+                normalizedIcon,
+                expenseCategoryId is null ? null : new CategoryId(expenseCategoryId.Value),
+                // Deleting the category nulls only its column: the amount goes with it, so the expense is all or nothing.
+                expenseCategoryId is null ? null : expenseAmount);
         }
     }
 }

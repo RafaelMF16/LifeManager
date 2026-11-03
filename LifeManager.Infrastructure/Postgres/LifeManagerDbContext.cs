@@ -25,6 +25,7 @@ namespace LifeManager.Infrastructure.Postgres
         public DbSet<User> Users { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<EmailCooldown> EmailCooldowns { get; set; }
+        public DbSet<LoginAttempt> LoginAttempts { get; set; }
         public DbSet<PendingRegistration> PendingRegistrations { get; set; }
         public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
         public DbSet<UserPreferences> UserPreferences { get; set; }

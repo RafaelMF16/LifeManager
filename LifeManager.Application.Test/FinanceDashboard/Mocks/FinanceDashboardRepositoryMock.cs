@@ -10,8 +10,11 @@ namespace LifeManager.Application.Test.FinanceDashboard.Mocks
     {
         // Mirrors FinanceDashboardRepository: the user's transactions (through their month) in the inclusive date
         // range, summed per category, type and month, with the same sign rule and category-name lookup.
+        public static int CategoryMonthTotalsCalls { get; set; }
+
         public Task<IReadOnlyList<DashboardCategoryMonthTotal>> GetCategoryMonthTotalsAsync(UserId userId, DateOnly from, DateOnly to, CancellationToken cancellationToken)
         {
+            CategoryMonthTotalsCalls++;
             var namesById = CategorySingleton.Instance
                 .Where(category => category.UserId == userId)
                 .ToDictionary(category => category.Id!.Value, category => category.Name.Value);
