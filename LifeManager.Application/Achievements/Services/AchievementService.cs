@@ -38,13 +38,16 @@ namespace LifeManager.Application.Achievements.Services
         /// <summary>
         /// Unlocks what's new, paying the bonuses. Reads without the lock first, so a read with nothing new costs no
         /// lock; the unlock reads the game's numbers again under it. The Finance counts are read once, outside the lock:
-        /// money never changes the game, so the lock has nothing to protect there.
+        /// money never changes the game, so the lock has nothing to protect there. Once the whole Finance family is
+        /// unlocked they aren't read at all (the profile reads this on every load), and stay zero in the progress.
         /// </summary>
         public async Task<AchievementSyncResult> SyncAsync(UserId userId, CancellationToken cancellationToken)
         {
-            var finance = await GetFinanceCountsAsync(userId, cancellationToken);
-            var progress = (await _achievementRepository.GetProgressAsync(userId, cancellationToken)).WithFinance(finance);
             var unlocks = await _achievementRepository.GetUnlocksAsync(userId, cancellationToken);
+            var finance = HasEveryFinanceAchievement(unlocks)
+                ? new FinanceMonthCounts(0, 0, 0)
+                : await GetFinanceCountsAsync(userId, cancellationToken);
+            var progress = (await _achievementRepository.GetProgressAsync(userId, cancellationToken)).WithFinance(finance);
             if (AchievementCatalog.NewlyUnlocked(progress, Codes(unlocks)).Count == 0)
                 return new AchievementSyncResult(progress, unlocks, []);
 
@@ -140,6 +143,12 @@ namespace LifeManager.Application.Achievements.Services
             => codes.Count == 0
                 ? Task.CompletedTask
                 : _achievementRepository.MarkSeenAsync(userId, codes, _timeProvider.GetUtcNow(), cancellationToken);
+
+        private static bool HasEveryFinanceAchievement(IEnumerable<AchievementUnlock> unlocks)
+            => FinanceCodes.IsSubsetOf(unlocks.Select(unlock => unlock.Code));
+
+        private static readonly HashSet<AchievementCode> FinanceCodes =
+            [.. AchievementCatalog.All.Where(code => AchievementCatalog.Family(code) == AchievementFamily.Finance)];
 
         private static IReadOnlyCollection<AchievementCode> Codes(IEnumerable<AchievementUnlock> unlocks)
             => [.. unlocks.Select(unlock => unlock.Code)];

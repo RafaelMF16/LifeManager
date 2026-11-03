@@ -5,6 +5,7 @@ using LifeManager.Application.Rewards.Services;
 using LifeManager.Application.Test.Achievements.Mocks;
 using LifeManager.Application.Test.Configurations;
 using LifeManager.Application.Test.Configurations.SingletonLists;
+using LifeManager.Application.Test.FinanceDashboard.Mocks;
 using LifeManager.Domain.Achievements;
 using LifeManager.Domain.Achievements.Enums;
 using LifeManager.Domain.BudgetPlans;
@@ -51,6 +52,7 @@ namespace LifeManager.Application.Test.Achievements
             CategorySingleton.Instance.Clear();
             AchievementRepositoryMock.UnlockCalls = 0;
             AchievementRepositoryMock.BeforeLockedRead = null;
+            FinanceDashboardRepositoryMock.CategoryMonthTotalsCalls = 0;
         }
 
         private static void SeedProfile(int totalXp = 0, int coins = 0, UserId? userId = null)
@@ -603,6 +605,33 @@ namespace LifeManager.Application.Test.Achievements
 
             Assert.Empty(result.NewlyUnlocked);
             Assert.Equal(0, result.Progress.BudgetMonths);
+        }
+
+        [Fact]
+        public async Task SyncAsync_ShouldNotReadTheMoney_WhenEveryFinanceAchievementIsUnlocked()
+        {
+            SeedProfile();
+            SeedFinanceMonth(9, income: 6000, expense: 3500, investment: 1000);
+            foreach (var code in AchievementCatalog.All.Where(code => AchievementCatalog.Family(code) == AchievementFamily.Finance))
+                AchievementUnlockSingleton.Instance.Add(AchievementUnlock.FromPersistence(
+                    AchievementUnlockSingleton.Instance.Count + 1, UserId.Value, code, Today, DateTimeOffset.UnixEpoch, null));
+
+            var result = await _service.SyncAsync(UserId, CancellationToken.None);
+
+            Assert.Empty(result.NewlyUnlocked);
+            Assert.Equal(0, FinanceDashboardRepositoryMock.CategoryMonthTotalsCalls);
+        }
+
+        [Fact]
+        public async Task SyncAsync_ShouldReadTheMoney_WhileAFinanceAchievementIsLocked()
+        {
+            SeedProfile();
+
+            await _service.SyncAsync(UserId, CancellationToken.None);
+            SeedFinanceMonth(9, income: 6000, expense: 3500, investment: 1000);
+            await _service.SyncAsync(UserId, CancellationToken.None);
+
+            Assert.Equal(1, FinanceDashboardRepositoryMock.CategoryMonthTotalsCalls);
         }
 
         [Fact]
