@@ -56,6 +56,7 @@ namespace LifeManager.WebApi.Auth.Controllers
             => (await _passwordResetService.ResetAsync(resetPasswordDto, cancellationToken)).Match(NoContent);
 
         [HttpPost("Login")]
+        [EnableRateLimiting(AuthRateLimits.Login)]
         public async Task<IActionResult> Login([FromBody] LoginDto loginDto, CancellationToken cancellationToken)
             => (await _userService.AuthenticateUserAsync(loginDto, AuthRateLimits.ClientIp(HttpContext), cancellationToken)).Match(tokens =>
             {
@@ -65,6 +66,7 @@ namespace LifeManager.WebApi.Auth.Controllers
             });
 
         [HttpPost("Refresh")]
+        [EnableRateLimiting(AuthRateLimits.Refresh)]
         public async Task<IActionResult> Refresh(CancellationToken cancellationToken)
         {
             var result = await _tokenService.RefreshTokensAsync(RefreshTokenCookie.Read(Request), cancellationToken);

@@ -105,12 +105,17 @@ namespace LifeManager.WebApi.DI
         /// <summary>
         /// Cloud Run (and Firebase Hosting in front of it) terminates TLS and forwards plain HTTP, so the scheme comes from
         /// <c>X-Forwarded-Proto</c>. The proxies' addresses aren't known in advance, hence no KnownNetworks/KnownProxies.
+        /// <c>ForwardLimit = 1</c> (the default, written down on purpose) takes only the rightmost <c>X-Forwarded-For</c>
+        /// entry, the one Google's front end appends and the caller can't forge. A higher limit would read entries the
+        /// caller writes: the <c>*.run.app</c> URL is public, so a direct call could fake its IP and dodge every limit.
+        /// The rate limit's warning logs the rest of the chain, to see in production whether that entry is the client's.
         /// </summary>
         private static void ConfigureForwardedHeaders(WebApplicationBuilder builder)
         {
             builder.Services.Configure<ForwardedHeadersOptions>(options =>
             {
                 options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+                options.ForwardLimit = 1;
                 options.KnownIPNetworks.Clear();
                 options.KnownProxies.Clear();
             });
