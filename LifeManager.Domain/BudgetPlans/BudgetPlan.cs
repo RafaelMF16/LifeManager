@@ -26,6 +26,12 @@ namespace LifeManager.Domain.BudgetPlans
 
         public IReadOnlyList<BudgetSlice> Slices => _slices;
 
+        /// <summary>When the month's plan was first saved; saving it again keeps it.</summary>
+        public DateTimeOffset CreatedAt { get; private set; }
+
+        /// <summary>When the month's plan was last saved.</summary>
+        public DateTimeOffset UpdatedAt { get; private set; }
+
         public YearMonth Month => YearMonth.From(MonthStart);
 
         /// <summary>What the slices leave, in percent.</summary>
@@ -48,15 +54,18 @@ namespace LifeManager.Domain.BudgetPlans
             _slices = [];
         }
 
-        private BudgetPlan(UserId userId, DateOnly monthStart, BudgetTotal total, List<BudgetSlice> slices)
+        private BudgetPlan(UserId userId, DateOnly monthStart, BudgetTotal total, List<BudgetSlice> slices, DateTimeOffset createdAt, DateTimeOffset updatedAt)
         {
             UserId = userId;
             MonthStart = monthStart;
             Total = total;
             _slices = slices;
+            CreatedAt = createdAt;
+            UpdatedAt = updatedAt;
         }
 
-        public static Result<BudgetPlan> Create(int idUser, YearMonth month, decimal total, IReadOnlyList<BudgetSlice> slices)
+        /// <param name="now">When the plan is saved: its <see cref="CreatedAt"/> and <see cref="UpdatedAt"/>.</param>
+        public static Result<BudgetPlan> Create(int idUser, YearMonth month, decimal total, IReadOnlyList<BudgetSlice> slices, DateTimeOffset now)
         {
             var totalResult = BudgetTotal.Create(total);
             if (!totalResult.IsSuccess)
@@ -66,12 +75,13 @@ namespace LifeManager.Domain.BudgetPlans
             if (slicesError is not null)
                 return slicesError;
 
-            return new BudgetPlan(new UserId(idUser), month.FirstDay, totalResult.Value, [.. slices]);
+            return new BudgetPlan(new UserId(idUser), month.FirstDay, totalResult.Value, [.. slices], now, now);
         }
 
         /// <summary>
         /// Replaces the whole plan with <paramref name="plan"/>'s total and slices: the same user's month saved again,
-        /// already validated by <see cref="Create"/>.
+        /// already validated by <see cref="Create"/>. Keeps <see cref="CreatedAt"/>; the new plan's instant becomes
+        /// <see cref="UpdatedAt"/>.
         /// </summary>
         public void ReplaceWith(BudgetPlan plan)
         {
@@ -80,6 +90,23 @@ namespace LifeManager.Domain.BudgetPlans
 
             Total = plan.Total;
             _slices = [.. plan._slices];
+            UpdatedAt = plan.CreatedAt;
+        }
+
+        /// <summary>Rehydrates a stored plan without re-validating it.</summary>
+        internal static BudgetPlan FromPersistence(
+            int id,
+            int idUser,
+            DateOnly monthStart,
+            decimal total,
+            IReadOnlyList<BudgetSlice> slices,
+            DateTimeOffset createdAt,
+            DateTimeOffset updatedAt)
+        {
+            var plan = new BudgetPlan(new UserId(idUser), monthStart, BudgetTotal.FromPersistence(total), [.. slices], createdAt, updatedAt);
+            plan.AssignId(id);
+
+            return plan;
         }
 
         public void AssignId(int id)

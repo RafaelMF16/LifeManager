@@ -20,11 +20,13 @@ namespace LifeManager.Application.BudgetPlans.Services
     public class BudgetPlanService(
         IBudgetPlanRepository budgetPlanRepository,
         ICategoryRepository categoryRepository,
-        IFinanceDashboardRepository financeDashboardRepository)
+        IFinanceDashboardRepository financeDashboardRepository,
+        TimeProvider timeProvider)
     {
         private readonly IBudgetPlanRepository _budgetPlanRepository = budgetPlanRepository;
         private readonly ICategoryRepository _categoryRepository = categoryRepository;
         private readonly IFinanceDashboardRepository _financeDashboardRepository = financeDashboardRepository;
+        private readonly TimeProvider _timeProvider = timeProvider;
 
         /// <param name="month">"yyyy-MM".</param>
         public async Task<Result<BudgetPlanResponseDto>> GetAsync(string? month, UserId userId, CancellationToken cancellationToken)
@@ -53,7 +55,7 @@ namespace LifeManager.Application.BudgetPlans.Services
             }
 
             // Validates the whole plan before any category is read; the repository stores it over the month's plan, if any.
-            var planResult = BudgetPlan.Create(userId.Value, yearMonth, budgetPlanDto.Total, slices);
+            var planResult = BudgetPlan.Create(userId.Value, yearMonth, budgetPlanDto.Total, slices, _timeProvider.GetUtcNow());
             if (!planResult.IsSuccess)
                 return planResult.Error;
 

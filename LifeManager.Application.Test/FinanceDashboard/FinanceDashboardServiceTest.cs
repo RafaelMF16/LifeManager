@@ -558,7 +558,7 @@ namespace LifeManager.Application.Test.FinanceDashboard
         private void SeedPlan(string month, decimal total, UserId userId, params BudgetSlice[] slices)
         {
             YearMonth.TryParse(month, out var yearMonth);
-            var plan = BudgetPlan.Create(userId.Value, yearMonth, total, slices).Value!;
+            var plan = BudgetPlan.Create(userId.Value, yearMonth, total, slices, DateTimeOffset.UnixEpoch).Value!;
             plan.AssignId(_nextPlanId++);
             BudgetPlanSingleton.Instance.Add(plan);
         }

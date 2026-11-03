@@ -23,7 +23,7 @@ namespace LifeManager.Domain.Test.BudgetPlans
         [Fact]
         public void Create_ShouldReturnThePlan_WhenTheValuesAreValid()
         {
-            var result = BudgetPlan.Create(1, Month("2026-10"), 6000m, [Expense(3, 30m), Expense(4, 25m), Investment(20m)]);
+            var result = BudgetPlan.Create(1, Month("2026-10"), 6000m, [Expense(3, 30m), Expense(4, 25m), Investment(20m)], DateTimeOffset.UnixEpoch);
 
             Assert.True(result.IsSuccess);
             var plan = result.Value;
@@ -38,7 +38,7 @@ namespace LifeManager.Domain.Test.BudgetPlans
         [Fact]
         public void Create_ShouldAcceptAPlanWithoutSlices_LeavingEverythingFree()
         {
-            var plan = BudgetPlan.Create(1, Month("2026-10"), 6000m, []).Value!;
+            var plan = BudgetPlan.Create(1, Month("2026-10"), 6000m, [], DateTimeOffset.UnixEpoch).Value!;
 
             Assert.Equal(100m, plan.FreePercent);
             Assert.Equal(6000m, plan.FreeAmount);
@@ -47,13 +47,13 @@ namespace LifeManager.Domain.Test.BudgetPlans
         [Fact]
         public void Create_ShouldAcceptSlicesAddingUpToExactlyAHundred()
         {
-            Assert.True(BudgetPlan.Create(1, Month("2026-10"), 6000m, [Expense(3, 60m), Investment(40m)]).IsSuccess);
+            Assert.True(BudgetPlan.Create(1, Month("2026-10"), 6000m, [Expense(3, 60m), Investment(40m)], DateTimeOffset.UnixEpoch).IsSuccess);
         }
 
         [Fact]
         public void Create_ShouldReturnOverAllocated_WhenSlicesAddUpToMoreThanAHundred()
         {
-            var result = BudgetPlan.Create(1, Month("2026-10"), 6000m, [Expense(3, 60m), Investment(40.01m)]);
+            var result = BudgetPlan.Create(1, Month("2026-10"), 6000m, [Expense(3, 60m), Investment(40.01m)], DateTimeOffset.UnixEpoch);
 
             Assert.Equal(BudgetPlanErrors.OverAllocated, result.Error);
         }
@@ -61,7 +61,7 @@ namespace LifeManager.Domain.Test.BudgetPlans
         [Fact]
         public void Create_ShouldReturnDuplicateCategory_WhenACategoryHasTwoSlices()
         {
-            var result = BudgetPlan.Create(1, Month("2026-10"), 6000m, [Expense(3, 10m), Expense(3, 15m)]);
+            var result = BudgetPlan.Create(1, Month("2026-10"), 6000m, [Expense(3, 10m), Expense(3, 15m)], DateTimeOffset.UnixEpoch);
 
             Assert.Equal(BudgetPlanErrors.DuplicateCategory, result.Error);
         }
@@ -69,7 +69,7 @@ namespace LifeManager.Domain.Test.BudgetPlans
         [Fact]
         public void Create_ShouldReturnInvalidInvestmentSlice_WhenThereAreTwoInvestmentSlices()
         {
-            var result = BudgetPlan.Create(1, Month("2026-10"), 6000m, [Investment(10m), Investment(15m)]);
+            var result = BudgetPlan.Create(1, Month("2026-10"), 6000m, [Investment(10m), Investment(15m)], DateTimeOffset.UnixEpoch);
 
             Assert.Equal(BudgetPlanErrors.InvalidInvestmentSlice, result.Error);
         }
@@ -81,16 +81,16 @@ namespace LifeManager.Domain.Test.BudgetPlans
         [InlineData(1_000_000_000_000, "BudgetPlan.TotalTooLarge")]
         public void Create_ShouldReturnTotalError_WhenTheTotalIsInvalid(decimal total, string expectedCode)
         {
-            Assert.Equal(expectedCode, BudgetPlan.Create(1, Month("2026-10"), total, []).Error!.Code);
+            Assert.Equal(expectedCode, BudgetPlan.Create(1, Month("2026-10"), total, [], DateTimeOffset.UnixEpoch).Error!.Code);
         }
 
         [Fact]
         public void ReplaceWith_ShouldTakeTheTotalAndSlices_KeepingTheIdAndMonth()
         {
-            var plan = BudgetPlan.Create(1, Month("2026-10"), 6000m, [Expense(3, 30m)]).Value!;
+            var plan = BudgetPlan.Create(1, Month("2026-10"), 6000m, [Expense(3, 30m)], DateTimeOffset.UnixEpoch).Value!;
             plan.AssignId(7);
 
-            plan.ReplaceWith(BudgetPlan.Create(1, Month("2026-10"), 8000m, [Expense(4, 10m), Investment(20m)]).Value!);
+            plan.ReplaceWith(BudgetPlan.Create(1, Month("2026-10"), 8000m, [Expense(4, 10m), Investment(20m)], DateTimeOffset.UnixEpoch).Value!);
 
             Assert.Equal(8000m, plan.Total.Value);
             Assert.Equal([4, null], plan.Slices.Select(slice => slice.CategoryId?.Value));
@@ -98,13 +98,37 @@ namespace LifeManager.Domain.Test.BudgetPlans
             Assert.Equal(Month("2026-10"), plan.Month);
         }
 
+        [Fact]
+        public void Create_ShouldSetCreatedAndUpdatedAtToNow()
+        {
+            var now = new DateTimeOffset(2026, 10, 3, 12, 0, 0, TimeSpan.Zero);
+
+            var plan = BudgetPlan.Create(1, Month("2026-10"), 6000m, [], now).Value!;
+
+            Assert.Equal(now, plan.CreatedAt);
+            Assert.Equal(now, plan.UpdatedAt);
+        }
+
+        [Fact]
+        public void ReplaceWith_ShouldKeepCreatedAt_AndTakeTheNewPlansInstantAsUpdatedAt()
+        {
+            var createdAt = new DateTimeOffset(2026, 10, 3, 12, 0, 0, TimeSpan.Zero);
+            var savedAgainAt = new DateTimeOffset(2026, 11, 2, 9, 0, 0, TimeSpan.Zero);
+            var plan = BudgetPlan.Create(1, Month("2026-10"), 6000m, [], createdAt).Value!;
+
+            plan.ReplaceWith(BudgetPlan.Create(1, Month("2026-10"), 7000m, [], savedAgainAt).Value!);
+
+            Assert.Equal(createdAt, plan.CreatedAt);
+            Assert.Equal(savedAgainAt, plan.UpdatedAt);
+        }
+
         [Theory]
         [InlineData(1, "2026-11")]
         [InlineData(2, "2026-10")]
         public void ReplaceWith_ShouldThrow_WhenThePlanIsOfAnotherUserOrMonth(int idUser, string month)
         {
-            var plan = BudgetPlan.Create(1, Month("2026-10"), 6000m, [Expense(3, 30m)]).Value!;
-            var other = BudgetPlan.Create(idUser, Month(month), 8000m, []).Value!;
+            var plan = BudgetPlan.Create(1, Month("2026-10"), 6000m, [Expense(3, 30m)], DateTimeOffset.UnixEpoch).Value!;
+            var other = BudgetPlan.Create(idUser, Month(month), 8000m, [], DateTimeOffset.UnixEpoch).Value!;
 
             Assert.Throws<InvalidOperationException>(() => plan.ReplaceWith(other));
             Assert.Equal(6000m, plan.Total.Value);
@@ -113,7 +137,7 @@ namespace LifeManager.Domain.Test.BudgetPlans
         [Fact]
         public void FreePercentAndAmount_ShouldBeWhatTheSlicesLeave()
         {
-            var plan = BudgetPlan.Create(1, Month("2026-10"), 6000m, [Expense(3, 30m), Expense(4, 25m), Investment(20m)]).Value!;
+            var plan = BudgetPlan.Create(1, Month("2026-10"), 6000m, [Expense(3, 30m), Expense(4, 25m), Investment(20m)], DateTimeOffset.UnixEpoch).Value!;
 
             Assert.Equal(25m, plan.FreePercent);
             Assert.Equal(1500m, plan.FreeAmount);
@@ -129,7 +153,7 @@ namespace LifeManager.Domain.Test.BudgetPlans
             var slices = percents.Split(';')
                 .Select((percent, index) => Expense(index + 1, decimal.Parse(percent, CultureInfo.InvariantCulture)))
                 .ToList();
-            var plan = BudgetPlan.Create(1, Month("2026-10"), total, slices).Value!;
+            var plan = BudgetPlan.Create(1, Month("2026-10"), total, slices, DateTimeOffset.UnixEpoch).Value!;
 
             Assert.Equal(total, plan.FreeAmount + plan.Slices.Sum(slice => slice.AmountOf(plan.Total)));
         }
@@ -137,7 +161,7 @@ namespace LifeManager.Domain.Test.BudgetPlans
         [Fact]
         public void InvestmentSlice_ShouldBeTheSliceWithoutCategory()
         {
-            var plan = BudgetPlan.Create(1, Month("2026-10"), 6000m, [Expense(3, 30m), Investment(20m)]).Value!;
+            var plan = BudgetPlan.Create(1, Month("2026-10"), 6000m, [Expense(3, 30m), Investment(20m)], DateTimeOffset.UnixEpoch).Value!;
 
             Assert.Equal(20m, plan.InvestmentSlice!.Percent.Value);
         }
@@ -145,7 +169,7 @@ namespace LifeManager.Domain.Test.BudgetPlans
         [Fact]
         public void SpendingLimit_ShouldBeTheTotalMinusTheInvestmentSlice_IncludingTheFreePart()
         {
-            var plan = BudgetPlan.Create(1, Month("2026-10"), 6000m, [Expense(3, 30m), Investment(20m)]).Value!;
+            var plan = BudgetPlan.Create(1, Month("2026-10"), 6000m, [Expense(3, 30m), Investment(20m)], DateTimeOffset.UnixEpoch).Value!;
 
             Assert.Equal(4800m, plan.SpendingLimit);
         }
@@ -153,7 +177,7 @@ namespace LifeManager.Domain.Test.BudgetPlans
         [Fact]
         public void SpendingLimit_ShouldBeTheWholeTotal_WithoutAnInvestmentSlice()
         {
-            var plan = BudgetPlan.Create(1, Month("2026-10"), 6000m, [Expense(3, 30m)]).Value!;
+            var plan = BudgetPlan.Create(1, Month("2026-10"), 6000m, [Expense(3, 30m)], DateTimeOffset.UnixEpoch).Value!;
 
             Assert.Null(plan.InvestmentSlice);
             Assert.Equal(6000m, plan.SpendingLimit);
