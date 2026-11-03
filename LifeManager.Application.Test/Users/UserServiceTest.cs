@@ -4,6 +4,8 @@ using LifeManager.Application.Auth.Services;
 using LifeManager.Application.Test.Users.Mocks;
 using LifeManager.Application.Users.DTOs;
 using LifeManager.Application.Users.Services;
+using LifeManager.Domain.Auth;
+using LifeManager.Domain.Auth.Errors;
 using LifeManager.Domain.Users;
 using LifeManager.Domain.Users.Interfaces;
 using LifeManager.Domain.Users.Errors;
@@ -25,6 +27,17 @@ namespace LifeManager.Application.Test.Users
             RefreshTokenSingleton.Instance.Clear();
             CategorySingleton.Instance.Clear();
             UserPreferencesSingleton.Instance.Clear();
+            LoginAttemptSingleton.Instance.Clear();
+        }
+
+        private const string TestIp = "203.0.113.7";
+
+        private FakeTimeProvider Clock => (FakeTimeProvider)ServiceProvider.GetRequiredService<TimeProvider>();
+
+        private async Task FailLoginsAsync(string email, int count, string ip = TestIp)
+        {
+            for (var attempt = 0; attempt < count; attempt++)
+                await _userService.AuthenticateUserAsync(new LoginDto(email, "wrongPassword"), ip, CancellationToken.None);
         }
 
         private UserRepositoryMock UserRepository => (UserRepositoryMock)ServiceProvider.GetRequiredService<IUserRepository>();
@@ -61,7 +74,7 @@ namespace LifeManager.Application.Test.Users
         [Fact]
         public async Task AuthenticateUserAsync_ShouldReturnFailure_WhenEmailDoesNotExist()
         {
-            var result = await _userService.AuthenticateUserAsync(new LoginDto("missing@email.com", "password"), CancellationToken.None);
+            var result = await _userService.AuthenticateUserAsync(new LoginDto("missing@email.com", "password"), TestIp, CancellationToken.None);
 
             Assert.False(result.IsSuccess);
             Assert.Equal(UserErrors.InvalidCredentials, result.Error);
@@ -72,7 +85,7 @@ namespace LifeManager.Application.Test.Users
         {
             await AddUserAsync("email@email.com", "name", "password");
 
-            var result = await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "wrongPassword"), CancellationToken.None);
+            var result = await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "wrongPassword"), TestIp, CancellationToken.None);
 
             Assert.False(result.IsSuccess);
             Assert.Equal(UserErrors.InvalidCredentials, result.Error);
@@ -83,7 +96,7 @@ namespace LifeManager.Application.Test.Users
         {
             await AddUserAsync("email@email.com", "name", "password");
 
-            var result = await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "password"), CancellationToken.None);
+            var result = await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "password"), TestIp, CancellationToken.None);
 
             Assert.True(result.IsSuccess);
             Assert.False(string.IsNullOrWhiteSpace(result.Value.AccessToken));
@@ -96,7 +109,7 @@ namespace LifeManager.Application.Test.Users
             var user = User.Create("name", "email@email.com", BCrypt.Net.BCrypt.HashPassword("password", InjectionModule.TestPasswordWorkFactor - 1)).Value!;
             await UserRepository.AddWithStarterDataAsync(user, null, null, CancellationToken.None);
 
-            var result = await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "password"), CancellationToken.None);
+            var result = await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "password"), TestIp, CancellationToken.None);
 
             Assert.True(result.IsSuccess);
             var storedHash = UserSingleton.Instance.Single().PasswordHash.Value;
@@ -110,7 +123,7 @@ namespace LifeManager.Application.Test.Users
         {
             await AddUserAsync("email@email.com", "name", "password");
 
-            await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "password"), CancellationToken.None);
+            await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "password"), TestIp, CancellationToken.None);
 
             Assert.Equal(0, UserRepository.PasswordHashUpdateCount);
         }
@@ -121,9 +134,97 @@ namespace LifeManager.Application.Test.Users
             var user = User.Create("name", "email@email.com", BCrypt.Net.BCrypt.HashPassword("password", InjectionModule.TestPasswordWorkFactor - 1)).Value!;
             await UserRepository.AddWithStarterDataAsync(user, null, null, CancellationToken.None);
 
-            await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "wrongPassword"), CancellationToken.None);
+            await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "wrongPassword"), TestIp, CancellationToken.None);
 
             Assert.Equal(0, UserRepository.PasswordHashUpdateCount);
+        }
+
+        [Fact]
+        public async Task AuthenticateUserAsync_ShouldReturnTooManyRequests_WhenPairFailedTooManyTimes_EvenWithTheRightPassword()
+        {
+            await AddUserAsync("email@email.com", "name", "password");
+            await FailLoginsAsync("email@email.com", LoginAttempt.MaxFailures);
+
+            var result = await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "password"), TestIp, CancellationToken.None);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(AuthErrors.TooManyRequests, result.Error);
+        }
+
+        [Fact]
+        public async Task AuthenticateUserAsync_ShouldStillCheckThePassword_WhenFailuresAreBelowTheLimit()
+        {
+            await AddUserAsync("email@email.com", "name", "password");
+            await FailLoginsAsync("email@email.com", LoginAttempt.MaxFailures - 1);
+
+            var result = await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "password"), TestIp, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+        }
+
+        [Fact]
+        public async Task AuthenticateUserAsync_ShouldReturnTooManyRequests_WhenEmailHasNoAccount()
+        {
+            await FailLoginsAsync("missing@email.com", LoginAttempt.MaxFailures);
+
+            var result = await _userService.AuthenticateUserAsync(new LoginDto("missing@email.com", "password"), TestIp, CancellationToken.None);
+
+            Assert.Equal(AuthErrors.TooManyRequests, result.Error);
+        }
+
+        [Fact]
+        public async Task AuthenticateUserAsync_ShouldNotBlockTheEmail_FromAnotherIp()
+        {
+            await AddUserAsync("email@email.com", "name", "password");
+            await FailLoginsAsync("email@email.com", LoginAttempt.MaxFailures);
+
+            var result = await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "password"), "198.51.100.20", CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+        }
+
+        [Fact]
+        public async Task AuthenticateUserAsync_ShouldBlockIgnoringTheEmailCase()
+        {
+            await AddUserAsync("email@email.com", "name", "password");
+            await FailLoginsAsync("Email@Email.com", LoginAttempt.MaxFailures);
+
+            var result = await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "password"), TestIp, CancellationToken.None);
+
+            Assert.Equal(AuthErrors.TooManyRequests, result.Error);
+        }
+
+        [Fact]
+        public async Task AuthenticateUserAsync_ShouldLetThePairIn_WhenTheWindowIsOver()
+        {
+            await AddUserAsync("email@email.com", "name", "password");
+            await FailLoginsAsync("email@email.com", LoginAttempt.MaxFailures);
+
+            Clock.UtcNow = Clock.UtcNow.Add(LoginAttempt.Window);
+            var result = await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "password"), TestIp, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+        }
+
+        [Fact]
+        public async Task AuthenticateUserAsync_ShouldClearTheFailures_WhenLoginSucceeds()
+        {
+            await AddUserAsync("email@email.com", "name", "password");
+            await FailLoginsAsync("email@email.com", LoginAttempt.MaxFailures - 1);
+
+            await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "password"), TestIp, CancellationToken.None);
+            await FailLoginsAsync("email@email.com", LoginAttempt.MaxFailures - 1);
+            var result = await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "password"), TestIp, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+        }
+
+        [Fact]
+        public async Task AuthenticateUserAsync_ShouldNotCountAFailure_WhenTheEmailIsMalformed()
+        {
+            await _userService.AuthenticateUserAsync(new LoginDto("not-an-email", "password"), TestIp, CancellationToken.None);
+
+            Assert.Empty(LoginAttemptSingleton.Instance);
         }
 
         [Fact]
@@ -131,8 +232,8 @@ namespace LifeManager.Application.Test.Users
         {
             await AddUserAsync("email@email.com", "name", "password");
 
-            await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "password"), CancellationToken.None);
-            await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "password"), CancellationToken.None);
+            await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "password"), TestIp, CancellationToken.None);
+            await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "password"), TestIp, CancellationToken.None);
 
             Assert.Equal(2, RefreshTokenSingleton.Instance.Count);
             Assert.True(RefreshTokenSingleton.Instance[0].IsRevoked);

@@ -249,7 +249,7 @@ namespace LifeManager.Application.Test.Auth
             await _registrationService.CompleteAsync(new CompleteRegistrationDto(token, "my-password"), CancellationToken.None);
 
             var login = await ServiceProvider.GetRequiredService<UserService>()
-                .AuthenticateUserAsync(new LoginDto("ana@example.com", "my-password"), CancellationToken.None);
+                .AuthenticateUserAsync(new LoginDto("ana@example.com", "my-password"), "203.0.113.7", CancellationToken.None);
 
             Assert.True(login.IsSuccess);
         }

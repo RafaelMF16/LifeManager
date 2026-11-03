@@ -48,7 +48,8 @@ namespace LifeManager.WebApi.Auth
                 ClientIp(httpContext),
                 _ => new FixedWindowRateLimiterOptions { PermitLimit = permitLimit, Window = Window, QueueLimit = 0 });
 
-        private static string ClientIp(HttpContext httpContext) => httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        /// <summary>The client's address as the forwarded headers left it; also the IP half of the login's blocked pairs.</summary>
+        public static string ClientIp(HttpContext httpContext) => httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
         private static async ValueTask WriteTooManyRequestsAsync(OnRejectedContext context, CancellationToken cancellationToken)
         {

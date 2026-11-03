@@ -57,7 +57,7 @@ namespace LifeManager.WebApi.Auth.Controllers
 
         [HttpPost("Login")]
         public async Task<IActionResult> Login([FromBody] LoginDto loginDto, CancellationToken cancellationToken)
-            => (await _userService.AuthenticateUserAsync(loginDto, cancellationToken)).Match(tokens =>
+            => (await _userService.AuthenticateUserAsync(loginDto, AuthRateLimits.ClientIp(HttpContext), cancellationToken)).Match(tokens =>
             {
                 RefreshTokenCookie.Append(Response, tokens.RefreshToken, tokens.RefreshTokenExpiresAt);
 
