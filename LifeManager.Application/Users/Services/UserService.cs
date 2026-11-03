@@ -37,6 +37,11 @@ namespace LifeManager.Application.Users.Services
             if (!_authService.VerifyPassword(loginDto.Password, user?.PasswordHash.Value) || user is null)
                 return UserErrors.InvalidCredentials;
 
+            // The only moment the plain password is at hand, so accounts move to a raised cost as their owners log in.
+            if (_authService.NeedsRehash(user.PasswordHash.Value)
+                && PasswordHash.Create(_authService.EncryptPassword(loginDto.Password)) is { IsSuccess: true } rehashed)
+                await _userRepository.UpdatePasswordHashAsync(user.Id!, rehashed.Value, cancellationToken);
+
             return await _tokenService.GenerateTokensAsync(user.Id!.Value, cancellationToken);
         }
     }

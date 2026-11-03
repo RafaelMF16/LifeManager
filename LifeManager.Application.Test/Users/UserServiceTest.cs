@@ -27,6 +27,8 @@ namespace LifeManager.Application.Test.Users
             UserPreferencesSingleton.Instance.Clear();
         }
 
+        private UserRepositoryMock UserRepository => (UserRepositoryMock)ServiceProvider.GetRequiredService<IUserRepository>();
+
         private async Task<User> AddUserAsync(string email, string name, string password)
         {
             var hashedPassword = ServiceProvider.GetRequiredService<AuthService>().EncryptPassword(password);
@@ -86,6 +88,42 @@ namespace LifeManager.Application.Test.Users
             Assert.True(result.IsSuccess);
             Assert.False(string.IsNullOrWhiteSpace(result.Value.AccessToken));
             Assert.False(string.IsNullOrWhiteSpace(result.Value.RefreshToken));
+        }
+
+        [Fact]
+        public async Task AuthenticateUserAsync_ShouldRehashPassword_WhenStoredHashIsCheaperThanConfigured()
+        {
+            var user = User.Create("name", "email@email.com", BCrypt.Net.BCrypt.HashPassword("password", InjectionModule.TestPasswordWorkFactor - 1)).Value!;
+            await UserRepository.AddWithStarterDataAsync(user, null, null, CancellationToken.None);
+
+            var result = await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "password"), CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            var storedHash = UserSingleton.Instance.Single().PasswordHash.Value;
+            Assert.Equal(InjectionModule.TestPasswordWorkFactor, int.Parse(storedHash.Split('$')[2]));
+            Assert.True(BCrypt.Net.BCrypt.Verify("password", storedHash));
+            Assert.Equal(1, UserRepository.PasswordHashUpdateCount);
+        }
+
+        [Fact]
+        public async Task AuthenticateUserAsync_ShouldNotRehashPassword_WhenStoredHashUsesConfiguredCost()
+        {
+            await AddUserAsync("email@email.com", "name", "password");
+
+            await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "password"), CancellationToken.None);
+
+            Assert.Equal(0, UserRepository.PasswordHashUpdateCount);
+        }
+
+        [Fact]
+        public async Task AuthenticateUserAsync_ShouldNotRehashPassword_WhenPasswordIsIncorrect()
+        {
+            var user = User.Create("name", "email@email.com", BCrypt.Net.BCrypt.HashPassword("password", InjectionModule.TestPasswordWorkFactor - 1)).Value!;
+            await UserRepository.AddWithStarterDataAsync(user, null, null, CancellationToken.None);
+
+            await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "wrongPassword"), CancellationToken.None);
+
+            Assert.Equal(0, UserRepository.PasswordHashUpdateCount);
         }
 
         [Fact]

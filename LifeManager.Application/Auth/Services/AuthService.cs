@@ -14,6 +14,12 @@ namespace LifeManager.Application.Auth.Services
             return BCrypt.Net.BCrypt.HashPassword(password, _workFactor);
         }
 
+        /// <summary>True when the hash was made with a lower cost than the current one (an account from before a raise).</summary>
+        public bool NeedsRehash(string hashedPassword)
+        {
+            return BCrypt.Net.BCrypt.PasswordNeedsRehash(hashedPassword, _workFactor);
+        }
+
         /// <summary>
         /// Without a hash (no account for the e-mail) it still runs BCrypt, against a fixed hash, and returns false, so a
         /// login takes as long whether or not the account exists.
