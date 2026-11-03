@@ -1013,6 +1013,13 @@ namespace LifeManager.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<decimal?>("ExpenseAmount")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<int?>("ExpenseCategoryId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Icon")
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
@@ -1031,6 +1038,8 @@ namespace LifeManager.Infrastructure.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ExpenseCategoryId");
 
                     b.HasIndex("NormalizedName");
 
@@ -1654,6 +1663,11 @@ namespace LifeManager.Infrastructure.Migrations
 
             modelBuilder.Entity("LifeManager.Domain.Rewards.Reward", b =>
                 {
+                    b.HasOne("LifeManager.Domain.Categories.Category", null)
+                        .WithMany()
+                        .HasForeignKey("ExpenseCategoryId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("LifeManager.Domain.Users.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")

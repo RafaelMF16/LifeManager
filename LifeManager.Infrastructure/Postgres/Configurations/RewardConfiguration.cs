@@ -1,3 +1,5 @@
+using LifeManager.Domain.Categories;
+using LifeManager.Domain.Categories.ValueObjects;
 using LifeManager.Domain.Rewards;
 using LifeManager.Domain.Rewards.ValueObjects;
 using LifeManager.Domain.Users;
@@ -30,7 +32,13 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
             builder.Property(reward => reward.CreatedAt).IsRequired();
             builder.Property(reward => reward.ArchivedAt);
 
+            // The real expense the reward stands for: both set or both null, until the category is deleted.
+            builder.Property(reward => reward.ExpenseCategoryId)
+                .HasConversion(id => id!.Value, id => new CategoryId(id));
+            builder.Property(reward => reward.ExpenseAmount).HasPrecision(14, 2);
+
             builder.Ignore(reward => reward.IsArchived);
+            builder.Ignore(reward => reward.HasExpense);
 
             // Names are unique among the user's active rewards only: an archived reward frees its name.
             builder.HasIndex(reward => new { reward.UserId, reward.NormalizedName })
@@ -48,6 +56,12 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
                 .WithMany()
                 .HasForeignKey(reward => reward.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // Deleting the category leaves the reward without an expense instead of blocking the deletion.
+            builder.HasOne<Category>()
+                .WithMany()
+                .HasForeignKey(reward => reward.ExpenseCategoryId)
+                .OnDelete(DeleteBehavior.SetNull);
         }
     }
 }

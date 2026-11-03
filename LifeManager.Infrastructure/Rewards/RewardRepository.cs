@@ -79,6 +79,8 @@ namespace LifeManager.Infrastructure.Rewards
                     .SetProperty(storedReward => storedReward.NormalizedName, reward.NormalizedName)
                     .SetProperty(storedReward => storedReward.Cost, reward.Cost)
                     .SetProperty(storedReward => storedReward.Icon, reward.Icon)
+                    .SetProperty(storedReward => storedReward.ExpenseCategoryId, reward.ExpenseCategoryId)
+                    .SetProperty(storedReward => storedReward.ExpenseAmount, reward.ExpenseAmount)
                     .SetProperty(storedReward => storedReward.ArchivedAt, reward.ArchivedAt), cancellationToken);
         }
 

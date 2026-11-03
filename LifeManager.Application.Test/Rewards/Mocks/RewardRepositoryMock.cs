@@ -87,6 +87,7 @@ namespace LifeManager.Application.Test.Rewards.Mocks
 
         internal static Reward ToDetachedCopy(Reward reward)
             => Reward.FromPersistence(
-                reward.Id!.Value, reward.UserId.Value, reward.Name.Value, reward.Cost, reward.Icon, reward.CreatedAt, reward.ArchivedAt);
+                reward.Id!.Value, reward.UserId.Value, reward.Name.Value, reward.Cost, reward.Icon, reward.CreatedAt, reward.ArchivedAt,
+                reward.ExpenseCategoryId?.Value, reward.ExpenseAmount);
     }
 }
