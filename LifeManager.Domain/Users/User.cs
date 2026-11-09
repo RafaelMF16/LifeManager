@@ -9,27 +9,31 @@ namespace LifeManager.Domain.Users
         public UserName Name { get; private set; }
         public Email Email { get; private set; }
         public PasswordHash PasswordHash { get; private set; }
-        public DateTimeOffset CreationDate { get; } = DateTimeOffset.UtcNow;
+        public DateTimeOffset CreationDate { get; private set; }
 
         private User(
             UserName name,
             Email email,
-            PasswordHash passwordHash)
+            PasswordHash passwordHash,
+            DateTimeOffset creationDate)
         {
             Name = name;
             Email = email;
             PasswordHash = passwordHash;
+            CreationDate = creationDate;
         }
 
+        /// <summary><paramref name="creationDate"/> comes from the caller's clock: the domain never reads one.</summary>
         public static Result<User> Create(
             string name,
             string email,
-            string passwordHash)
+            string passwordHash,
+            DateTimeOffset creationDate)
         {
             return UserName.Create(name)
                 .Bind(userName => Email.Create(email)
                     .Bind(userEmail => PasswordHash.Create(passwordHash)
-                        .Map(hash => new User(userName, userEmail, hash))));
+                        .Map(hash => new User(userName, userEmail, hash, creationDate))));
         }
 
         public void AssignId(int id)

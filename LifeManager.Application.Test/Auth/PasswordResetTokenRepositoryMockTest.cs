@@ -14,6 +14,8 @@ namespace LifeManager.Application.Test.Auth
     [Collection("ApplicationServices")]
     public class PasswordResetTokenRepositoryMockTest : BaseTest
     {
+        private static readonly DateTimeOffset CreationDate = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
+
         private static readonly DateTimeOffset Now = new(2026, 10, 26, 12, 0, 0, TimeSpan.Zero);
 
         private readonly IPasswordResetTokenRepository _repository;
@@ -29,7 +31,7 @@ namespace LifeManager.Application.Test.Auth
 
         private static User SeedUser()
         {
-            var user = User.Create("Ana", "ana@example.com", "old-hash").Value!;
+            var user = User.Create("Ana", "ana@example.com", "old-hash", CreationDate).Value!;
             user.AssignId(1);
             UserSingleton.Instance.Add(user);
             return user;
@@ -77,7 +79,7 @@ namespace LifeManager.Application.Test.Auth
         public async Task UseAsync_ShouldRevokeOnlyTheUsersSessions()
         {
             var user = SeedUser();
-            var other = User.Create("Bia", "bia@example.com", "hash").Value!;
+            var other = User.Create("Bia", "bia@example.com", "hash", CreationDate).Value!;
             other.AssignId(2);
             UserSingleton.Instance.Add(other);
             var userSession = SeedSession(user);
@@ -125,7 +127,7 @@ namespace LifeManager.Application.Test.Auth
         public async Task DeleteStaleBeforeAsync_ShouldDeleteExpiredAndUsedLinksOnly()
         {
             var user = SeedUser();
-            var other = User.Create("Bia", "bia@example.com", "hash").Value!;
+            var other = User.Create("Bia", "bia@example.com", "hash", CreationDate).Value!;
             other.AssignId(2);
             UserSingleton.Instance.Add(other);
             var cutoff = Now.AddDays(-PasswordResetToken.RetentionDays);

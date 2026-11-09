@@ -6,13 +6,15 @@ namespace LifeManager.Domain.Test.Users
 {
     public class UserTests
     {
+        private static readonly DateTimeOffset CreationDate = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
+
         [Fact]
         public void Create_ShouldReturnUser_WhenUserIsValid()
         {
             var userName = "test";
             var email = "r@email.com";
             var passwordHash = "$2a$10$abcdefghijklmnopqrstuvwxyz012345";
-            var user = User.Create(userName, email, passwordHash).Value;
+            var user = User.Create(userName, email, passwordHash, CreationDate).Value;
 
             Assert.NotNull(user);
             Assert.IsType<User>(user);
@@ -20,12 +22,13 @@ namespace LifeManager.Domain.Test.Users
             Assert.Equal(userName, user.Name.Value);
             Assert.Equal(email, user.Email.Value);
             Assert.Equal(passwordHash, user.PasswordHash.Value);
+            Assert.Equal(CreationDate, user.CreationDate);
         }
 
         [Fact]
         public void Create_ShouldReturnFailure_WhenUserNameIsInvalid()
         {
-            var result = User.Create(string.Empty, "r@email.com", "hash");
+            var result = User.Create(string.Empty, "r@email.com", "hash", CreationDate);
 
             Assert.False(result.IsSuccess);
             Assert.Equal(UserErrors.UserNameIsNullOrWhiteSpace, result.Error);
@@ -34,7 +37,7 @@ namespace LifeManager.Domain.Test.Users
         [Fact]
         public void Create_ShouldReturnFailure_WhenEmailIsInvalid()
         {
-            var result = User.Create("test", "invalid-email", "hash");
+            var result = User.Create("test", "invalid-email", "hash", CreationDate);
 
             Assert.False(result.IsSuccess);
             Assert.Equal(UserErrors.EmailIsInvalid, result.Error);
@@ -43,7 +46,7 @@ namespace LifeManager.Domain.Test.Users
         [Fact]
         public void Create_ShouldReturnFailure_WhenPasswordHashIsInvalid()
         {
-            var result = User.Create("test", "r@email.com", string.Empty);
+            var result = User.Create("test", "r@email.com", string.Empty, CreationDate);
 
             Assert.False(result.IsSuccess);
             Assert.Equal(UserErrors.PasswordHashIsNullOrWhiteSpace, result.Error);
@@ -52,7 +55,7 @@ namespace LifeManager.Domain.Test.Users
         [Fact]
         public void AssignId_ShouldSetId_WhenUserHasNoIdYet()
         {
-            var user = User.Create("test", "r@email.com", "hash").Value;
+            var user = User.Create("test", "r@email.com", "hash", CreationDate).Value;
             Assert.NotNull(user);
 
             user.AssignId(10);
@@ -64,7 +67,7 @@ namespace LifeManager.Domain.Test.Users
         [Fact]
         public void ChangePassword_ShouldReplaceThePasswordHash()
         {
-            var user = User.Create("test", "r@email.com", "old-hash").Value!;
+            var user = User.Create("test", "r@email.com", "old-hash", CreationDate).Value!;
 
             user.ChangePassword(PasswordHash.Create("new-hash").Value!);
 
@@ -74,8 +77,8 @@ namespace LifeManager.Domain.Test.Users
         [Fact]
         public void Equals_ShouldReturnTrue_WhenUsersHaveTheSameId()
         {
-            var user1 = User.Create("test1", "r1@email.com", "hash").Value!;
-            var user2 = User.Create("test2", "r2@email.com", "hash").Value!;
+            var user1 = User.Create("test1", "r1@email.com", "hash", CreationDate).Value!;
+            var user2 = User.Create("test2", "r2@email.com", "hash", CreationDate).Value!;
             user1.AssignId(1);
             user2.AssignId(1);
 
@@ -86,8 +89,8 @@ namespace LifeManager.Domain.Test.Users
         [Fact]
         public void Equals_ShouldReturnFalse_WhenUsersHaveDifferentIds()
         {
-            var user1 = User.Create("test", "r@email.com", "hash").Value!;
-            var user2 = User.Create("test", "r@email.com", "hash").Value!;
+            var user1 = User.Create("test", "r@email.com", "hash", CreationDate).Value!;
+            var user2 = User.Create("test", "r@email.com", "hash", CreationDate).Value!;
             user1.AssignId(1);
             user2.AssignId(2);
 
@@ -97,8 +100,8 @@ namespace LifeManager.Domain.Test.Users
         [Fact]
         public void Equals_ShouldReturnFalse_WhenNeitherUserHasBeenAssignedAnId()
         {
-            var user1 = User.Create("test", "r@email.com", "hash").Value!;
-            var user2 = User.Create("test", "r@email.com", "hash").Value!;
+            var user1 = User.Create("test", "r@email.com", "hash", CreationDate).Value!;
+            var user2 = User.Create("test", "r@email.com", "hash", CreationDate).Value!;
 
             Assert.NotEqual(user1, user2);
             Assert.Equal(user1, user1);

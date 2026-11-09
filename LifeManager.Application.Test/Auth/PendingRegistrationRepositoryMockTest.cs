@@ -14,6 +14,8 @@ namespace LifeManager.Application.Test.Auth
     [Collection("ApplicationServices")]
     public class PendingRegistrationRepositoryMockTest : BaseTest
     {
+        private static readonly DateTimeOffset CreationDate = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
+
         private static readonly DateTimeOffset Now = new(2026, 10, 26, 12, 0, 0, TimeSpan.Zero);
 
         private readonly IPendingRegistrationRepository _repository;
@@ -31,7 +33,7 @@ namespace LifeManager.Application.Test.Auth
         private static PendingRegistration NewPending(string token, string name = "Ana", Language language = Language.EN)
             => PendingRegistration.Create(name, "ana@example.com", language, Theme.Dark, EmailTokenHash.FromToken(token).Value!, Now).Value!;
 
-        private static User NewUser() => User.Create("Ana", "ana@example.com", "hash").Value!;
+        private static User NewUser() => User.Create("Ana", "ana@example.com", "hash", CreationDate).Value!;
 
         [Fact]
         public async Task SaveAsync_ShouldReplaceTheStoredOne_WhenTheEmailIsAlreadyPending()
