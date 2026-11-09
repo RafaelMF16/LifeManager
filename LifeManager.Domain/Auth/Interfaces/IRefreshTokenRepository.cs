@@ -5,8 +5,11 @@ namespace LifeManager.Domain.Auth.Interfaces
 {
     public interface IRefreshTokenRepository
     {
-        /// <summary>Revokes every active token of the user and adds the new one in a single save.</summary>
-        Task ReplaceActiveTokenAsync(RefreshToken newToken, CancellationToken cancellationToken);
+        /// <summary>
+        /// Revokes every token of the user still active at <paramref name="now"/> and adds the new one in a single save.
+        /// <paramref name="now"/> is the caller's clock, the same instant that stamped the new token.
+        /// </summary>
+        Task ReplaceActiveTokenAsync(RefreshToken newToken, DateTimeOffset now, CancellationToken cancellationToken);
 
         /// <returns>True if a non-revoked token with this hash existed and was revoked.</returns>
         Task<bool> RevokeByHashAsync(RefreshTokenHash tokenHash, CancellationToken cancellationToken);

@@ -15,9 +15,8 @@ namespace LifeManager.Application.Test.Auth.Mocks
             _instance = RefreshTokenSingleton.Instance;
         }
 
-        public Task ReplaceActiveTokenAsync(RefreshToken newToken, CancellationToken cancellationToken)
+        public Task ReplaceActiveTokenAsync(RefreshToken newToken, DateTimeOffset now, CancellationToken cancellationToken)
         {
-            var now = DateTimeOffset.UtcNow;
             foreach (var activeToken in _instance.Where(token => token.UserId == newToken.UserId && !token.IsRevoked && token.ExpiresAt > now))
                 activeToken.RevokeToken();
 

@@ -46,7 +46,7 @@ namespace LifeManager.Application.Auth.Services
                 return tokensResult.Error;
 
             var (accessToken, newToken) = tokensResult.Value;
-            await _refreshTokenRepository.ReplaceActiveTokenAsync(newToken, cancellationToken);
+            await _refreshTokenRepository.ReplaceActiveTokenAsync(newToken, now, cancellationToken);
 
             return new LoginResponseDto(accessToken, refreshToken, newToken.ExpiresAt);
         }

@@ -138,6 +138,19 @@ namespace LifeManager.Application.Test.Auth
         }
 
         [Fact]
+        public async Task GenerateTokensAsync_ShouldJudgeThePreviousTokenByTheClock_WhenItExpiredInTheClocksTime()
+        {
+            const int userId = 1;
+            await _tokenService.GenerateTokensAsync(userId, CancellationToken.None);
+            _clock.UtcNow = _clock.UtcNow.AddDays(8);
+
+            await _tokenService.GenerateTokensAsync(userId, CancellationToken.None);
+
+            Assert.Equal(2, RefreshTokenSingleton.Instance.Count);
+            Assert.False(RefreshTokenSingleton.Instance[0].IsRevoked);
+        }
+
+        [Fact]
         public async Task GenerateTokensAsync_ShouldNotAffectOtherUsersTokens_WhenGeneratingNewTokens()
         {
             const int firstUserId = 1;
