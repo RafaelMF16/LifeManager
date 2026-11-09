@@ -82,8 +82,6 @@ Optional:
 - `businessTimeZone` (IANA id, default `America/Sao_Paulo`), the time zone of "today" for business rules (`AppClock`). The host needs time zone data (tzdata); an unknown id throws on first use.
 - `emailSenderName` (default `LifeManager`), the sender name of the auth e-mails.
 
-Note: `LifeManager.Tests` (singular) is a leftover scaffold project. It is not referenced in `LifeManager.slnx` and contains no code beyond its `.csproj`. The real test suites are `LifeManager.Domain.Test` and `LifeManager.Application.Test`.
-
 ## Architecture
 
 Layered/Clean Architecture split across four projects, referencing inward only. Every layer uses the same feature folders (`Auth`, `Users`, `UsersPreferences`, `Categories`, ...), plus a `Shared/` folder for cross-cutting building blocks.
@@ -416,6 +414,7 @@ Services use primary-constructor dependency injection (e.g. `CategoryService(ICa
 
 ## Testing conventions
 
+- **Warnings fail the build** in both test projects (`TreatWarningsAsErrors`; package advisories `NU190x` stay warnings). Fix a nullable warning by asserting first (`Assert.NotNull(x)`, or `result.Value!` after the success check), never with `#pragma` or `NoWarn`.
 - xUnit, `Assert.*` style, with hand-written mocks (no Moq/NSubstitute). Test names follow `Method_ShouldExpectedBehavior_WhenCondition`.
 - **`LifeManager.Application.Test`:**
   - **Container:** each test class builds its own mini DI container via `BaseTest` (in `Configurations/`). It registers the real application services against in-memory repository mocks (`*/Mocks`, wired in `Configurations/InjectionModule.cs`) and an in-memory `IConfiguration` with test secret keys.
