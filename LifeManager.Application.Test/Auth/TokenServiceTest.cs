@@ -15,10 +15,12 @@ namespace LifeManager.Application.Test.Auth
     public class TokenServiceTest : BaseTest
     {
         private readonly TokenService _tokenService;
+        private readonly FakeTimeProvider _clock;
 
         public TokenServiceTest()
         {
             _tokenService = ServiceProvider.GetRequiredService<TokenService>();
+            _clock = (FakeTimeProvider)ServiceProvider.GetRequiredService<TimeProvider>();
 
             RefreshTokenSingleton.Instance.Clear();
         }
@@ -108,8 +110,8 @@ namespace LifeManager.Application.Test.Auth
         public async Task GenerateTokensAsync_ShouldRevokeEveryActiveToken_WhenUserHasMoreThanOneActiveToken()
         {
             const int userId = 1;
-            var firstActiveToken = RefreshToken.Create(userId, "first-active-hash", DateTimeOffset.UtcNow.AddDays(1), DateTimeOffset.UtcNow.AddDays(29), false).Value;
-            var secondActiveToken = RefreshToken.Create(userId, "second-active-hash", DateTimeOffset.UtcNow.AddDays(2), DateTimeOffset.UtcNow.AddDays(29), false).Value;
+            var firstActiveToken = RefreshToken.Create(userId, "first-active-hash", _clock.UtcNow, _clock.UtcNow.AddDays(1), _clock.UtcNow.AddDays(29), false).Value;
+            var secondActiveToken = RefreshToken.Create(userId, "second-active-hash", _clock.UtcNow, _clock.UtcNow.AddDays(2), _clock.UtcNow.AddDays(29), false).Value;
             RefreshTokenSingleton.Instance.Add(firstActiveToken!);
             RefreshTokenSingleton.Instance.Add(secondActiveToken!);
 
@@ -125,7 +127,7 @@ namespace LifeManager.Application.Test.Auth
         public async Task GenerateTokensAsync_ShouldNotRevokeExpiredToken_WhenPreviousTokenIsExpired()
         {
             const int userId = 1;
-            var expiredToken = RefreshToken.Create(userId, "expired-hash", DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(29), false).Value;
+            var expiredToken = RefreshToken.Create(userId, "expired-hash", _clock.UtcNow, _clock.UtcNow.AddDays(-1), _clock.UtcNow.AddDays(29), false).Value;
             RefreshTokenSingleton.Instance.Add(expiredToken!);
 
             await _tokenService.GenerateTokensAsync(userId, CancellationToken.None);
@@ -255,8 +257,8 @@ namespace LifeManager.Application.Test.Auth
             var tokens = await _tokenService.GenerateTokensAsync(1, CancellationToken.None);
 
             var storedToken = RefreshTokenSingleton.Instance[0];
-            Assert.True(Math.Abs((storedToken.SessionExpiresAt - DateTimeOffset.UtcNow.AddDays(30)).TotalSeconds) < 5);
-            Assert.True(Math.Abs((storedToken.ExpiresAt - DateTimeOffset.UtcNow.AddDays(7)).TotalSeconds) < 5);
+            Assert.True(Math.Abs((storedToken.SessionExpiresAt - _clock.UtcNow.AddDays(30)).TotalSeconds) < 5);
+            Assert.True(Math.Abs((storedToken.ExpiresAt - _clock.UtcNow.AddDays(7)).TotalSeconds) < 5);
             Assert.Equal(storedToken.ExpiresAt, tokens.Value!.RefreshTokenExpiresAt);
         }
 
@@ -278,7 +280,7 @@ namespace LifeManager.Application.Test.Auth
             Assert.False(rotatedToken.IsRevoked);
             Assert.Equal(1, rotatedToken.UserId.Value);
             Assert.Equal(sessionExpiresAt, rotatedToken.SessionExpiresAt);
-            Assert.True(Math.Abs((rotatedToken.ExpiresAt - DateTimeOffset.UtcNow.AddDays(7)).TotalSeconds) < 5);
+            Assert.True(Math.Abs((rotatedToken.ExpiresAt - _clock.UtcNow.AddDays(7)).TotalSeconds) < 5);
             Assert.Equal(rotatedToken.ExpiresAt, result.Value.RefreshTokenExpiresAt);
         }
 
@@ -317,14 +319,55 @@ namespace LifeManager.Application.Test.Auth
         {
             var tokens = (await _tokenService.GenerateTokensAsync(1, CancellationToken.None)).Value!;
             var loginToken = RefreshTokenSingleton.Instance[0];
-            var sessionExpiresAt = DateTimeOffset.UtcNow.AddDays(2);
-            RefreshTokenSingleton.Instance[0] = RefreshToken.Create(1, loginToken.TokenHash.Value, DateTimeOffset.UtcNow.AddDays(1), sessionExpiresAt, false).Value!;
+            var sessionExpiresAt = _clock.UtcNow.AddDays(2);
+            RefreshTokenSingleton.Instance[0] = RefreshToken.Create(1, loginToken.TokenHash.Value, _clock.UtcNow, _clock.UtcNow.AddDays(1), sessionExpiresAt, false).Value!;
 
             var result = await _tokenService.RefreshTokensAsync(tokens.RefreshToken, CancellationToken.None);
 
             Assert.True(result.IsSuccess);
             Assert.Equal(sessionExpiresAt, RefreshTokenSingleton.Instance[1].ExpiresAt);
             Assert.Equal(sessionExpiresAt, result.Value.RefreshTokenExpiresAt);
+        }
+
+        [Fact]
+        public async Task GenerateTokensAsync_ShouldTakeEveryInstantFromTheClock()
+        {
+            _clock.UtcNow = new DateTimeOffset(2020, 3, 4, 5, 6, 7, TimeSpan.Zero);
+
+            var tokens = (await _tokenService.GenerateTokensAsync(1, CancellationToken.None)).Value!;
+
+            var stored = Assert.Single(RefreshTokenSingleton.Instance);
+            Assert.Equal(_clock.UtcNow, stored.CreatedAt);
+            Assert.Equal(_clock.UtcNow.AddDays(7), stored.ExpiresAt);
+            Assert.Equal(_clock.UtcNow.AddDays(30), stored.SessionExpiresAt);
+            var jwt = new JwtSecurityTokenHandler().ReadJwtToken(tokens.AccessToken);
+            Assert.Equal(_clock.UtcNow.AddMinutes(15).UtcDateTime, jwt.ValidTo);
+        }
+
+        [Fact]
+        public async Task RefreshTokensAsync_ShouldStampTheRotatedTokenWithTheClock()
+        {
+            var tokens = (await _tokenService.GenerateTokensAsync(1, CancellationToken.None)).Value!;
+            _clock.UtcNow = _clock.UtcNow.AddDays(3);
+
+            var result = await _tokenService.RefreshTokensAsync(tokens.RefreshToken, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(_clock.UtcNow, RefreshTokenSingleton.Instance[1].CreatedAt);
+            Assert.Equal(_clock.UtcNow.AddDays(7), RefreshTokenSingleton.Instance[1].ExpiresAt);
+        }
+
+        [Fact]
+        public async Task RefreshTokensAsync_ShouldReturnInvalidRefreshToken_WhenTheClockPassesTheSlidingLifetime()
+        {
+            var tokens = (await _tokenService.GenerateTokensAsync(1, CancellationToken.None)).Value!;
+            _clock.UtcNow = _clock.UtcNow.AddDays(7).AddMinutes(1);
+
+            var result = await _tokenService.RefreshTokensAsync(tokens.RefreshToken, CancellationToken.None);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(AuthErrors.InvalidRefreshToken, result.Error);
+            Assert.Single(RefreshTokenSingleton.Instance);
         }
 
         [Theory]
@@ -357,7 +400,7 @@ namespace LifeManager.Application.Test.Auth
         {
             var tokens = (await _tokenService.GenerateTokensAsync(1, CancellationToken.None)).Value!;
             var loginToken = RefreshTokenSingleton.Instance[0];
-            RefreshTokenSingleton.Instance[0] = RefreshToken.Create(1, loginToken.TokenHash.Value, DateTimeOffset.UtcNow.AddMinutes(-1), loginToken.SessionExpiresAt, false).Value!;
+            RefreshTokenSingleton.Instance[0] = RefreshToken.Create(1, loginToken.TokenHash.Value, _clock.UtcNow, _clock.UtcNow.AddMinutes(-1), loginToken.SessionExpiresAt, false).Value!;
 
             var result = await _tokenService.RefreshTokensAsync(tokens.RefreshToken, CancellationToken.None);
 

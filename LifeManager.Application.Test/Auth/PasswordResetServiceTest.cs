@@ -176,7 +176,7 @@ namespace LifeManager.Application.Test.Auth
         public async Task ResetAsync_ShouldChangeThePasswordAndRevokeEverySession()
         {
             var user = await AddUserAsync();
-            RefreshTokenSingleton.Instance.Add(RefreshToken.Create(user.Id!.Value, "session-hash", _clock.UtcNow.AddDays(7), _clock.UtcNow.AddDays(30), false).Value!);
+            RefreshTokenSingleton.Instance.Add(RefreshToken.Create(user.Id!.Value, "session-hash", _clock.UtcNow, _clock.UtcNow.AddDays(7), _clock.UtcNow.AddDays(30), false).Value!);
             var token = await RequestTokenAsync();
 
             var result = await _passwordResetService.ResetAsync(new ResetPasswordDto(token, NewPassword), CancellationToken.None);

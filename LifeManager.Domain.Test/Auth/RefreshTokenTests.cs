@@ -9,7 +9,7 @@ namespace LifeManager.Domain.Test.Auth
         [Fact]
         public void Create_ShouldReturnFailure_WhenTokenHashIsInvalid()
         {
-            var result = RefreshToken.Create(1, string.Empty, DateTimeOffset.UtcNow.AddDays(7), DateTimeOffset.UtcNow.AddDays(30), false);
+            var result = RefreshToken.Create(1, string.Empty, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(7), DateTimeOffset.UtcNow.AddDays(30), false);
 
             Assert.False(result.IsSuccess);
             Assert.Equal(AuthErrors.RefreshTokenHashIsNullOrWhiteSpace, result.Error);
@@ -23,7 +23,7 @@ namespace LifeManager.Domain.Test.Auth
             var expiresAt = DateTimeOffset.UtcNow.AddDays(7);
             var isRevoked = false;
 
-            var result = RefreshToken.Create(userId, tokenHash, expiresAt, expiresAt.AddDays(23), isRevoked);
+            var result = RefreshToken.Create(userId, tokenHash, DateTimeOffset.UtcNow, expiresAt, expiresAt.AddDays(23), isRevoked);
             var refreshToken = result.Value;
 
             Assert.NotNull(refreshToken);
@@ -41,7 +41,7 @@ namespace LifeManager.Domain.Test.Auth
         {
             var sessionExpiresAt = DateTimeOffset.UtcNow.AddDays(2);
 
-            var refreshToken = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(7), sessionExpiresAt, false).Value!;
+            var refreshToken = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(7), sessionExpiresAt, false).Value!;
 
             Assert.Equal(sessionExpiresAt, refreshToken.ExpiresAt);
             Assert.Equal(sessionExpiresAt, refreshToken.SessionExpiresAt);
@@ -52,7 +52,7 @@ namespace LifeManager.Domain.Test.Auth
         {
             var now = DateTimeOffset.UtcNow;
             var sessionExpiresAt = now.AddDays(30);
-            var currentToken = RefreshToken.Create(1, "hash", now.AddDays(1), sessionExpiresAt, false).Value!;
+            var currentToken = RefreshToken.Create(1, "hash", now, now.AddDays(1), sessionExpiresAt, false).Value!;
 
             var result = currentToken.Rotate("new-hash", now, TimeSpan.FromDays(7));
 
@@ -69,7 +69,7 @@ namespace LifeManager.Domain.Test.Auth
         {
             var now = DateTimeOffset.UtcNow;
             var sessionExpiresAt = now.AddDays(3);
-            var currentToken = RefreshToken.Create(1, "hash", now.AddDays(1), sessionExpiresAt, false).Value!;
+            var currentToken = RefreshToken.Create(1, "hash", now, now.AddDays(1), sessionExpiresAt, false).Value!;
 
             var result = currentToken.Rotate("new-hash", now, TimeSpan.FromDays(7));
 
@@ -78,9 +78,31 @@ namespace LifeManager.Domain.Test.Auth
         }
 
         [Fact]
+        public void Create_ShouldStampCreatedAtWithTheGivenInstant_NotWithTheClock()
+        {
+            var createdAt = new DateTimeOffset(2020, 3, 4, 5, 6, 7, TimeSpan.Zero);
+
+            var refreshToken = RefreshToken.Create(1, "hash", createdAt, createdAt.AddDays(7), createdAt.AddDays(30), false).Value!;
+
+            Assert.Equal(createdAt, refreshToken.CreatedAt);
+        }
+
+        [Fact]
+        public void Rotate_ShouldStampTheSuccessorCreatedAtWithNow()
+        {
+            var loginAt = new DateTimeOffset(2020, 3, 4, 5, 6, 7, TimeSpan.Zero);
+            var now = loginAt.AddDays(2);
+            var currentToken = RefreshToken.Create(1, "hash", loginAt, loginAt.AddDays(7), loginAt.AddDays(30), false).Value!;
+
+            var rotated = currentToken.Rotate("new-hash", now, TimeSpan.FromDays(7)).Value!;
+
+            Assert.Equal(now, rotated.CreatedAt);
+        }
+
+        [Fact]
         public void Rotate_ShouldReturnFailure_WhenNewTokenHashIsInvalid()
         {
-            var currentToken = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(7), DateTimeOffset.UtcNow.AddDays(30), false).Value!;
+            var currentToken = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(7), DateTimeOffset.UtcNow.AddDays(30), false).Value!;
 
             var result = currentToken.Rotate(" ", DateTimeOffset.UtcNow, TimeSpan.FromDays(7));
 
@@ -91,7 +113,7 @@ namespace LifeManager.Domain.Test.Auth
         [Fact]
         public void IsActive_ShouldReturnTrue_WhenTokenIsNotRevokedAndNotExpired()
         {
-            var refreshToken = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(7), DateTimeOffset.UtcNow.AddDays(30), false).Value!;
+            var refreshToken = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(7), DateTimeOffset.UtcNow.AddDays(30), false).Value!;
 
             Assert.True(refreshToken.IsActive(DateTimeOffset.UtcNow));
         }
@@ -99,7 +121,7 @@ namespace LifeManager.Domain.Test.Auth
         [Fact]
         public void IsActive_ShouldReturnFalse_WhenTokenIsRevoked()
         {
-            var refreshToken = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(7), DateTimeOffset.UtcNow.AddDays(30), true).Value!;
+            var refreshToken = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(7), DateTimeOffset.UtcNow.AddDays(30), true).Value!;
 
             Assert.False(refreshToken.IsActive(DateTimeOffset.UtcNow));
         }
@@ -107,7 +129,7 @@ namespace LifeManager.Domain.Test.Auth
         [Fact]
         public void IsActive_ShouldReturnFalse_WhenTokenIsExpired()
         {
-            var refreshToken = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(30), false).Value!;
+            var refreshToken = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(30), false).Value!;
 
             Assert.False(refreshToken.IsActive(DateTimeOffset.UtcNow));
         }
@@ -115,7 +137,7 @@ namespace LifeManager.Domain.Test.Auth
         [Fact]
         public void RevokeToken_ShouldSetIsRevokedToTrue_WhenTokenIsNotRevoked()
         {
-            var result = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(7), DateTimeOffset.UtcNow.AddDays(30), false);
+            var result = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(7), DateTimeOffset.UtcNow.AddDays(30), false);
             var refreshToken = result.Value;
 
             refreshToken!.RevokeToken();
@@ -126,7 +148,7 @@ namespace LifeManager.Domain.Test.Auth
         [Fact]
         public void RevokeToken_ShouldKeepIsRevokedTrue_WhenTokenIsAlreadyRevoked()
         {
-            var result = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(7), DateTimeOffset.UtcNow.AddDays(30), true);
+            var result = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(7), DateTimeOffset.UtcNow.AddDays(30), true);
             var refreshToken = result.Value;
 
             refreshToken!.RevokeToken();
@@ -139,7 +161,7 @@ namespace LifeManager.Domain.Test.Auth
         {
             const short id = 10;
 
-            var result = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(7), DateTimeOffset.UtcNow.AddDays(30), false);
+            var result = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(7), DateTimeOffset.UtcNow.AddDays(30), false);
             var refreshToken = result.Value;
 
             refreshToken!.AssignId(id);
@@ -151,8 +173,8 @@ namespace LifeManager.Domain.Test.Auth
         [Fact]
         public void Equals_ShouldReturnTrue_WhenTokensHaveTheSameId()
         {
-            var token1 = RefreshToken.Create(1, "hash1", DateTimeOffset.UtcNow.AddDays(7), DateTimeOffset.UtcNow.AddDays(30), false).Value!;
-            var token2 = RefreshToken.Create(2, "hash2", DateTimeOffset.UtcNow.AddDays(7), DateTimeOffset.UtcNow.AddDays(30), true).Value!;
+            var token1 = RefreshToken.Create(1, "hash1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(7), DateTimeOffset.UtcNow.AddDays(30), false).Value!;
+            var token2 = RefreshToken.Create(2, "hash2", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(7), DateTimeOffset.UtcNow.AddDays(30), true).Value!;
             token1.AssignId(1);
             token2.AssignId(1);
 
@@ -163,8 +185,8 @@ namespace LifeManager.Domain.Test.Auth
         [Fact]
         public void Equals_ShouldReturnFalse_WhenTokensHaveDifferentIds()
         {
-            var token1 = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(7), DateTimeOffset.UtcNow.AddDays(30), false).Value!;
-            var token2 = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(7), DateTimeOffset.UtcNow.AddDays(30), false).Value!;
+            var token1 = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(7), DateTimeOffset.UtcNow.AddDays(30), false).Value!;
+            var token2 = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(7), DateTimeOffset.UtcNow.AddDays(30), false).Value!;
             token1.AssignId(1);
             token2.AssignId(2);
 
@@ -174,8 +196,8 @@ namespace LifeManager.Domain.Test.Auth
         [Fact]
         public void Equals_ShouldReturnFalse_WhenNeitherTokenHasBeenAssignedAnId()
         {
-            var token1 = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(7), DateTimeOffset.UtcNow.AddDays(30), false).Value!;
-            var token2 = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow.AddDays(7), DateTimeOffset.UtcNow.AddDays(30), false).Value!;
+            var token1 = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(7), DateTimeOffset.UtcNow.AddDays(30), false).Value!;
+            var token2 = RefreshToken.Create(1, "hash", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(7), DateTimeOffset.UtcNow.AddDays(30), false).Value!;
 
             Assert.NotEqual(token1, token2);
             Assert.Equal(token1, token1);

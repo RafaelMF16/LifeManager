@@ -42,7 +42,7 @@ namespace LifeManager.Application.Test.Auth
 
         private static RefreshToken SeedSession(User user)
         {
-            var session = RefreshToken.Create(user.Id!.Value, $"session-{user.Id.Value}", Now.AddDays(7), Now.AddDays(30), false).Value!;
+            var session = RefreshToken.Create(user.Id!.Value, $"session-{user.Id.Value}", Now, Now.AddDays(7), Now.AddDays(30), false).Value!;
             RefreshTokenSingleton.Instance.Add(session);
             return session;
         }
