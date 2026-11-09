@@ -7,7 +7,7 @@ namespace LifeManager.Domain.Test.MonthlySummaries
 {
     public class MonthlySummaryTests
     {
-        private static readonly int CurrentYear = DateTimeOffset.UtcNow.Year;
+        private const int CurrentYear = 2026;
 
         [Fact]
         public void Create_ShouldReturnMonthlySummaryWithZeroTotals_WhenValuesAreValid()
@@ -15,7 +15,7 @@ namespace LifeManager.Domain.Test.MonthlySummaries
             const int userId = 1;
             const int month = 11;
 
-            var result = MonthlySummary.Create(userId, month, CurrentYear);
+            var result = MonthlySummary.Create(userId, month, CurrentYear, CurrentYear);
 
             Assert.True(result.IsSuccess);
             var monthlySummary = result.Value;
@@ -33,7 +33,7 @@ namespace LifeManager.Domain.Test.MonthlySummaries
         [Fact]
         public void Create_ShouldReturnFailure_WhenMonthIsInvalid()
         {
-            var result = MonthlySummary.Create(1, 13, CurrentYear);
+            var result = MonthlySummary.Create(1, 13, CurrentYear, CurrentYear);
 
             Assert.False(result.IsSuccess);
             Assert.Equal(MonthlySummaryErrors.InvalidMonth, result.Error);
@@ -42,7 +42,7 @@ namespace LifeManager.Domain.Test.MonthlySummaries
         [Fact]
         public void Create_ShouldReturnFailure_WhenYearIsNotCurrent()
         {
-            var result = MonthlySummary.Create(1, 5, CurrentYear - 1);
+            var result = MonthlySummary.Create(1, 5, CurrentYear - 1, CurrentYear);
 
             Assert.False(result.IsSuccess);
             Assert.Equal(MonthlySummaryErrors.YearNotCurrent, result.Error);
@@ -51,7 +51,7 @@ namespace LifeManager.Domain.Test.MonthlySummaries
         [Fact]
         public void AssignId_ShouldSetId_WhenMonthlySummaryHasNoIdYet()
         {
-            var monthlySummary = MonthlySummary.Create(1, 11, CurrentYear).Value!;
+            var monthlySummary = MonthlySummary.Create(1, 11, CurrentYear, CurrentYear).Value!;
 
             monthlySummary.AssignId(10);
 
@@ -67,7 +67,7 @@ namespace LifeManager.Domain.Test.MonthlySummaries
         [InlineData(100, 0, 300, -200)]
         public void ApplyTotals_ShouldReplaceTotalsAndKeepBalanceInSync(decimal totalIncome, decimal totalExpense, decimal totalInvestment, decimal expectedBalance)
         {
-            var monthlySummary = MonthlySummary.Create(1, 11, CurrentYear).Value!;
+            var monthlySummary = MonthlySummary.Create(1, 11, CurrentYear, CurrentYear).Value!;
 
             var result = monthlySummary.ApplyTotals(totalIncome, totalExpense, totalInvestment);
 
@@ -82,7 +82,7 @@ namespace LifeManager.Domain.Test.MonthlySummaries
         [Fact]
         public void ApplyTotals_ShouldKeepCurrentTotals_WhenATotalIsNegative()
         {
-            var monthlySummary = MonthlySummary.Create(1, 11, CurrentYear).Value!;
+            var monthlySummary = MonthlySummary.Create(1, 11, CurrentYear, CurrentYear).Value!;
 
             var result = monthlySummary.ApplyTotals(-1, 10, 0);
 
@@ -95,7 +95,7 @@ namespace LifeManager.Domain.Test.MonthlySummaries
         [Fact]
         public void ApplyTotals_ShouldKeepCurrentTotals_WhenInvestmentIsNegative()
         {
-            var monthlySummary = MonthlySummary.Create(1, 11, CurrentYear).Value!;
+            var monthlySummary = MonthlySummary.Create(1, 11, CurrentYear, CurrentYear).Value!;
 
             var result = monthlySummary.ApplyTotals(100, 10, -1);
 
@@ -109,8 +109,8 @@ namespace LifeManager.Domain.Test.MonthlySummaries
         [Fact]
         public void Equals_ShouldCompareById()
         {
-            var first = MonthlySummary.Create(1, 1, CurrentYear).Value!;
-            var second = MonthlySummary.Create(1, 2, CurrentYear).Value!;
+            var first = MonthlySummary.Create(1, 1, CurrentYear, CurrentYear).Value!;
+            var second = MonthlySummary.Create(1, 2, CurrentYear, CurrentYear).Value!;
             first.AssignId(7);
             second.AssignId(7);
 
@@ -120,8 +120,8 @@ namespace LifeManager.Domain.Test.MonthlySummaries
         [Fact]
         public void Equals_ShouldBeFalse_WhenIdsAreMissing()
         {
-            var first = MonthlySummary.Create(1, 1, CurrentYear).Value!;
-            var second = MonthlySummary.Create(1, 1, CurrentYear).Value!;
+            var first = MonthlySummary.Create(1, 1, CurrentYear, CurrentYear).Value!;
+            var second = MonthlySummary.Create(1, 1, CurrentYear, CurrentYear).Value!;
 
             Assert.False(first.Equals(second));
         }

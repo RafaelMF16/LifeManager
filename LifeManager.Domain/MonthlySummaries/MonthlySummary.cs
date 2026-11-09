@@ -40,13 +40,16 @@ namespace LifeManager.Domain.MonthlySummaries
             BalanceAmount = Balance.Value;
         }
 
-        /// <summary>Opens a new month for the user, with no income, expenses or investments yet.</summary>
-        public static Result<MonthlySummary> Create(int idUser, int month, int year)
+        /// <summary>
+        /// Opens a new month for the user, with no income, expenses or investments yet. <paramref name="currentYear"/>
+        /// is the year of "today" in the business time zone, given by the caller so the domain never reads a clock.
+        /// </summary>
+        public static Result<MonthlySummary> Create(int idUser, int month, int year, int currentYear)
         {
             var userId = new UserId(idUser);
 
             return MonthlySummaryMonth.Create(month)
-                .Bind(summaryMonth => MonthlySummaryYear.Create(year)
+                .Bind(summaryMonth => MonthlySummaryYear.Create(year, currentYear)
                     .Map(summaryYear => new MonthlySummary(
                         userId, summaryMonth, summaryYear, TotalIncome.Zero, TotalExpense.Zero, TotalInvestment.Zero)));
         }

@@ -14,7 +14,7 @@ namespace LifeManager.Domain.Test.Transactions
 
         private static MonthlySummary March()
         {
-            var monthlySummary = MonthlySummary.Create(1, 3, CurrentYear).Value!;
+            var monthlySummary = MonthlySummary.Create(1, 3, CurrentYear, CurrentYear).Value!;
             monthlySummary.AssignId(7);
 
             return monthlySummary;
