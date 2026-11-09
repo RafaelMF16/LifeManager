@@ -11,7 +11,7 @@ Hoje nada roda contra um Postgres de verdade: as migrations, os mapeamentos EF e
 ## Escopo
 
 1. **Projeto novo `LifeManager.Infrastructure.Test`** (xUnit), no `.slnx`, referenciando só `LifeManager.Infrastructure`, com `TreatWarningsAsErrors` igual aos outros.
-2. **Postgres descartável** com o `Testcontainers.PostgreSql` (dependência nova, **em discussão**), na mesma imagem do `docker-compose.yml` (`postgres:16-alpine`).
+2. **Postgres descartável** com o `Testcontainers.PostgreSql` (dependência nova, aprovada em 09/11/2026), na mesma imagem do `docker-compose.yml` (`postgres:16-alpine`).
    - Uma `PostgresFixture` (`ICollectionFixture`) sobe **um** contêiner por execução e aplica `MigrateAsync()`. Isso já testa toda a cadeia de migrations e falha se houver mudança de modelo sem migration.
    - Cada teste roda num banco limpo: `TRUNCATE … RESTART IDENTITY CASCADE` das tabelas do usuário antes do teste.
    - Testes marcados com `[Trait("Category", "Integration")]`, para poder rodá-los à parte (`--filter Category=Integration`).
@@ -35,7 +35,11 @@ Fora do escopo: testes HTTP de ponta a ponta (`WebApplicationFactory`), que pode
 
 ## CI
 
-- O `deploy.yml` já roda `dotnet test LifeManager.slnx` num runner `ubuntu-latest`, que tem Docker. Nada muda no workflow, só o tempo do job: a meta é **≤ 2 min** a mais.
+- **Onde roda:** os testes de integração entram no mesmo `dotnet test LifeManager.slnx` em dois lugares:
+  - no **`ci.yml`**, que roda em todo PR para a `dev` e a `main` e é criado no `review-fixes`;
+  - no **`deploy.yml`**, em push na `main`, antes do deploy.
+- O runner `ubuntu-latest` já tem Docker, então nenhum workflow muda por causa deles: só o tempo do job aumenta, com a meta de **≤ 2 min** a mais.
+- Um teste de integração vermelho deixa o check do PR vermelho e trava o deploy.
 - **Local:** precisa do Docker rodando (o mesmo do `docker-compose`). Sem Docker, os testes de integração **falham** com uma mensagem clara: nada de pular em silêncio.
 
 ## Critérios de aceite
@@ -50,4 +54,4 @@ Fora do escopo: testes HTTP de ponta a ponta (`WebApplicationFactory`), que pode
 
 ## Perguntas em aberto
 
-1. **Dependência nova (`Testcontainers.PostgreSql`):** em discussão. O módulo só começa depois dessa conversa.
+Nenhuma. Decidido em 09/11/2026: os testes com banco entram no pipeline e rodam em todo PR para a `dev`, via Testcontainers.
