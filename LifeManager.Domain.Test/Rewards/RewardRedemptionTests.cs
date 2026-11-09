@@ -41,7 +41,7 @@ namespace LifeManager.Domain.Test.Rewards
         [Fact]
         public void Undo_ShouldMarkItUndone_OnTheSameDay()
         {
-            var redemption = RewardRedemption.Create(StoredReward(), Today, Now).Value;
+            var redemption = RewardRedemption.Create(StoredReward(), Today, Now).Value!;
             Assert.True(redemption.CanUndo(Today));
 
             var result = redemption.Undo(Today, Now.AddHours(1));
@@ -54,7 +54,7 @@ namespace LifeManager.Domain.Test.Rewards
         [Fact]
         public void Undo_ShouldFail_OnALaterDay()
         {
-            var redemption = RewardRedemption.Create(StoredReward(), Today, Now).Value;
+            var redemption = RewardRedemption.Create(StoredReward(), Today, Now).Value!;
 
             var result = redemption.Undo(Today.AddDays(1), Now.AddDays(1));
 
@@ -67,7 +67,7 @@ namespace LifeManager.Domain.Test.Rewards
         [Fact]
         public void Undo_ShouldFail_WhenAlreadyUndone()
         {
-            var redemption = RewardRedemption.Create(StoredReward(), Today, Now).Value;
+            var redemption = RewardRedemption.Create(StoredReward(), Today, Now).Value!;
             redemption.Undo(Today, Now);
 
             var result = redemption.Undo(Today, Now);

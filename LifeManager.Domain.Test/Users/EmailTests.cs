@@ -52,8 +52,8 @@ namespace LifeManager.Domain.Test.Users
         public void Equals_ShouldBeEqual_WhenValuesAreEquals()
         {
             const string email = "email@email.com";
-            var valueOne = Email.Create(email).Value;
-            var valueTwo = Email.Create(email).Value;
+            var valueOne = Email.Create(email).Value!;
+            var valueTwo = Email.Create(email).Value!;
             var result = valueOne.Equals(valueTwo);
 
             Assert.True(result);
@@ -63,8 +63,8 @@ namespace LifeManager.Domain.Test.Users
         public void GetHashCode_ShouldBeEqual_WhenValuesAreEquals()
         {
             const string email = "email@email.com";
-            var valueOne = Email.Create(email).Value;
-            var valueTwo = Email.Create(email).Value;
+            var valueOne = Email.Create(email).Value!;
+            var valueTwo = Email.Create(email).Value!;
 
             Assert.Equal(valueOne.GetHashCode(), valueTwo.GetHashCode());
         }

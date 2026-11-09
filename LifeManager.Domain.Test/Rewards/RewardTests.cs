@@ -10,7 +10,7 @@ namespace LifeManager.Domain.Test.Rewards
         private static readonly DateTimeOffset Now = new(2026, 10, 8, 12, 0, 0, TimeSpan.Zero);
 
         private static Reward CreateReward(string name = "Video games", int cost = 50, string? icon = "gamepad-2")
-            => Reward.Create(1, name, cost, icon, Now).Value;
+            => Reward.Create(1, name, cost, icon, Now).Value!;
 
         [Theory]
         [InlineData(null)]
@@ -64,7 +64,7 @@ namespace LifeManager.Domain.Test.Rewards
         [InlineData("  ")]
         public void Create_ShouldStoreNullIcon_WhenBlank(string? icon)
         {
-            var reward = Reward.Create(1, "Nap", 10, icon, Now).Value;
+            var reward = Reward.Create(1, "Nap", 10, icon, Now).Value!;
 
             Assert.Null(reward.Icon);
         }
