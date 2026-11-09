@@ -201,7 +201,17 @@ Cada merge na `main` publica o repositório em produção sozinho: a API pelo `.
 - **Fila:** dois merges seguidos publicam um depois do outro, nunca em paralelo (`concurrency` sem cancelamento, no run inteiro, para que um merge mais novo nunca publique antes de um mais antigo). O GitHub guarda só um run na fila: com três merges seguidos, o do meio é cancelado, e o último publica a `main` com tudo.
 - **Logs públicos:** o repositório é público, então os logs do Actions também são. Nenhum segredo passa pelo GitHub (os do banco e do JWT ficam no Secret Manager), e o script só imprime o nome da imagem. O arquivo de credenciais que o `google-github-actions/auth` grava no workspace (`gha-creds-*.json`) está no `.gitignore`, no `.gcloudignore` e no `.dockerignore`, então não vai para o Cloud Build nem para a imagem.
 - **Sem chave guardada no GitHub.** O Actions troca o token OIDC do próprio run por uma credencial de curta duração da service account `github-deployer` (Workload Identity Federation). No GitHub ficam só três variáveis, que são identificadores e não credenciais.
-- **Só a `main` dos dois repositórios autentica.** O provider rejeita qualquer token de outro dono ou de outra branch, e cada repositório só pode usar a service account pelo seu próprio nome. Um fork ou um PR de terceiros nunca consegue credencial. Os workflows disparam só em `push` na `main` e em `workflow_dispatch`.
+- **Só a `main` dos dois repositórios autentica.** O provider rejeita qualquer token de outro dono ou de outra branch, e cada repositório só pode usar a service account pelo seu próprio nome. Um fork ou um PR de terceiros nunca consegue credencial. Os workflows de deploy disparam só em `push` na `main` e em `workflow_dispatch`.
+
+### CI dos PRs
+
+Cada pull request para a `dev` ou a `main` roda os testes, para um erro aparecer antes do merge e não só no deploy. É o `.github/workflows/ci.yml`, um em cada repositório:
+- **API:** `dotnet test LifeManager.slnx`.
+- **Front:** `npm run lint`, `npm test` e `npm run build`.
+
+O workflow não usa segredo nem autentica no GCP (`permissions: contents: read`), então um PR de fork é tão seguro quanto um da própria conta. Um push novo no mesmo PR cancela o run anterior.
+
+**Para o check travar o merge**, é preciso uma regra de proteção em cada repositório: GitHub → Settings → Branches (ou Rules) → nova regra para `dev` (e para `main`) → "Require status checks to pass before merging" → marcar o check `test` do workflow `CI`. Sem essa regra, o check aparece no PR, mas um vermelho ainda pode ser mergeado.
 
 ### Setup único
 
