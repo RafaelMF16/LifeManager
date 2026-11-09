@@ -1,6 +1,6 @@
 # Spec: `integration-tests`
 
-Módulo do mapa [`LifeManagerFront/docs/specs/README.md`](../../../LifeManagerFront/docs/specs/README.md) (P3). Branch `test/integration-tests`, a partir da `dev`, **depois** do `test-hygiene`.
+Módulo do mapa [`LifeManagerFront/docs/specs/README.md`](../../../LifeManagerFront/docs/specs/README.md) (P3). Branch `test/integration-tests`, a partir da `dev`, **depois** do `review-fixes`.
 
 ## Objetivo
 

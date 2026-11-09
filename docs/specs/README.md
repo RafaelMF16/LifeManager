@@ -4,8 +4,7 @@ O mapa completo (diagnóstico, ordem, decisões e as specs dos dois repos) fica 
 
 | Spec | Branch | Status |
 |---|---|---|
-| [`clock-fixes`](clock-fixes.md) | `fix/clock-fixes` | aprovado |
-| [`test-hygiene`](test-hygiene.md) | `chore/test-hygiene` | aprovado |
+| [`review-fixes`](../../../LifeManagerFront/docs/specs/review-fixes.md) (relógio e higiene dos testes; o spec fica no front, junto com as correções de tela) | `fix/review-fixes` | aguardando aprovação |
 | [`integration-tests`](integration-tests.md) | `test/integration-tests` | aprovado · dependência em discussão |
 | [`quick-transaction`](quick-transaction.md) | `feature/quick-transaction` | aprovado |
 | [`home-overview`](home-overview.md) | `feature/home-overview` | aprovado |

@@ -1,6 +1,6 @@
 # Spec: `quick-transaction` (back)
 
-Módulo do mapa [`LifeManagerFront/docs/specs/README.md`](../../../LifeManagerFront/docs/specs/README.md) (M1). Branch `feature/quick-transaction`, a partir da `dev`, nos dois repos, **depois** do `clock-fixes`. Tela: [`LifeManagerFront/docs/specs/quick-transaction.md`](../../../LifeManagerFront/docs/specs/quick-transaction.md).
+Módulo do mapa [`LifeManagerFront/docs/specs/README.md`](../../../LifeManagerFront/docs/specs/README.md) (M1). Branch `feature/quick-transaction`, a partir da `dev`, nos dois repos, **depois** do `review-fixes`. Tela: [`LifeManagerFront/docs/specs/quick-transaction.md`](../../../LifeManagerFront/docs/specs/quick-transaction.md).
 
 ## Objetivo
 
@@ -27,7 +27,7 @@ Body igual ao do lançamento aninhado: `{ type, description, amount, date, categ
 ### 2. Ano anterior na criação manual
 
 - `POST /api/MonthlySummaries` passa a aceitar `{ month, year? }`. Sem `year`, o ano é o corrente (`AppClock`), como hoje.
-- `MonthlySummaryYear.Create(value, currentYear)` (vindo do `clock-fixes`) aceita `currentYear` **ou** `currentYear - 1`. O código de erro continua `MonthlySummary.YearNotCurrent`, porque os códigos não se renomeiam. Muda a mensagem: "O ano deve ser o corrente ou o anterior."
+- `MonthlySummaryYear.Create(value, currentYear)` (vindo do `review-fixes`) aceita `currentYear` **ou** `currentYear - 1`. O código de erro continua `MonthlySummary.YearNotCurrent`, porque os códigos não se renomeiam. Muda a mensagem: "O ano deve ser o corrente ou o anterior."
 - `AlreadyExists` (409) continua igual.
 
 ### Observação: conquistas de Finanças (V6)
