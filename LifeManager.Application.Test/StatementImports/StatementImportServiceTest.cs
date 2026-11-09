@@ -396,7 +396,7 @@ namespace LifeManager.Application.Test.StatementImports
 
             var result = await _service.CommitAsync(created.Value!.Id, FirstUserId, CancellationToken.None);
 
-            var autoCheckIn = Assert.Single(result.Value.AutoCheckIns);
+            var autoCheckIn = Assert.Single(result.Value!.AutoCheckIns);
             Assert.Equal(1, autoCheckIn.HabitId);
             Assert.Equal(Today, Assert.Single(HabitCheckInSingleton.Instance).Date);
         }
@@ -409,7 +409,7 @@ namespace LifeManager.Application.Test.StatementImports
 
             var result = await _service.CommitAsync(created.Value!.Id, FirstUserId, CancellationToken.None);
 
-            Assert.Empty(result.Value.AutoCheckIns);
+            Assert.Empty(result.Value!.AutoCheckIns);
         }
 
         [Fact]

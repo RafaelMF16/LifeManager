@@ -181,7 +181,7 @@ namespace LifeManager.Application.Test.Rewards
             var reward = SeedRewardWithExpense(cost: 50, expenseAmount: 120m);
             var redeemed = await RedeemWithExpense(reward);
 
-            var result = await _service.UndoAsync(redeemed.Value.Redemption.Id, UserId, CancellationToken.None);
+            var result = await _service.UndoAsync(redeemed.Value!.Redemption.Id, UserId, CancellationToken.None);
 
             Assert.True(result.IsSuccess);
             Assert.Empty(TransactionSingleton.Instance);
@@ -201,7 +201,7 @@ namespace LifeManager.Application.Test.Rewards
             var redeemed = await RedeemWithExpense(reward);
             TransactionSingleton.Instance.Clear();
 
-            var result = await _service.UndoAsync(redeemed.Value.Redemption.Id, UserId, CancellationToken.None);
+            var result = await _service.UndoAsync(redeemed.Value!.Redemption.Id, UserId, CancellationToken.None);
 
             Assert.True(result.IsSuccess);
             Assert.Null(result.Value.MonthlySummaryId);
@@ -217,7 +217,7 @@ namespace LifeManager.Application.Test.Rewards
             await RedeemWithExpense(reward);
             var second = await RedeemWithExpense(reward);
 
-            await _service.UndoAsync(second.Value.Redemption.Id, UserId, CancellationToken.None);
+            await _service.UndoAsync(second.Value!.Redemption.Id, UserId, CancellationToken.None);
 
             Assert.Single(TransactionSingleton.Instance);
             Assert.Equal(120m, MonthlySummarySingleton.Instance.Single().TotalExpense.Value);
@@ -348,7 +348,7 @@ namespace LifeManager.Application.Test.Rewards
             SeedProfile(coins: 80);
             var redeemed = await Redeem(SeedReward(cost: 50));
 
-            var result = await _service.UndoAsync(redeemed.Value.Redemption.Id, UserId, CancellationToken.None);
+            var result = await _service.UndoAsync(redeemed.Value!.Redemption.Id, UserId, CancellationToken.None);
 
             Assert.True(result.IsSuccess);
             Assert.Equal(80, Profile().Coins);
@@ -371,7 +371,7 @@ namespace LifeManager.Application.Test.Rewards
             var redeemed = await Redeem(reward);
             RewardSingleton.Instance[0] = Reward.FromPersistence(reward.Id!.Value, UserId.Value, "Video games", 70, null, reward.CreatedAt, null);
 
-            await _service.UndoAsync(redeemed.Value.Redemption.Id, UserId, CancellationToken.None);
+            await _service.UndoAsync(redeemed.Value!.Redemption.Id, UserId, CancellationToken.None);
 
             Assert.Equal(80, Profile().Coins);
         }
@@ -383,7 +383,7 @@ namespace LifeManager.Application.Test.Rewards
             var redeemed = await Redeem(SeedReward(cost: 50));
             _timeProvider.SetToday(Today.AddDays(1));
 
-            var result = await _service.UndoAsync(redeemed.Value.Redemption.Id, UserId, CancellationToken.None);
+            var result = await _service.UndoAsync(redeemed.Value!.Redemption.Id, UserId, CancellationToken.None);
 
             Assert.Equal(RewardErrors.UndoOutsideWindow, result.Error);
             Assert.Equal(30, Profile().Coins);
@@ -394,7 +394,7 @@ namespace LifeManager.Application.Test.Rewards
         {
             SeedProfile(coins: 80);
             var redeemed = await Redeem(SeedReward(cost: 50));
-            await _service.UndoAsync(redeemed.Value.Redemption.Id, UserId, CancellationToken.None);
+            await _service.UndoAsync(redeemed.Value!.Redemption.Id, UserId, CancellationToken.None);
 
             var result = await _service.UndoAsync(redeemed.Value.Redemption.Id, UserId, CancellationToken.None);
 
@@ -408,7 +408,7 @@ namespace LifeManager.Application.Test.Rewards
             SeedProfile(coins: 80);
             var redeemed = await Redeem(SeedReward(cost: 50));
 
-            var result = await _service.UndoAsync(redeemed.Value.Redemption.Id, OtherUserId, CancellationToken.None);
+            var result = await _service.UndoAsync(redeemed.Value!.Redemption.Id, OtherUserId, CancellationToken.None);
 
             Assert.Equal(RewardErrors.RedemptionNotFound, result.Error);
         }

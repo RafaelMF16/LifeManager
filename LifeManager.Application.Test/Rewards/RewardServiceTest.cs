@@ -76,7 +76,7 @@ namespace LifeManager.Application.Test.Rewards
         {
             var result = await _service.CreateAsync(new RewardDto("Dinner out", 300, null, LeisureCategoryId, 120m), UserId, CancellationToken.None);
 
-            Assert.Equal(LeisureCategoryId, result.Value.ExpenseCategoryId);
+            Assert.Equal(LeisureCategoryId, result.Value!.ExpenseCategoryId);
             Assert.Equal(120m, result.Value.ExpenseAmount);
             Assert.True(Assert.Single(RewardSingleton.Instance).HasExpense);
         }
@@ -104,11 +104,11 @@ namespace LifeManager.Application.Test.Rewards
             var reward = SeedReward("Dinner out");
 
             var changed = await _service.UpdateAsync(reward.Id!.Value, new RewardDto("Dinner out", 300, null, LeisureCategoryId, 90m), UserId, CancellationToken.None);
-            Assert.Equal(90m, changed.Value.ExpenseAmount);
+            Assert.Equal(90m, changed.Value!.ExpenseAmount);
             Assert.Equal(90m, RewardSingleton.Instance.Single().ExpenseAmount);
 
             var removed = await _service.UpdateAsync(reward.Id!.Value, new RewardDto("Dinner out", 300, null), UserId, CancellationToken.None);
-            Assert.Null(removed.Value.ExpenseCategoryId);
+            Assert.Null(removed.Value!.ExpenseCategoryId);
             Assert.False(RewardSingleton.Instance.Single().HasExpense);
         }
 
@@ -169,9 +169,9 @@ namespace LifeManager.Application.Test.Rewards
             var byNameDesc = await _service.GetPagedAsync(
                 new RewardListQueryDto { SortBy = RewardSortBy.Name, SortDirection = SortDirection.Desc }, UserId, CancellationToken.None);
 
-            Assert.Equal(["Nap", "Movie", "Pizza"], active.Value.Items.Select(reward => reward.Name));
-            Assert.Equal(["Old"], archived.Value.Items.Select(reward => reward.Name));
-            Assert.Equal(["Pizza", "Nap", "Movie"], byNameDesc.Value.Items.Select(reward => reward.Name));
+            Assert.Equal(["Nap", "Movie", "Pizza"], active.Value!.Items.Select(reward => reward.Name));
+            Assert.Equal(["Old"], archived.Value!.Items.Select(reward => reward.Name));
+            Assert.Equal(["Pizza", "Nap", "Movie"], byNameDesc.Value!.Items.Select(reward => reward.Name));
         }
 
         [Fact]
@@ -182,7 +182,7 @@ namespace LifeManager.Application.Test.Rewards
 
             var result = await _service.GetPagedAsync(new RewardListQueryDto { Search = "CAFE" }, UserId, CancellationToken.None);
 
-            Assert.Equal(["Café especial"], result.Value.Items.Select(reward => reward.Name));
+            Assert.Equal(["Café especial"], result.Value!.Items.Select(reward => reward.Name));
         }
 
         [Fact]
