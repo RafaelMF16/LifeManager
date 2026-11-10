@@ -95,6 +95,9 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
 
 **Minha conta**
 - **Nome:** pode ser trocado a qualquer momento, com as mesmas regras do cadastro (obrigatório, até 100 caracteres, espaços nas pontas removidos). O e-mail não muda.
+- **Trocar a senha:** pede a senha atual e a nova (8 a 50 caracteres). Senha atual errada não muda nada e é avisada antes de qualquer problema da nova. Ao salvar, **as outras sessões da conta são encerradas**, e a sessão de onde a troca foi feita continua aberta.
+- **Sair de todos os aparelhos:** encerra todas as sessões da conta, inclusive a atual, e volta para o login. O acesso já emitido em cada aparelho continua válido até expirar (no máximo 15 minutos).
+- **Limites por usuário:** no máximo **10 trocas de senha ou pedidos de exclusão a cada 10 minutos**, o que também barra quem tenta adivinhar a senha atual.
 
 **Preferências**
 - Tema (claro ou escuro) e idioma (português ou inglês) ficam salvos por usuário e são aplicados no login.
@@ -631,6 +634,7 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 | `User.PlainPasswordIsNullOrWhiteSpace` | Validation | Senha vazia |
 | `User.PlainPasswordTooShort` | Validation | Senha com menos de 8 caracteres |
 | `User.PlainPasswordTooLong` | Validation | Senha com mais de 50 caracteres |
+| `User.WrongPassword` | Validation | Senha atual errada em Minha conta (trocar a senha, excluir a conta) |
 | `User.InvalidCredentials` | Unauthorized | E-mail ou senha errados |
 | `User.NotFound` | NotFound | Usuário não existe |
 | `Auth.InvalidRefreshToken` | Unauthorized | Sessão expirada, revogada ou inválida (é preciso entrar de novo) |

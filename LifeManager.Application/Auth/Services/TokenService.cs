@@ -112,6 +112,10 @@ namespace LifeManager.Application.Auth.Services
             return Result.Success();
         }
 
+        /// <summary>The stored form of a refresh token (the cookie's), to find its session.</summary>
+        public Result<RefreshTokenHash> HashOf(string refreshToken)
+            => HashRefreshToken(refreshToken).Bind(RefreshTokenHash.Create);
+
         private Result<string> GenerateAccessToken(int userId, DateTimeOffset now)
         {
             return _environmentVariableService.GetEnvironmentVariable(ACCESS_TOKEN_SECRET_KEY_ENVIRONMENT_VARIABLE)

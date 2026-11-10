@@ -1,4 +1,5 @@
 using LifeManager.Application.Test.Configurations.SingletonLists;
+using LifeManager.Domain.Auth.ValueObjects;
 using LifeManager.Domain.Categories;
 using LifeManager.Domain.Users;
 using LifeManager.Domain.Users.Interfaces;
@@ -51,6 +52,17 @@ namespace LifeManager.Application.Test.Users.Mocks
         public Task UpdateNameAsync(UserId id, UserName name, CancellationToken cancellationToken)
         {
             _instance.SingleOrDefault(user => user.Id == id)?.Rename(name.Value);
+            return Task.CompletedTask;
+        }
+
+        public Task ChangePasswordAsync(UserId id, PasswordHash passwordHash, RefreshTokenHash? keepTokenHash, CancellationToken cancellationToken)
+        {
+            _instance.SingleOrDefault(user => user.Id == id)?.ChangePassword(passwordHash);
+
+            foreach (var token in RefreshTokenSingleton.Instance.Where(token =>
+                token.UserId.Equals(id) && !token.IsRevoked && (keepTokenHash is null || !token.TokenHash.Equals(keepTokenHash))))
+                token.RevokeToken();
+
             return Task.CompletedTask;
         }
 

@@ -3,6 +3,8 @@ using LifeManager.Application.Auth.Services;
 using LifeManager.Application.Users.DTOs;
 using LifeManager.Application.Users.Services;
 using LifeManager.WebApi.Extensions;
+using LifeManager.WebApi.Users;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -14,8 +16,10 @@ namespace LifeManager.WebApi.Auth.Controllers
         UserService userService,
         TokenService tokenService,
         RegistrationService registrationService,
-        PasswordResetService passwordResetService) : Controller
+        PasswordResetService passwordResetService,
+        UserAccountService userAccountService) : Controller
     {
+        private readonly UserAccountService _userAccountService = userAccountService;
         private readonly UserService _userService = userService;
         private readonly TokenService _tokenService = tokenService;
         private readonly RegistrationService _registrationService = registrationService;
@@ -86,6 +90,29 @@ namespace LifeManager.WebApi.Auth.Controllers
         public async Task<IActionResult> Logout(CancellationToken cancellationToken)
         {
             var result = await _tokenService.RevokeRefreshTokenAsync(RefreshTokenCookie.Read(Request), cancellationToken);
+
+            RefreshTokenCookie.Delete(Response);
+
+            return result.Match(NoContent);
+        }
+
+        /// <summary>
+        /// "My account": here and not under <c>/api/Users</c> because only this path receives the session cookie, the one
+        /// session that stays signed in.
+        /// </summary>
+        [HttpPost("ChangePassword")]
+        [Authorize]
+        [EnableRateLimiting(AccountRateLimits.Sensitive)]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto changePasswordDto, CancellationToken cancellationToken)
+            => (await _userAccountService.ChangePasswordAsync(User.GetUserId(), changePasswordDto, RefreshTokenCookie.Read(Request), cancellationToken))
+                .Match(NoContent);
+
+        /// <summary>Ends every session of the user, this one included, and deletes this browser's cookie.</summary>
+        [HttpPost("LogoutAll")]
+        [Authorize]
+        public async Task<IActionResult> LogoutAll(CancellationToken cancellationToken)
+        {
+            var result = await _userAccountService.LogoutAllAsync(User.GetUserId(), cancellationToken);
 
             RefreshTokenCookie.Delete(Response);
 
