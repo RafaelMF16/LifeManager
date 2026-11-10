@@ -36,6 +36,7 @@ namespace LifeManager.Application.Users.Services
         private readonly AuthService _authService = authService;
         private readonly TokenService _tokenService = tokenService;
 
+        /// <summary>Changes the password, ends every other session and tells the owner by e-mail.</summary>
         /// <param name="currentRefreshToken">The cookie of the session making the change, which stays signed in; every other session ends.</param>
         public async Task<Result> ChangePasswordAsync(UserId userId, ChangePasswordDto dto, string? currentRefreshToken, CancellationToken cancellationToken)
         {
@@ -66,6 +67,12 @@ namespace LifeManager.Application.Users.Services
             }
 
             await _userRepository.ChangePasswordAsync(userId, passwordHashResult.Value, keepTokenHash, cancellationToken);
+
+            // So the owner notices a change they didn't make. A failed send is logged by the sender; the change stands.
+            var preferences = await _userPreferencesRepository.GetByUserIdAsync(userId, cancellationToken);
+            await _emailSender.SendAsync(
+                AuthEmailTemplates.PasswordChanged(user.Email, user.Name, preferences?.Language ?? Language.PTBR, _frontendLinks.ForgotPasswordUrl()),
+                cancellationToken);
 
             return Result.Success();
         }

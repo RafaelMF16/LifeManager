@@ -55,6 +55,20 @@ namespace LifeManager.Application.Auth.Emails
                     $"O link vale por {PasswordResetToken.ValidityHours} hora e só pode ser usado uma vez. Se você não pediu, ignore este e-mail: sua senha continua a mesma.");
 
         /// <param name="deletionDate">The day the account goes, in the business time zone.</param>
+        /// <summary>After "My account" changed the password: if it wasn't the owner, the forgot-password link takes the account back.</summary>
+        public static EmailMessage PasswordChanged(Email to, UserName name, Language language, string forgotPasswordUrl)
+            => language == Language.EN
+                ? Build(to, name, "Your password was changed",
+                    "Hi, {0}!",
+                    "The password of your LifeManager account was just changed, and your other devices were signed out. If it wasn't you, choose a new password now:",
+                    "Choose a new password", forgotPasswordUrl,
+                    "If it was you, there's nothing to do.")
+                : Build(to, name, "Sua senha foi alterada",
+                    "Olá, {0}!",
+                    "A senha da sua conta no LifeManager acabou de ser alterada, e os seus outros aparelhos saíram da conta. Se não foi você, escolha uma nova senha agora:",
+                    "Escolher nova senha", forgotPasswordUrl,
+                    "Se foi você, não precisa fazer nada.");
+
         public static EmailMessage AccountDeletionScheduled(Email to, UserName name, Language language, DateOnly deletionDate, string loginUrl)
             => language == Language.EN
                 ? Build(to, name, "Your account will be deleted",

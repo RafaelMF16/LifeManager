@@ -71,6 +71,32 @@ namespace LifeManager.Application.Test.Users
         }
 
         [Fact]
+        public async Task ChangePasswordAsync_ShouldTellTheOwnerByEmail_WithTheForgotPasswordLink()
+        {
+            var user = await AddUserAsync("ana@email.com");
+
+            var result = await _service.ChangePasswordAsync(user.Id!, new ChangePasswordDto(Password, "newPassword1"), null, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            var email = Assert.Single(EmailSenderMock.Sent);
+            Assert.Equal("ana@email.com", email.ToAddress);
+            Assert.Equal("Sua senha foi alterada", email.Subject);
+            Assert.Contains($"{InjectionModule.TestFrontendBaseUrl}/auth/forgot-password", email.TextBody);
+        }
+
+        [Fact]
+        public async Task ChangePasswordAsync_ShouldStillChange_WhenTheEmailFails()
+        {
+            var user = await AddUserAsync("ana@email.com");
+            EmailSenderMock.FailNextSends = true;
+
+            var result = await _service.ChangePasswordAsync(user.Id!, new ChangePasswordDto(Password, "newPassword1"), null, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.True(Auth.VerifyPassword("newPassword1", Stored(user).PasswordHash.Value));
+        }
+
+        [Fact]
         public async Task ChangePasswordAsync_ShouldEndEverySession_WhenThereIsNoCookie()
         {
             var user = await AddUserAsync("ana@email.com");
@@ -95,6 +121,7 @@ namespace LifeManager.Application.Test.Users
             Assert.Equal(UserErrors.WrongPassword, result.Error);
             Assert.Equal(hashBefore, Stored(user).PasswordHash.Value);
             Assert.False(other.Token.IsRevoked);
+            Assert.Empty(EmailSenderMock.Sent);
         }
 
         [Theory]
