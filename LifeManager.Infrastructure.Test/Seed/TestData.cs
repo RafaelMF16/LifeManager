@@ -67,10 +67,11 @@ namespace LifeManager.Infrastructure.Test.Seed
         }
 
         /// <summary>A daily habit to build, started on <paramref name="startDate"/>.</summary>
-        public static async Task<Habit> AddHabitAsync(this LifeManagerDbContext context, User user, string name, DateOnly startDate)
+        public static async Task<Habit> AddHabitAsync(
+            this LifeManagerDbContext context, User user, string name, DateOnly startDate, HabitKind kind = HabitKind.Positive)
         {
             var habit = Habit.Create(
-                user.Id!.Value, name, description: null, trigger: null, HabitKind.Positive, HabitDifficulty.Easy,
+                user.Id!.Value, name, description: null, trigger: null, kind, HabitDifficulty.Easy,
                 HabitFrequencyType.Daily, HabitWeekDays.None, timesPerWeek: null, startDate, Now).Unwrap();
             context.Add(habit);
             await context.SaveChangesAsync();
