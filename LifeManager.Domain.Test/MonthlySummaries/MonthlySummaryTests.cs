@@ -160,5 +160,33 @@ namespace LifeManager.Domain.Test.MonthlySummaries
             Assert.Equal(0m, monthlySummary.TotalInvestment.Value);
             Assert.Equal(0m, monthlySummary.BalanceAmount);
         }
+        [Theory]
+        [InlineData(0)]
+        [InlineData(-1)]
+        public void OpenForEntry_ShouldOpenAnEmptyMonth_WhenYearIsCurrentOrPrevious(int offsetFromCurrentYear)
+        {
+            var month = YearMonth.From(new DateOnly(CurrentYear + offsetFromCurrentYear, 12, 1));
+
+            var result = MonthlySummary.OpenForEntry(new UserId(3), month, CurrentYear);
+
+            Assert.True(result.IsSuccess);
+            var monthlySummary = result.Value!;
+            Assert.Null(monthlySummary.Id);
+            Assert.Equal(3, monthlySummary.UserId.Value);
+            Assert.Equal(12, monthlySummary.Month.Value);
+            Assert.Equal(CurrentYear + offsetFromCurrentYear, monthlySummary.Year.Value);
+            Assert.Equal(0m, monthlySummary.BalanceAmount);
+        }
+
+        [Theory]
+        [InlineData(-2)]
+        [InlineData(1)]
+        public void OpenForEntry_ShouldReturnYearNotCurrent_WhenYearIsNeitherCurrentNorPrevious(int offsetFromCurrentYear)
+        {
+            var result = MonthlySummary.OpenForEntry(new UserId(3), YearMonth.From(new DateOnly(CurrentYear + offsetFromCurrentYear, 5, 1)), CurrentYear);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(MonthlySummaryErrors.YearNotCurrent, result.Error);
+        }
     }
 }

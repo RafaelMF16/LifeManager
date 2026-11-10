@@ -1,16 +1,19 @@
 using LifeManager.Application.Habits.Services;
 using LifeManager.Application.Shared.DTOs;
+using LifeManager.Application.Shared.Time;
 using LifeManager.Application.Transactions.DTOs;
 using LifeManager.Domain.Categories.Errors;
 using LifeManager.Domain.Categories.Interfaces;
 using LifeManager.Domain.Categories.ValueObjects;
 using LifeManager.Domain.Habits.Enums;
+using LifeManager.Domain.MonthlySummaries;
 using LifeManager.Domain.MonthlySummaries.Errors;
 using LifeManager.Domain.MonthlySummaries.Interfaces;
 using LifeManager.Domain.MonthlySummaries.ValueObjects;
 using LifeManager.Domain.Shared.Paging;
 using LifeManager.Domain.Shared.Results;
 using LifeManager.Domain.Shared.Text;
+using LifeManager.Domain.Shared.ValueObjects;
 using LifeManager.Domain.Transactions;
 using LifeManager.Domain.Transactions.Errors;
 using LifeManager.Domain.Transactions.Interfaces;
@@ -27,12 +30,14 @@ namespace LifeManager.Application.Transactions.Services
         ITransactionRepository transactionRepository,
         IMonthlySummaryRepository monthlySummaryRepository,
         ICategoryRepository categoryRepository,
-        HabitAutoCheckInService habitAutoCheckInService)
+        HabitAutoCheckInService habitAutoCheckInService,
+        AppClock appClock)
     {
         private readonly ITransactionRepository _transactionRepository = transactionRepository;
         private readonly IMonthlySummaryRepository _monthlySummaryRepository = monthlySummaryRepository;
         private readonly ICategoryRepository _categoryRepository = categoryRepository;
         private readonly HabitAutoCheckInService _habitAutoCheckInService = habitAutoCheckInService;
+        private readonly AppClock _appClock = appClock;
 
         public async Task<Result<TransactionResponseDto>> CreateAsync(int monthlySummaryId, TransactionDto transactionDto, UserId userId, CancellationToken cancellationToken)
         {
@@ -61,6 +66,62 @@ namespace LifeManager.Application.Transactions.Services
             var autoCheckIns = await _habitAutoCheckInService.OnEventAsync(userId, HabitAutoTrigger.TransactionCreated, cancellationToken);
 
             return ToResponseDto(transaction, category.Name.Value) with { AutoCheckIns = autoCheckIns };
+        }
+
+        /// <summary>
+        /// Creates a transaction without picking its month first: it falls into the user's month of its date, of any
+        /// year, and a missing month is opened when it is in the current or the previous year. Every rule is checked
+        /// before anything is written, so an invalid transaction never leaves an empty month behind.
+        /// </summary>
+        public async Task<Result<QuickTransactionResponseDto>> CreateQuickAsync(TransactionDto transactionDto, UserId userId, CancellationToken cancellationToken)
+        {
+            var period = YearMonth.From(transactionDto.Date);
+            var monthlySummary = await _monthlySummaryRepository.GetByPeriodAsync(userId, period, cancellationToken);
+            var monthCreated = monthlySummary is null;
+
+            if (monthlySummary is null)
+            {
+                var openResult = MonthlySummary.OpenForEntry(userId, period, _appClock.Today().Year);
+                if (!openResult.IsSuccess)
+                    return openResult.Error;
+
+                monthlySummary = openResult.Value;
+            }
+
+            var transactionResult = BuildTransaction(transactionDto, monthlySummary);
+            if (!transactionResult.IsSuccess)
+                return transactionResult.Error;
+
+            var category = await _categoryRepository.GetByIdAsync(new CategoryId(transactionDto.CategoryId), userId, cancellationToken);
+            if (category is null)
+                return CategoryErrors.NotFound;
+
+            if (monthCreated)
+            {
+                // Validated against the unsaved month; built again with the stored one, which now has its id.
+                monthlySummary = await _monthlySummaryRepository.AddIfMissingAsync(monthlySummary, cancellationToken);
+                transactionResult = BuildTransaction(transactionDto, monthlySummary);
+            }
+
+            var transaction = transactionResult.Value!;
+            await _transactionRepository.AddAsync(transaction, cancellationToken);
+
+            var autoCheckIns = await _habitAutoCheckInService.OnEventAsync(userId, HabitAutoTrigger.TransactionCreated, cancellationToken);
+
+            var created = ToResponseDto(transaction, category.Name.Value);
+
+            return new QuickTransactionResponseDto(
+                created.Id,
+                created.Type,
+                created.CategoryId,
+                created.CategoryName,
+                created.Amount,
+                created.Description,
+                created.Date,
+                created.RecurringTransactionId,
+                monthlySummary.Id!.Value,
+                monthCreated,
+                autoCheckIns);
         }
 
         public async Task<Result<TransactionResponseDto>> GetByIdAsync(int monthlySummaryId, int id, UserId userId, CancellationToken cancellationToken)
@@ -147,6 +208,15 @@ namespace LifeManager.Application.Transactions.Services
 
             return Result.Success();
         }
+
+        private static Result<Transaction> BuildTransaction(TransactionDto transactionDto, MonthlySummary monthlySummary)
+            => Transaction.Create(
+                transactionDto.Type,
+                transactionDto.CategoryId,
+                transactionDto.Amount,
+                transactionDto.Description,
+                transactionDto.Date,
+                monthlySummary);
 
         private static TransactionResponseDto ToResponseDto(TransactionListItem item)
             => ToResponseDto(item.Transaction, item.CategoryName);
