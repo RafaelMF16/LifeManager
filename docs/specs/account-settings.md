@@ -65,7 +65,7 @@ Política nova `AccountSensitive`: 10 por 10 min **por usuário**, nas rotas de 
 - **Exclusão definitiva:** um job novo, `AccountDeletionRunner` (de hora em hora; último no `--run-jobs`), processa um usuário por escopo. Numa transação só:
   1. `SELECT … FROM "Users" WHERE "Id" = @id AND "DeletionScheduledFor" <= now FOR UPDATE`. Nenhuma linha quer dizer que a pessoa entrou e cancelou, e o job segue para o próximo.
   2. **Sai de cada grupo de ranking** com a regra de saída que já existe (`RankingGroupMembership.OwnerAfterLeaving`: o membro mais antigo vira dono; o último a sair apaga o grupo). **Isso é obrigatório:** a FK `RankingGroups.OwnerUserId` é `CASCADE`, e apagar o dono direto apagaria o grupo de todos os membros.
-  3. `DELETE FROM "Users"`. Todas as tabelas do usuário caem em cascata (conferido no model snapshot: as FKs com `NoAction` de `HabitCheckIns`/`HabitProgressEntries` caem pela cascata do `Habit` no mesmo comando).
+  3. `DELETE FROM "Users"`. Todas as tabelas do usuário caem em cascata. Isso já foi provado num banco real pelo `UserDeletionTests` do `integration-tests` (PR #43), que corrigiu um bug no caminho. As quatro FKs `NO ACTION` (`HabitCheckIns.UserId`, `HabitProgressEntries.UserId`, `Transactions.CategoryId` e `RecurringTransactions.CategoryId`) travavam o `DELETE` com 23503. A causa é que o Postgres checa o `NO ACTION` no fim de cada cascata, e não no fim do comando. A migration `MakeUserDeletionForeignKeysDeferrable` as deixou `DEFERRABLE INITIALLY DEFERRED`, checadas no commit.
 - Os resultados de semanas já fechadas (`RankingWeekResults`) perdem a linha da pessoa, por causa da FK `CASCADE`. É aceito e fica registrado em `docs/regras-de-negocio.md`.
 
 ## Migration (aditiva)
@@ -83,7 +83,7 @@ Política nova `AccountSensitive`: 10 por 10 min **por usuário**, nas rotas de 
   - login dentro do prazo cancela (`deletionCancelled`);
   - `AccountDeletionService`: não apaga antes do prazo; passa a posse do grupo para o membro mais antigo; apaga o grupo em que a pessoa estava sozinha; não apaga quem cancelou entre a busca e o lock (um hook no mock).
 - **Exportação:** um teste de serviço que lê o JSON gerado e confere as seções e a ausência de `passwordHash`/tokens.
-- **Integração** (se o `integration-tests` já estiver na `dev`): exclusão definitiva num banco real, sem sobrar nenhuma linha do usuário em nenhuma tabela.
+- **Integração** (o `integration-tests` já está na `dev`): o `UserDeletionTests` já confere o `DELETE` do usuário, comparando a contagem de cada tabela. Este módulo acrescenta o `AccountDeletionRunner` de ponta a ponta, com a saída dos grupos de ranking (o teste atual não semeia grupo) e a transação com o lock.
 
 ## Docs
 

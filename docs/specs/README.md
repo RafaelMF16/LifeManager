@@ -5,7 +5,7 @@ O mapa completo (diagnóstico, ordem, decisões e as specs dos dois repos) fica 
 | Spec | Branch | Status |
 |---|---|---|
 | `review-fixes` (relógio, higiene dos testes e CI; o spec ficava no front e já saiu) | `fix/review-fixes` | **mergeado na `dev`** em 10/11/2026 (PR #41) |
-| [`integration-tests`](integration-tests.md) | `test/integration-tests` | implementado, aguardando PR (inclui a migration `MakeUserDeletionForeignKeysDeferrable`) |
+| `integration-tests` (Testcontainers, um teste por repositório e a migration `MakeUserDeletionForeignKeysDeferrable`; o spec já saiu) | `test/integration-tests` | **mergeado na `dev`** em 10/11/2026 (PR #43) |
 | [`quick-transaction`](quick-transaction.md) | `feature/quick-transaction` | aprovado |
 | [`home-overview`](home-overview.md) | `feature/home-overview` | aprovado |
 | [`account-settings`](account-settings.md) | `feature/account-settings` | aprovado |
