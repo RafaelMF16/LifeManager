@@ -78,7 +78,21 @@ namespace LifeManager.Application.Users.Services
                 && PasswordHash.Create(_authService.EncryptPassword(loginDto.Password)) is { IsSuccess: true } rehashed)
                 await _userRepository.UpdatePasswordHashAsync(user.Id!, rehashed.Value, cancellationToken);
 
-            return await _tokenService.GenerateTokensAsync(user.Id!.Value, cancellationToken);
+            // Signing in during the grace period keeps the account. If the deletion job got the row first, there's no
+            // account left to sign in to.
+            var deletionCancelled = false;
+            if (user.IsDeletionPending)
+            {
+                if (!await _userRepository.CancelDeletionAsync(user.Id!, cancellationToken)
+                    && await _userRepository.GetByIdAsync(user.Id!, cancellationToken) is null)
+                    return UserErrors.InvalidCredentials;
+
+                deletionCancelled = true;
+            }
+
+            var tokensResult = await _tokenService.GenerateTokensAsync(user.Id!.Value, cancellationToken);
+
+            return tokensResult.Map(tokens => tokens with { DeletionCancelled = deletionCancelled });
         }
     }
 }

@@ -66,6 +66,32 @@ namespace LifeManager.Application.Test.Users.Mocks
             return Task.CompletedTask;
         }
 
+        // The mock hands out the stored instance itself, so the service's ScheduleDeletion already changed it: the
+        // conditional update only matters against the database (UserRepositoryTests).
+        public Task<bool> ScheduleDeletionAsync(UserId id, DateTimeOffset requestedAt, DateTimeOffset scheduledFor, CancellationToken cancellationToken)
+        {
+            var user = _instance.SingleOrDefault(user => user.Id == id);
+            var scheduled = user is not null && (user.ScheduleDeletion(requestedAt) || user.DeletionScheduledFor == scheduledFor);
+
+            foreach (var token in RefreshTokenSingleton.Instance.Where(token => token.UserId.Equals(id) && !token.IsRevoked))
+                token.RevokeToken();
+
+            return Task.FromResult(scheduled);
+        }
+
+        public int CancelDeletionCount { get; private set; }
+
+        public Task<bool> CancelDeletionAsync(UserId id, CancellationToken cancellationToken)
+        {
+            CancelDeletionCount++;
+            var user = _instance.SingleOrDefault(user => user.Id == id);
+            if (user is null || !user.IsDeletionPending)
+                return Task.FromResult(false);
+
+            user.CancelDeletion();
+            return Task.FromResult(true);
+        }
+
         public int PasswordHashUpdateCount { get; private set; }
 
         public Task UpdatePasswordHashAsync(UserId id, PasswordHash passwordHash, CancellationToken cancellationToken)

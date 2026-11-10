@@ -150,6 +150,33 @@ namespace LifeManager.Application.Test.Users
             Assert.True(result.IsSuccess);
             Assert.False(string.IsNullOrWhiteSpace(result.Value.AccessToken));
             Assert.False(string.IsNullOrWhiteSpace(result.Value.RefreshToken));
+            Assert.False(result.Value.DeletionCancelled);
+            Assert.Equal(0, UserRepository.CancelDeletionCount);
+        }
+
+        [Fact]
+        public async Task AuthenticateUserAsync_ShouldCancelThePendingDeletion_WhenTheUserSignsInDuringTheGracePeriod()
+        {
+            var user = await AddUserAsync("email@email.com", "name", "password");
+            user.ScheduleDeletion(Clock.UtcNow.AddDays(-2));
+
+            var result = await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "password"), TestIp, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.True(result.Value.DeletionCancelled);
+            Assert.False((await UserRepository.GetByIdAsync(user.Id!, CancellationToken.None))!.IsDeletionPending);
+        }
+
+        [Fact]
+        public async Task AuthenticateUserAsync_ShouldKeepThePendingDeletion_WhenThePasswordIsWrong()
+        {
+            var user = await AddUserAsync("email@email.com", "name", "password");
+            user.ScheduleDeletion(Clock.UtcNow);
+
+            var result = await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "wrongPassword"), TestIp, CancellationToken.None);
+
+            Assert.False(result.IsSuccess);
+            Assert.True(user.IsDeletionPending);
         }
 
         [Fact]

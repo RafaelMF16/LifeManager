@@ -11,6 +11,14 @@ namespace LifeManager.Domain.Users
         public PasswordHash PasswordHash { get; private set; }
         public DateTimeOffset CreationDate { get; private set; }
 
+        /// <summary>When the user asked to delete the account; null when no deletion is pending.</summary>
+        public DateTimeOffset? DeletionRequestedAt { get; private set; }
+
+        /// <summary>When the account is deleted for good, unless the user signs in before (<see cref="AccountDeletion"/>).</summary>
+        public DateTimeOffset? DeletionScheduledFor { get; private set; }
+
+        public bool IsDeletionPending => DeletionScheduledFor is not null;
+
         private User(
             UserName name,
             Email email,
@@ -50,6 +58,27 @@ namespace LifeManager.Domain.Users
 
             Name = nameResult.Value;
             return Result.Success();
+        }
+
+        /// <summary>
+        /// Schedules the deletion <see cref="AccountDeletion.GracePeriod"/> from <paramref name="now"/>. Idempotent: a
+        /// pending deletion keeps its date, so asking again never pushes it back. True when this call scheduled it.
+        /// </summary>
+        public bool ScheduleDeletion(DateTimeOffset now)
+        {
+            if (IsDeletionPending)
+                return false;
+
+            DeletionRequestedAt = now;
+            DeletionScheduledFor = now + AccountDeletion.GracePeriod;
+            return true;
+        }
+
+        /// <summary>Signing in during the grace period keeps the account.</summary>
+        public void CancelDeletion()
+        {
+            DeletionRequestedAt = null;
+            DeletionScheduledFor = null;
         }
 
         public void ChangePassword(PasswordHash passwordHash)

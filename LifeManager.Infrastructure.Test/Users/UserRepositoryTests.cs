@@ -61,6 +61,54 @@ namespace LifeManager.Infrastructure.Test.Users
             Assert.Empty(await ActiveSessionsAsync(readContext));
         }
 
+        [Fact]
+        public async Task ScheduleDeletionAsync_ShouldMarkOnceAndEndEverySessionOfTheUser()
+        {
+            await using var seedContext = Fixture.CreateContext();
+            var user = await seedContext.AddUserAsync("Ana");
+            var other = await seedContext.AddUserAsync("Bia");
+            await AddSessionAsync(seedContext, user, "ana");
+            await AddSessionAsync(seedContext, other, "bia");
+            var first = TestData.Now.AddDays(AccountDeletion.GraceDays);
+
+            await using (var context = Fixture.CreateContext())
+                Assert.True(await new UserRepository(context).ScheduleDeletionAsync(user.Id!, TestData.Now, first, CancellationToken.None));
+
+            // Asking again keeps the first date.
+            await using (var context = Fixture.CreateContext())
+                Assert.False(await new UserRepository(context).ScheduleDeletionAsync(user.Id!, TestData.Now.AddDays(1), first.AddDays(1), CancellationToken.None));
+
+            await using var readContext = Fixture.CreateContext();
+            var stored = (await new UserRepository(readContext).GetByIdAsync(user.Id!, CancellationToken.None))!;
+            Assert.Equal(TestData.Now, stored.DeletionRequestedAt);
+            Assert.Equal(first, stored.DeletionScheduledFor);
+            Assert.False((await new UserRepository(readContext).GetByIdAsync(other.Id!, CancellationToken.None))!.IsDeletionPending);
+            Assert.Equal(["bia"], await ActiveSessionsAsync(readContext));
+        }
+
+        [Fact]
+        public async Task CancelDeletionAsync_ShouldClearAPendingDeletionOnly()
+        {
+            await using var seedContext = Fixture.CreateContext();
+            var user = await seedContext.AddUserAsync("Ana");
+            var other = await seedContext.AddUserAsync("Bia");
+
+            await using (var context = Fixture.CreateContext())
+            {
+                var repository = new UserRepository(context);
+                await repository.ScheduleDeletionAsync(user.Id!, TestData.Now, TestData.Now.AddDays(AccountDeletion.GraceDays), CancellationToken.None);
+
+                Assert.True(await repository.CancelDeletionAsync(user.Id!, CancellationToken.None));
+                Assert.False(await repository.CancelDeletionAsync(user.Id!, CancellationToken.None));
+                Assert.False(await repository.CancelDeletionAsync(other.Id!, CancellationToken.None));
+            }
+
+            await using var readContext = Fixture.CreateContext();
+            var stored = (await new UserRepository(readContext).GetByIdAsync(user.Id!, CancellationToken.None))!;
+            Assert.Null(stored.DeletionRequestedAt);
+            Assert.Null(stored.DeletionScheduledFor);
+        }
+
         private static async Task AddSessionAsync(LifeManagerDbContext context, User user, string hash)
         {
             context.Add(RefreshToken.Create(user.Id!.Value, hash, TestData.Now, TestData.Now.AddDays(7), TestData.Now.AddDays(30), false).Unwrap());

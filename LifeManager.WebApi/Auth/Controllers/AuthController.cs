@@ -66,7 +66,7 @@ namespace LifeManager.WebApi.Auth.Controllers
             {
                 RefreshTokenCookie.Append(Response, tokens.RefreshToken, tokens.RefreshTokenExpiresAt);
 
-                return Ok(new { tokens.AccessToken });
+                return Ok(new { tokens.AccessToken, tokens.DeletionCancelled });
             });
 
         [HttpPost("Refresh")]

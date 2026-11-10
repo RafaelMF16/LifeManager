@@ -97,6 +97,8 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
 - **Nome:** pode ser trocado a qualquer momento, com as mesmas regras do cadastro (obrigatório, até 100 caracteres, espaços nas pontas removidos). O e-mail não muda.
 - **Trocar a senha:** pede a senha atual e a nova (8 a 50 caracteres). Senha atual errada não muda nada e é avisada antes de qualquer problema da nova. Ao salvar, **as outras sessões da conta são encerradas**, e a sessão de onde a troca foi feita continua aberta.
 - **Sair de todos os aparelhos:** encerra todas as sessões da conta, inclusive a atual, e volta para o login. O acesso já emitido em cada aparelho continua válido até expirar (no máximo 15 minutos).
+- **Excluir a conta:** pede a senha. A conta não some na hora: a exclusão fica marcada para **7 dias** depois, todas as sessões são encerradas e um e-mail, no idioma da conta, avisa a data e que entrar de novo até lá cancela. Pedir de novo durante o prazo não muda a data nem manda outro e-mail. Se o e-mail falhar, a exclusão continua marcada.
+  - **Durante o prazo** a conta funciona normalmente. **Entrar com a senha certa cancela a exclusão**, e o app avisa "a exclusão da sua conta foi cancelada". "Esqueceu a senha?" continua funcionando, para quem quiser voltar.
 - **Limites por usuário:** no máximo **10 trocas de senha ou pedidos de exclusão a cada 10 minutos**, o que também barra quem tenta adivinhar a senha atual.
 
 **Preferências**

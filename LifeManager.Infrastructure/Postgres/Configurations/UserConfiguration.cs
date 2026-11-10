@@ -35,6 +35,12 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
             builder.Property(user => user.CreationDate)
                 .IsRequired()
                 .ValueGeneratedNever();
+
+            builder.Ignore(user => user.IsDeletionPending);
+
+            // The account deletion job's lookup: only users with a pending deletion.
+            builder.HasIndex(user => user.DeletionScheduledFor)
+                .HasFilter("\"DeletionScheduledFor\" IS NOT NULL");
         }
     }
 }

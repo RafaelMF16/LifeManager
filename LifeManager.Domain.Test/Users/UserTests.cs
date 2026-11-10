@@ -141,5 +141,43 @@ namespace LifeManager.Domain.Test.Users
 
             Assert.Equal(UserErrors.UserNameTooLong, result.Error);
         }
+
+        [Fact]
+        public void ScheduleDeletion_ShouldSetTheDateGraceDaysAhead_WhenNoneIsPending()
+        {
+            var user = User.Create("test", "r@email.com", "hash", CreationDate).Value!;
+            var now = CreationDate.AddMonths(1);
+
+            Assert.True(user.ScheduleDeletion(now));
+
+            Assert.True(user.IsDeletionPending);
+            Assert.Equal(now, user.DeletionRequestedAt);
+            Assert.Equal(now.AddDays(AccountDeletion.GraceDays), user.DeletionScheduledFor);
+        }
+
+        [Fact]
+        public void ScheduleDeletion_ShouldKeepTheFirstDate_WhenAskedAgain()
+        {
+            var user = User.Create("test", "r@email.com", "hash", CreationDate).Value!;
+            user.ScheduleDeletion(CreationDate);
+
+            Assert.False(user.ScheduleDeletion(CreationDate.AddDays(3)));
+
+            Assert.Equal(CreationDate, user.DeletionRequestedAt);
+            Assert.Equal(CreationDate.AddDays(AccountDeletion.GraceDays), user.DeletionScheduledFor);
+        }
+
+        [Fact]
+        public void CancelDeletion_ShouldClearBothDates()
+        {
+            var user = User.Create("test", "r@email.com", "hash", CreationDate).Value!;
+            user.ScheduleDeletion(CreationDate);
+
+            user.CancelDeletion();
+
+            Assert.False(user.IsDeletionPending);
+            Assert.Null(user.DeletionRequestedAt);
+            Assert.Null(user.DeletionScheduledFor);
+        }
     }
 }

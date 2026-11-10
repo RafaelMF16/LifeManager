@@ -1,4 +1,5 @@
 namespace LifeManager.Application.Auth.DTOs
 {
-    public record LoginResponseDto(string AccessToken, string RefreshToken, DateTimeOffset RefreshTokenExpiresAt);
+    /// <param name="DeletionCancelled">The sign-in cancelled a pending account deletion, so the frontend tells the user.</param>
+    public record LoginResponseDto(string AccessToken, string RefreshToken, DateTimeOffset RefreshTokenExpiresAt, bool DeletionCancelled = false);
 }
