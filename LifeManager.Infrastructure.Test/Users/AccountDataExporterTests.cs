@@ -84,9 +84,54 @@ namespace LifeManager.Infrastructure.Test.Users
         private async Task<string> ExportAsync(User user)
         {
             await using var context = Fixture.CreateContext();
-            using var output = new MemoryStream();
+            // Like Kestrel's response body: a synchronous write throws.
+            using var output = new AsyncOnlyStream();
             await new AccountDataExporter(context).WriteAsync(user.Id!, output, TestData.Now, CancellationToken.None);
             return System.Text.Encoding.UTF8.GetString(output.ToArray());
+        }
+
+        /// <summary>A stream that, like the response body (AllowSynchronousIO off), refuses synchronous writes.</summary>
+        private sealed class AsyncOnlyStream : MemoryStream
+        {
+            private bool _writingAsync;
+
+            public override void Write(byte[] buffer, int offset, int count)
+            {
+                if (!_writingAsync) throw SyncWrite();
+                base.Write(buffer, offset, count);
+            }
+
+            public override void Write(ReadOnlySpan<byte> buffer)
+            {
+                if (!_writingAsync) throw SyncWrite();
+                base.Write(buffer);
+            }
+
+            public override void WriteByte(byte value) => throw SyncWrite();
+
+            public override void Flush() => throw SyncWrite();
+
+            public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+                => WriteAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+
+            public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+            {
+                _writingAsync = true;
+                try
+                {
+                    Write(buffer.Span);
+                }
+                finally
+                {
+                    _writingAsync = false;
+                }
+
+                return ValueTask.CompletedTask;
+            }
+
+            public override Task FlushAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+            private static InvalidOperationException SyncWrite() => new("Synchronous operations are disallowed.");
         }
 
         private static IEnumerable<string?> Names(JsonElement root, string section)

@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using LifeManager.Domain.Users.Interfaces;
@@ -8,13 +9,15 @@ using Microsoft.EntityFrameworkCore;
 namespace LifeManager.Infrastructure.Users
 {
     /// <summary>
-    /// The data export, written with a <see cref="Utf8JsonWriter"/> straight to the response: one array per table, read
-    /// with <c>AsNoTracking</c> + <c>AsAsyncEnumerable</c> and flushed as it grows. Each row is mapped field by field to
+    /// The data export, written with a <see cref="Utf8JsonWriter"/> and streamed to the response: one array per table, read
+    /// with <c>AsNoTracking</c> + <c>AsAsyncEnumerable</c> and sent as it grows. The writer fills a buffer in memory, never
+    /// the response itself: <c>JsonSerializer.Serialize(writer, …)</c> flushes the writer synchronously, and Kestrel's
+    /// body refuses synchronous writes. Only <see cref="SendAsync"/> touches the response, asynchronously. Each row is mapped field by field to
     /// what may leave: every section lists its columns here, so a new column is never exported by accident.
     /// </summary>
     public class AccountDataExporter(LifeManagerDbContext dbContext) : IAccountDataExporter
     {
-        // Flushed to the response once the writer holds this much, so a long section never piles up in memory.
+        // Sent to the response once the buffer holds this much, so a long section never piles up in memory.
         private const int FlushThresholdBytes = 32 * 1024;
 
         private static readonly JsonSerializerOptions SerializerOptions = new()
@@ -24,10 +27,15 @@ namespace LifeManager.Infrastructure.Users
         };
 
         private readonly LifeManagerDbContext _dbContext = dbContext;
+        // Set by WriteAsync for its run (the exporter is scoped: one export per request).
+        private readonly ArrayBufferWriter<byte> _buffer = new();
+        private Stream _output = Stream.Null;
 
         public async Task WriteAsync(UserId userId, Stream output, DateTimeOffset exportedAt, CancellationToken cancellationToken)
         {
-            await using var writer = new Utf8JsonWriter(output, new JsonWriterOptions { Indented = true });
+            _output = output;
+            _buffer.ResetWrittenCount();
+            await using var writer = new Utf8JsonWriter(_buffer, new JsonWriterOptions { Indented = true });
 
             writer.WriteStartObject();
             writer.WriteNumber("version", IAccountDataExporter.FormatVersion);
@@ -40,7 +48,15 @@ namespace LifeManager.Infrastructure.Users
             await WriteRankingAsync(writer, userId, cancellationToken);
 
             writer.WriteEndObject();
-            await writer.FlushAsync(cancellationToken);
+            await SendAsync(writer, cancellationToken);
+        }
+
+        /// <summary>Moves what the writer holds to the response, asynchronously, and empties the buffer.</summary>
+        private async Task SendAsync(Utf8JsonWriter writer, CancellationToken cancellationToken)
+        {
+            writer.Flush();
+            await _output.WriteAsync(_buffer.WrittenMemory, cancellationToken);
+            _buffer.ResetWrittenCount();
         }
 
         private async Task WriteAccountAsync(Utf8JsonWriter writer, UserId userId, CancellationToken cancellationToken)
@@ -306,7 +322,7 @@ namespace LifeManager.Infrastructure.Users
                 membership => new { Name = membership.Name.Value, membership.JoinedOn, IsOwner = membership.OwnerUserId == userId },
                 cancellationToken);
 
-        private static async Task WriteArrayAsync<TRow, TOut>(
+        private async Task WriteArrayAsync<TRow, TOut>(
             Utf8JsonWriter writer,
             string name,
             IQueryable<TRow> query,
@@ -319,12 +335,12 @@ namespace LifeManager.Infrastructure.Users
             {
                 JsonSerializer.Serialize(writer, map(row), SerializerOptions);
 
-                if (writer.BytesPending > FlushThresholdBytes)
-                    await writer.FlushAsync(cancellationToken);
+                if (_buffer.WrittenCount + writer.BytesPending > FlushThresholdBytes)
+                    await SendAsync(writer, cancellationToken);
             }
 
             writer.WriteEndArray();
-            await writer.FlushAsync(cancellationToken);
+            await SendAsync(writer, cancellationToken);
         }
     }
 }
