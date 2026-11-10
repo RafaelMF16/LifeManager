@@ -17,6 +17,8 @@ namespace LifeManager.Infrastructure.Test.Seed
     {
         public static readonly DateTimeOffset Now = new(2026, 11, 10, 15, 0, 0, TimeSpan.Zero);
 
+        public static YearMonth Month(int year, int month) => YearMonth.From(new DateOnly(year, month, 1));
+
         public static T Unwrap<T>(this Result<T> result)
         {
             if (!result.IsSuccess)
@@ -46,7 +48,7 @@ namespace LifeManager.Infrastructure.Test.Seed
         /// <summary>A month of any year (stored months may be from past years, like the ones imports open).</summary>
         public static async Task<MonthlySummary> AddMonthAsync(this LifeManagerDbContext context, User user, int year, int month)
         {
-            var monthlySummary = MonthlySummary.OpenForImport(user.Id!, YearMonth.From(new DateOnly(year, month, 1)));
+            var monthlySummary = MonthlySummary.OpenForImport(user.Id!, Month(year, month));
             context.Add(monthlySummary);
             await context.SaveChangesAsync();
 
