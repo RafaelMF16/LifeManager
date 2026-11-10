@@ -2,8 +2,14 @@ using LifeManager.Application.Habits.Services;
 using LifeManager.Application.Home.Services;
 using LifeManager.Application.Test.Configurations;
 using LifeManager.Application.Test.Configurations.SingletonLists;
+using LifeManager.Domain.BudgetPlans;
+using LifeManager.Domain.Categories;
 using LifeManager.Domain.Habits;
 using LifeManager.Domain.Habits.Enums;
+using LifeManager.Domain.MonthlySummaries;
+using LifeManager.Domain.Shared.Enums;
+using LifeManager.Domain.Shared.ValueObjects;
+using LifeManager.Domain.Transactions;
 using LifeManager.Domain.Users.ValueObjects;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -21,7 +27,13 @@ namespace LifeManager.Application.Test.Home
         private static readonly DateOnly StartDate = new(2026, 9, 1);
         private static readonly DateTimeOffset CreatedAt = new(2026, 9, 1, 12, 0, 0, TimeSpan.Zero);
 
+        private const int MarketCategoryId = 1;
+        private const int HousingCategoryId = 2;
+        private const int LeisureCategoryId = 3;
+        private static readonly YearMonth October = YearMonth.From(Today);
+
         private readonly HomeOverviewService _service;
+        private int _nextTransactionId = 1;
 
         public HomeOverviewServiceTest()
         {
@@ -172,12 +184,111 @@ namespace LifeManager.Application.Test.Home
             Assert.Null(overview.Player);
         }
 
+        private static MonthlySummary SeedMonth(UserId userId, int year, int month, decimal income = 0, decimal expense = 0, decimal investment = 0)
+        {
+            var monthlySummary = MonthlySummary.FromPersistence(MonthlySummarySingleton.Instance.Count + 1, userId.Value, month, year, income, expense, investment);
+            MonthlySummarySingleton.Instance.Add(monthlySummary);
+
+            return monthlySummary;
+        }
+
+        private void SeedExpense(MonthlySummary month, int categoryId, decimal amount, MoneyFlowType type = MoneyFlowType.Expense)
+            => TransactionSingleton.Instance.Add(Transaction.FromPersistence(
+                _nextTransactionId++, month.Id!.Value, type, categoryId, amount, "description", new DateOnly(month.Year.Value, month.Month.Value, 1)));
+
+        private static void SeedCategory(int id, string name, UserId? userId = null)
+        {
+            var category = Category.Create((userId ?? UserId).Value, name).Value!;
+            category.AssignId(id);
+            CategorySingleton.Instance.Add(category);
+        }
+
+        private static void SeedPlan(UserId userId, YearMonth month, decimal total, params BudgetSlice[] slices)
+        {
+            var plan = BudgetPlan.Create(userId.Value, month, total, slices, DateTimeOffset.UnixEpoch).Value!;
+            plan.AssignId(BudgetPlanSingleton.Instance.Count + 1);
+            BudgetPlanSingleton.Instance.Add(plan);
+        }
+
+        private static BudgetSlice ExpenseSlice(int categoryId, decimal percent)
+            => BudgetSlice.Create(MoneyFlowType.Expense, categoryId, percent).Value!;
+
+        private static BudgetSlice InvestmentSlice(decimal percent)
+            => BudgetSlice.Create(MoneyFlowType.Investment, null, percent).Value!;
+
+        [Fact]
+        public async Task GetAsync_ShouldReturnTheCurrentMonthsTotals()
+        {
+            SeedMonth(UserId, 2026, 9, income: 1m);
+            var october = SeedMonth(UserId, 2026, 10, income: 8000m, expense: 3120.50m, investment: 1000m);
+
+            var finance = (await _service.GetAsync(UserId, CancellationToken.None)).Finance;
+
+            Assert.Equal("2026-10", finance.Month);
+            Assert.Equal(october.Id!.Value, finance.MonthlySummaryId);
+            Assert.Equal((8000m, 3120.50m, 1000m, 3879.50m), (finance.Income, finance.Expense, finance.Investment, finance.Balance));
+            Assert.Null(finance.Budget);
+        }
+
+        [Fact]
+        public async Task GetAsync_ShouldPointAtTheTightestExpenseSlice_LeavingTheFreePartAndTheInvestmentOut()
+        {
+            SeedCategory(MarketCategoryId, "Mercado");
+            SeedCategory(HousingCategoryId, "Moradia");
+            SeedCategory(LeisureCategoryId, "Lazer");
+            // Total 6000: market 25% = 1500, housing 30% = 1800, investment 20% = 1200, free 25%.
+            SeedPlan(UserId, October, 6000m, ExpenseSlice(MarketCategoryId, 25m), ExpenseSlice(HousingCategoryId, 30m), InvestmentSlice(20m));
+            var october = SeedMonth(UserId, 2026, 10, expense: 3500m, investment: 2000m);
+            SeedExpense(october, MarketCategoryId, 1380m);
+            SeedExpense(october, HousingCategoryId, 1620m);
+            // Spending without a slice (the free part) is far past its share, and so is the investment: neither counts.
+            SeedExpense(october, LeisureCategoryId, 500m);
+            SeedExpense(october, MarketCategoryId, 2000m, MoneyFlowType.Investment);
+
+            var budget = (await _service.GetAsync(UserId, CancellationToken.None)).Finance.Budget;
+
+            Assert.NotNull(budget);
+            Assert.Equal(4800m, budget.SpendingLimit);
+            Assert.Equal(3500m, budget.Spent);
+            Assert.Equal(new(MarketCategoryId, "Mercado", 0.92m), budget.Tightest);
+        }
+
+        [Fact]
+        public async Task GetAsync_ShouldHaveNoTightestSlice_WhenThePlanOnlyHasAnInvestmentSlice()
+        {
+            SeedPlan(UserId, October, 5000m, InvestmentSlice(10m));
+
+            var budget = (await _service.GetAsync(UserId, CancellationToken.None)).Finance.Budget;
+
+            Assert.NotNull(budget);
+            Assert.Equal(4500m, budget.SpendingLimit);
+            Assert.Equal(0m, budget.Spent);
+            Assert.Null(budget.Tightest);
+        }
+
+        [Fact]
+        public async Task GetAsync_ShouldIgnoreAnotherMonthsPlanAndAnotherUsersMonth()
+        {
+            SeedPlan(UserId, October.AddMonths(-1), 5000m, InvestmentSlice(10m));
+            SeedPlan(OtherUserId, October, 5000m, InvestmentSlice(10m));
+            SeedMonth(OtherUserId, 2026, 10, income: 100m);
+
+            var finance = (await _service.GetAsync(UserId, CancellationToken.None)).Finance;
+
+            Assert.Null(finance.MonthlySummaryId);
+            Assert.Equal(0m, finance.Income);
+            Assert.Null(finance.Budget);
+        }
+
         [Fact]
         public async Task GetAsync_ShouldWriteNothing()
         {
             var habit = SeedHabit("Read", currentStreak: 3);
             SeedCheckIn(habit, Yesterday);
             SeedProfile(UserId, coins: 10);
+            SeedCategory(MarketCategoryId, "Mercado");
+            SeedPlan(UserId, October, 6000m, ExpenseSlice(MarketCategoryId, 25m));
+            SeedExpense(SeedMonth(UserId, 2026, 10, expense: 100m), MarketCategoryId, 100m);
             var before = Snapshot();
 
             await _service.GetAsync(UserId, CancellationToken.None);
@@ -185,9 +296,10 @@ namespace LifeManager.Application.Test.Home
             Assert.Equal(before, Snapshot());
         }
 
-        private static (int, int, int, int, int, int, int, int) Snapshot()
+        private static (int, int, int, int, int, int, int, int, int, int, decimal) Snapshot()
             => (HabitSingleton.Instance.Count, HabitCheckInSingleton.Instance.Count, PlayerProfileSingleton.Instance.Count,
                 GameLedgerEntrySingleton.Instance.Count, WeeklyChallengeSingleton.Instance.Count, AchievementUnlockSingleton.Instance.Count,
-                MonthlySummarySingleton.Instance.Count, PlayerProfileSingleton.Instance.Sum(profile => profile.Coins));
+                MonthlySummarySingleton.Instance.Count, TransactionSingleton.Instance.Count, BudgetPlanSingleton.Instance.Count,
+                PlayerProfileSingleton.Instance.Sum(profile => profile.Coins), MonthlySummarySingleton.Instance.Sum(month => month.BalanceAmount));
     }
 }
