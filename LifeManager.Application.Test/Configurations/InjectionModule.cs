@@ -59,6 +59,7 @@ namespace LifeManager.Application.Test.Configurations
             services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
 
             services.AddScoped<IUserRepository, UserRepositoryMock>();
+            services.AddScoped<IAccountDeletionRepository, AccountDeletionRepositoryMock>();
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepositoryMock>();
             services.AddScoped<IUserPreferencesRepository, UserPreferencesRepositoryMock>();
             services.AddScoped<ICategoryRepository, CategoryRepositoryMock>();

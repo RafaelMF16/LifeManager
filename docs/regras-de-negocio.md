@@ -73,7 +73,7 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
 - O tempo de resposta pode variar um pouco entre e-mail com conta e sem conta na recuperação (só o primeiro envia e-mail). Foi aceito para o porte do projeto.
 
 **Limpeza automática**
-- De hora em hora são apagados: cadastros pendentes vencidos há mais de **7 dias**, links de recuperação vencidos ou usados há mais de **7 dias**, os registros do limite de um minuto com mais de **1 dia** e as tentativas de login cuja janela de 15 minutos acabou há mais de **1 dia**.
+- De hora em hora são apagados: as contas cuja exclusão venceu (ver [Minha conta](#contas-e-sessão)), cadastros pendentes vencidos há mais de **7 dias**, links de recuperação vencidos ou usados há mais de **7 dias**, os registros do limite de um minuto com mais de **1 dia** e as tentativas de login cuja janela de 15 minutos acabou há mais de **1 dia**.
 
 **Login**
 - E-mail ou senha errados retornam sempre o mesmo erro, sem revelar qual dos dois está errado. A resposta também leva o mesmo tempo com ou sem conta para o e-mail.
@@ -98,6 +98,8 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
 - **Trocar a senha:** pede a senha atual e a nova (8 a 50 caracteres). Senha atual errada não muda nada e é avisada antes de qualquer problema da nova. Ao salvar, **as outras sessões da conta são encerradas**, e a sessão de onde a troca foi feita continua aberta.
 - **Sair de todos os aparelhos:** encerra todas as sessões da conta, inclusive a atual, e volta para o login. O acesso já emitido em cada aparelho continua válido até expirar (no máximo 15 minutos).
 - **Excluir a conta:** pede a senha. A conta não some na hora: a exclusão fica marcada para **7 dias** depois, todas as sessões são encerradas e um e-mail, no idioma da conta, avisa a data e que entrar de novo até lá cancela. Pedir de novo durante o prazo não muda a data nem manda outro e-mail. Se o e-mail falhar, a exclusão continua marcada.
+  - **Exclusão definitiva:** de hora em hora, as contas com o prazo vencido são apagadas com **todos os dados** (finanças, hábitos, jogo, importações, preferências, sessões). Antes, a pessoa sai de cada grupo de ranking pela regra de saída: num grupo de que era dona, o membro mais antigo vira o dono; um grupo em que estava sozinha é apagado. Não há como desfazer.
+  - Os resultados das semanas já fechadas do ranking perdem a linha da pessoa (os pódios dos outros membros continuam).
   - **Durante o prazo** a conta funciona normalmente. **Entrar com a senha certa cancela a exclusão**, e o app avisa "a exclusão da sua conta foi cancelada". "Esqueceu a senha?" continua funcionando, para quem quiser voltar.
 - **Limites por usuário:** no máximo **10 trocas de senha ou pedidos de exclusão a cada 10 minutos**, o que também barra quem tenta adivinhar a senha atual.
 

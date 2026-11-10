@@ -3,6 +3,7 @@ using LifeManager.WebApi.Habits.Jobs;
 using LifeManager.WebApi.Ranking.Jobs;
 using LifeManager.WebApi.RecurringTransactions.Jobs;
 using LifeManager.WebApi.StatementImports.Jobs;
+using LifeManager.WebApi.Users.Jobs;
 
 namespace LifeManager.WebApi
 {
@@ -11,7 +12,7 @@ namespace LifeManager.WebApi
     /// server. It's the entry point of the Cloud Run Job that Cloud Scheduler triggers every hour, since the API itself
     /// scales to zero there. Recurring transactions go first, so a posting never waits an extra hour behind the day close;
     /// the ranking's week close comes right after the day close, whose cursors it waits for;
-    /// the cleanups (abandoned import drafts, then the auth e-mail leftovers) go last.
+    /// the cleanups (abandoned import drafts, then the auth e-mail leftovers) and the account deletion go last.
     /// </summary>
     public static class RunJobsMode
     {
@@ -32,6 +33,7 @@ namespace LifeManager.WebApi
                 await app.Services.GetRequiredService<RankingWeekCloseRunner>().RunOnceAsync(CancellationToken.None);
                 await app.Services.GetRequiredService<StatementImportsCleanupRunner>().RunOnceAsync(CancellationToken.None);
                 await app.Services.GetRequiredService<AuthCleanupRunner>().RunOnceAsync(CancellationToken.None);
+                await app.Services.GetRequiredService<AccountDeletionRunner>().RunOnceAsync(CancellationToken.None);
 
                 logger.LogInformation("Background jobs finished");
             }
