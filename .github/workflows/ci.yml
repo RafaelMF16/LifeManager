@@ -1,0 +1,28 @@
+# Every pull request to dev or main runs the test suites, so a broken change is caught before the merge, not at the
+# deploy. No secrets and read-only: tests publish nothing, so a PR from a fork is as safe as one from this repository.
+# Making the check required (branch protection on dev and main) is a GitHub setting: docs/deploy.md, "CI dos PRs".
+name: CI
+
+on:
+  pull_request:
+    branches: [dev, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to the same PR cancels the run still going for the previous one.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet test LifeManager.slnx

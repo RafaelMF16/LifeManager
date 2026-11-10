@@ -11,9 +11,8 @@ namespace LifeManager.Infrastructure.Auth
     {
         private readonly LifeManagerDbContext _dbContext = dbContext;
 
-        public async Task ReplaceActiveTokenAsync(RefreshToken newToken, CancellationToken cancellationToken)
+        public async Task ReplaceActiveTokenAsync(RefreshToken newToken, DateTimeOffset now, CancellationToken cancellationToken)
         {
-            var now = DateTimeOffset.UtcNow;
             var activeTokens = await _dbContext.RefreshTokens
                 .Where(refreshToken => refreshToken.UserId == newToken.UserId && !refreshToken.IsRevoked && refreshToken.ExpiresAt > now)
                 .ToListAsync(cancellationToken);

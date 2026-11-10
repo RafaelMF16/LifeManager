@@ -13,7 +13,10 @@ using System.Text;
 
 namespace LifeManager.Application.Auth.Services
 {
-    public class TokenService(IRefreshTokenRepository refreshTokenRepository, EnvironmentVariableService environmentVariableService)
+    public class TokenService(
+        IRefreshTokenRepository refreshTokenRepository,
+        EnvironmentVariableService environmentVariableService,
+        TimeProvider timeProvider)
     {
         /// <summary>Who issues the access tokens and who they're for; the API's JWT validation requires both.</summary>
         public const string AccessTokenIssuer = "LifeManager.Api";
@@ -27,21 +30,23 @@ namespace LifeManager.Application.Auth.Services
 
         private readonly IRefreshTokenRepository _refreshTokenRepository = refreshTokenRepository;
         private readonly EnvironmentVariableService _environmentVariableService = environmentVariableService;
+        private readonly TimeProvider _timeProvider = timeProvider;
 
         public async Task<Result<LoginResponseDto>> GenerateTokensAsync(int userId, CancellationToken cancellationToken)
         {
+            var now = _timeProvider.GetUtcNow();
             var refreshToken = GenerateRefreshToken();
 
-            var tokensResult = GenerateAccessToken(userId)
+            var tokensResult = GenerateAccessToken(userId, now)
                 .Bind(accessToken => HashRefreshToken(refreshToken)
-                    .Bind(hashedRefreshToken => CreateRefreshToken(hashedRefreshToken, userId))
+                    .Bind(hashedRefreshToken => CreateRefreshToken(hashedRefreshToken, userId, now))
                     .Map(newToken => (AccessToken: accessToken, NewToken: newToken)));
 
             if (!tokensResult.IsSuccess)
                 return tokensResult.Error;
 
             var (accessToken, newToken) = tokensResult.Value;
-            await _refreshTokenRepository.ReplaceActiveTokenAsync(newToken, cancellationToken);
+            await _refreshTokenRepository.ReplaceActiveTokenAsync(newToken, now, cancellationToken);
 
             return new LoginResponseDto(accessToken, refreshToken, newToken.ExpiresAt);
         }
@@ -69,7 +74,7 @@ namespace LifeManager.Application.Auth.Services
                 return AuthErrors.InvalidRefreshToken;
             }
 
-            var now = DateTimeOffset.UtcNow;
+            var now = _timeProvider.GetUtcNow();
             if (!currentToken.IsActive(now))
                 return AuthErrors.InvalidRefreshToken;
 
@@ -79,7 +84,7 @@ namespace LifeManager.Application.Auth.Services
             var userId = currentToken.UserId.Value;
             var newRefreshToken = GenerateRefreshToken();
 
-            var rotationResult = GenerateAccessToken(userId)
+            var rotationResult = GenerateAccessToken(userId, now)
                 .Bind(accessToken => HashRefreshToken(newRefreshToken)
                     .Bind(hashedRefreshToken => currentToken.Rotate(hashedRefreshToken, now, TimeSpan.FromDays(REFRESH_TOKEN_EXPIRATION_DAYS)))
                     .Map(rotatedToken => (AccessToken: accessToken, RotatedToken: rotatedToken)));
@@ -107,7 +112,7 @@ namespace LifeManager.Application.Auth.Services
             return Result.Success();
         }
 
-        private Result<string> GenerateAccessToken(int userId)
+        private Result<string> GenerateAccessToken(int userId, DateTimeOffset now)
         {
             return _environmentVariableService.GetEnvironmentVariable(ACCESS_TOKEN_SECRET_KEY_ENVIRONMENT_VARIABLE)
                 .Map(secretKey =>
@@ -119,7 +124,10 @@ namespace LifeManager.Application.Auth.Services
                         Subject = claims,
                         Issuer = AccessTokenIssuer,
                         Audience = AccessTokenAudience,
-                        Expires = DateTime.UtcNow.AddMinutes(ACCESS_TOKEN_EXPIRATION_MINUTES),
+                        // All three from the same clock: the handler would otherwise stamp IssuedAt and NotBefore with the system time.
+                        IssuedAt = now.UtcDateTime,
+                        NotBefore = now.UtcDateTime,
+                        Expires = now.UtcDateTime.AddMinutes(ACCESS_TOKEN_EXPIRATION_MINUTES),
                         SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(encodedSecretKey), SecurityAlgorithms.HmacSha256Signature)
                     };
 
@@ -150,12 +158,11 @@ namespace LifeManager.Application.Auth.Services
                 });
         }
 
-        private static Result<RefreshToken> CreateRefreshToken(string token, int userId)
+        private static Result<RefreshToken> CreateRefreshToken(string token, int userId, DateTimeOffset now)
         {
-            var now = DateTimeOffset.UtcNow;
             var expiresAt = now.AddDays(REFRESH_TOKEN_EXPIRATION_DAYS);
             var sessionExpiresAt = now.AddDays(SESSION_MAX_LIFETIME_DAYS);
-            return RefreshToken.Create(userId, token, expiresAt, sessionExpiresAt, false);
+            return RefreshToken.Create(userId, token, now, expiresAt, sessionExpiresAt, false);
         }
     }
 }

@@ -82,8 +82,6 @@ Optional:
 - `businessTimeZone` (IANA id, default `America/Sao_Paulo`), the time zone of "today" for business rules (`AppClock`). The host needs time zone data (tzdata); an unknown id throws on first use.
 - `emailSenderName` (default `LifeManager`), the sender name of the auth e-mails.
 
-Note: `LifeManager.Tests` (singular) is a leftover scaffold project. It is not referenced in `LifeManager.slnx` and contains no code beyond its `.csproj`. The real test suites are `LifeManager.Domain.Test` and `LifeManager.Application.Test`.
-
 ## Architecture
 
 Layered/Clean Architecture split across four projects, referencing inward only. Every layer uses the same feature folders (`Auth`, `Users`, `UsersPreferences`, `Categories`, ...), plus a `Shared/` folder for cross-cutting building blocks.
@@ -119,6 +117,7 @@ Layered/Clean Architecture split across four projects, referencing inward only. 
 - **Migrations stay additive (expand/contract).** `--migrate` (`RunMigrationsMode`) applies them while the previous revision is still serving, so that revision must keep working on the new schema: add columns/tables first, and drop or rename only in a later change, once no deployed code reads the old shape. `MigrateAsync` also fails on a model change that has no migration, which stops the deploy.
 - **Same origin:** Firebase Hosting serves the frontend and rewrites `/api/**` to the Cloud Run service. That's why the refresh cookie is named `__session`, the only cookie Hosting forwards. CORS only matters for local dev.
 - **Image:** `LifeManager.WebApi/Dockerfile` (context = repo root; the `aspnet` image ships tzdata for `businessTimeZone`), built by Cloud Build (`cloudbuild.yaml`) from `deploy/deploy-api.ps1`. Every push on `main` runs it from GitHub Actions (`.github/workflows/deploy.yml`: `dotnet test`, then the script under the `production` environment, authenticated by Workload Identity Federation; the run-wide `concurrency` keeps deploys in merge order); running it by hand is the fallback. The script then runs the Cloud Run Job `lifemanager-migrate` (same image, `--migrate`) and waits for it, and only if it succeeds updates the service and points the hourly job at the new image.
+- **CI:** every pull request to `dev` or `main` runs `.github/workflows/ci.yml` (`dotnet test LifeManager.slnx`, read-only, no secrets; a new push cancels the previous run). Making it a required check is a GitHub branch-protection setting (`docs/deploy.md`, "CI dos PRs").
 
 Test projects mirror the layer they test 1:1 (`LifeManager.Domain.Test` → Domain, `LifeManager.Application.Test` → Application) and reference only that layer (plus Domain, transitively). **There are no Infrastructure/WebApi tests and nothing runs against a real Postgres**, so repository queries, EF mappings and migrations are only verified by running the API.
 
@@ -210,7 +209,7 @@ The codebase is mid-migration to a `Result`/`Result<T>` pattern (`LifeManager.Do
 
 ### MonthlySummaries
 
-- **Creating a month:** `POST /api/MonthlySummaries` takes only `{ month }`; the service uses the current UTC year, since `MonthlySummaryYear.Create` only accepts the current year (`MonthlySummary.YearNotCurrent`). `FromPersistence` skips that rule, so past years rehydrate. A new month starts with zero totals. One month per user: unique index `(UserId, Year, Month)` + `MonthlySummary.AlreadyExists` (409).
+- **Creating a month:** `POST /api/MonthlySummaries` takes only `{ month }`; the service uses the current year in the business time zone (`AppClock.Today().Year`), since `MonthlySummaryYear.Create(value, currentYear)` only accepts that year (`MonthlySummary.YearNotCurrent`); the domain never reads a clock, so on 31/12 at 22:00 in São Paulo (already the next year in UTC) "December" is still this year's. `FromPersistence` skips that rule, so past years rehydrate. A new month starts with zero totals. One month per user: unique index `(UserId, Year, Month)` + `MonthlySummary.AlreadyExists` (409).
 - **Totals:** `TotalIncome`, `TotalExpense` and `TotalInvestment` (all VOs, never negative). **Balance = income − expense − investment**: an investment is money set aside, so it leaves the account like an expense but is kept apart from spending. A redemption isn't income: statement imports leave detected redemptions out (the user may include one as Income).
 - **Balance column:** `Balance` (VO) is derived and ignored by EF; `BalanceAmount` is its persisted copy (same idea as `Category.NormalizedName`) so the listing filters (`Positive` = ≥ 0, `Negative` = < 0) and sorts by it in SQL. Anything that changes the totals must also update `BalanceAmount` (including in `ExecuteUpdateAsync`).
 - **Details:** `GET /api/MonthlySummaries/{id}` returns `MonthlySummaryDetailsResponseDto`: the totals plus `IncomeCount`/`ExpenseCount`/`InvestmentCount` (`ITransactionRepository.CountByTypeAsync`) and `PreviousId`/`NextId`, the user's closest months before and after (`IMonthlySummaryRepository.GetNeighborsAsync`, which reads only the user's month keys because Year/Month are value objects and can't be compared in SQL). Create and the listing still return `MonthlySummaryResponseDto`.
@@ -415,13 +414,14 @@ Services use primary-constructor dependency injection (e.g. `CategoryService(ICa
 
 ## Testing conventions
 
+- **Warnings fail the build** in both test projects (`TreatWarningsAsErrors`; package advisories `NU190x` stay warnings). Fix a nullable warning by asserting first (`Assert.NotNull(x)`, or `result.Value!` after the success check), never with `#pragma` or `NoWarn`.
 - xUnit, `Assert.*` style, with hand-written mocks (no Moq/NSubstitute). Test names follow `Method_ShouldExpectedBehavior_WhenCondition`.
 - **`LifeManager.Application.Test`:**
   - **Container:** each test class builds its own mini DI container via `BaseTest` (in `Configurations/`). It registers the real application services against in-memory repository mocks (`*/Mocks`, wired in `Configurations/InjectionModule.cs`) and an in-memory `IConfiguration` with test secret keys.
   - **Resolving services:** test classes extend `BaseTest` and call `ServiceProvider.GetRequiredService<T>()`. To assert on call counters, cast the repository back to its mock, e.g. `(CategoryRepositoryMock)ServiceProvider.GetRequiredService<ICategoryRepository>()`.
   - **Shared data:** the mocks store data in shared singleton in-memory lists (`Configurations/SingletonLists/*Singleton.cs`), so test classes are tagged `[Collection("ApplicationServices")]` to run serially. Clear the relevant singleton in the test class constructor (e.g. `CategorySingleton.Instance.Clear()`).
   - **Mocks must behave like the real repository:** same filtering, ordering, uniqueness and paging rules. Otherwise service tests pass against behavior production doesn't have.
-  - **Time:** `TimeProvider` is replaced by the hand-written `Configurations/FakeTimeProvider` (starts at the real time). Cast it from the container and call `SetToday(date)` (noon UTC, the same date in São Paulo) to test date rules.
+  - **Time:** `TimeProvider` is replaced by the hand-written `Configurations/FakeTimeProvider` (starts at the real time). Cast it from the container and call `SetToday(date)` (noon UTC, the same date in São Paulo) to test date rules, or set `UtcNow` to an exact instant when the hour matters (the turn of the year in the business time zone, a token's expiry).
   - **Concurrency hooks:** `RecurringTransactionRepositoryMock.BeforeNextPost`/`BeforeNextUpdate` run right before the next cursor check, to simulate a concurrent posting or edit.
   - **E-mails:** `EmailSenderMock` keeps what was sent in the static `Sent` list (`Reset()` in the constructor; `FailNextSends` simulates a failure). Tests read the link's token from the body with a regex, and links point to `InjectionModule.TestFrontendBaseUrl`.
 - `LifeManager.Domain.Test` tests value objects and entities directly with no DI, asserting on `Result.IsSuccess`/`Result.Error` and value-object `.Value` properties. Shared building blocks (`SearchText`, `PageRequest`/`PagedList`) are tested in `Shared/`.

@@ -20,6 +20,8 @@ namespace LifeManager.Application.Test.Auth
     [Collection("ApplicationServices")]
     public partial class PasswordResetServiceTest : BaseTest
     {
+        private static readonly DateTimeOffset CreationDate = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
+
         private const string OldPassword = "old-password";
         private const string NewPassword = "new-password";
 
@@ -49,7 +51,7 @@ namespace LifeManager.Application.Test.Auth
         private async Task<User> AddUserAsync(string email = "ana@example.com", Language language = Language.PTBR)
         {
             var hashedPassword = ServiceProvider.GetRequiredService<AuthService>().EncryptPassword(OldPassword);
-            var user = User.Create("Ana", email, hashedPassword).Value!;
+            var user = User.Create("Ana", email, hashedPassword, CreationDate).Value!;
             return await ((UserRepositoryMock)ServiceProvider.GetRequiredService<IUserRepository>()).AddWithStarterDataAsync(user, Theme.Light, language, CancellationToken.None);
         }
 
@@ -176,7 +178,7 @@ namespace LifeManager.Application.Test.Auth
         public async Task ResetAsync_ShouldChangeThePasswordAndRevokeEverySession()
         {
             var user = await AddUserAsync();
-            RefreshTokenSingleton.Instance.Add(RefreshToken.Create(user.Id!.Value, "session-hash", _clock.UtcNow.AddDays(7), _clock.UtcNow.AddDays(30), false).Value!);
+            RefreshTokenSingleton.Instance.Add(RefreshToken.Create(user.Id!.Value, "session-hash", _clock.UtcNow, _clock.UtcNow.AddDays(7), _clock.UtcNow.AddDays(30), false).Value!);
             var token = await RequestTokenAsync();
 
             var result = await _passwordResetService.ResetAsync(new ResetPasswordDto(token, NewPassword), CancellationToken.None);

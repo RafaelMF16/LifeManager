@@ -1,5 +1,6 @@
 ﻿using LifeManager.Application.MonthlySummaries.DTOs;
 using LifeManager.Application.Shared.DTOs;
+using LifeManager.Application.Shared.Time;
 using LifeManager.Domain.MonthlySummaries;
 using LifeManager.Domain.MonthlySummaries.Errors;
 using LifeManager.Domain.MonthlySummaries.Interfaces;
@@ -11,14 +12,18 @@ using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Application.MonthlySummaries.Services
 {
-    public class MonthlySummaryService(IMonthlySummaryRepository monthlySummaryRepository, ITransactionRepository transactionRepository)
+    public class MonthlySummaryService(IMonthlySummaryRepository monthlySummaryRepository, ITransactionRepository transactionRepository, AppClock appClock)
     {
         private readonly IMonthlySummaryRepository _monthlySummaryRepository = monthlySummaryRepository;
         private readonly ITransactionRepository _transactionRepository = transactionRepository;
+        private readonly AppClock _appClock = appClock;
 
         public async Task<Result<MonthlySummaryResponseDto>> CreateAsync(MonthlySummaryDto monthlySummaryDto, UserId userId, CancellationToken cancellationToken)
         {
-            var monthlySummaryResult = MonthlySummary.Create(userId.Value, monthlySummaryDto.Month, DateTimeOffset.UtcNow.Year);
+            // The request only picks the month: its year is always "today's" in the business time zone, passed twice on purpose
+            // (the month's year and the current year), so the domain's current-year rule always holds on this path.
+            var currentYear = _appClock.Today().Year;
+            var monthlySummaryResult = MonthlySummary.Create(userId.Value, monthlySummaryDto.Month, currentYear, currentYear);
             if (!monthlySummaryResult.IsSuccess)
                 return monthlySummaryResult.Error;
 

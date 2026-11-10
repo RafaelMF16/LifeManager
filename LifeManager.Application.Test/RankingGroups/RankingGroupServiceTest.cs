@@ -15,6 +15,8 @@ namespace LifeManager.Application.Test.RankingGroups
     [Collection("ApplicationServices")]
     public class RankingGroupServiceTest : BaseTest
     {
+        private static readonly DateTimeOffset CreationDate = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
+
         private static readonly UserId Ana = new(1);
         private static readonly UserId Bia = new(2);
         private static readonly UserId Caio = new(3);
@@ -40,7 +42,7 @@ namespace LifeManager.Application.Test.RankingGroups
         {
             for (var id = 1; id <= count; id++)
             {
-                var user = User.Create(id switch { 1 => "Ana", 2 => "Bia", 3 => "Caio", _ => $"User {id}" }, $"user{id}@example.com", "hash").Value!;
+                var user = User.Create(id switch { 1 => "Ana", 2 => "Bia", 3 => "Caio", _ => $"User {id}" }, $"user{id}@example.com", "hash", CreationDate).Value!;
                 user.AssignId(id);
                 UserSingleton.Instance.Add(user);
             }

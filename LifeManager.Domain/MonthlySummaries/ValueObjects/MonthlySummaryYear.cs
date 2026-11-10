@@ -12,10 +12,13 @@ namespace LifeManager.Domain.MonthlySummaries.ValueObjects
             Value = value;
         }
 
-        /// <summary>New monthly summaries can only be opened for the current (UTC) year.</summary>
-        public static Result<MonthlySummaryYear> Create(int value)
+        /// <summary>
+        /// New monthly summaries can only be opened for the current year, which the caller passes: the year of "today"
+        /// in the business time zone (<c>AppClock</c>), never the UTC one.
+        /// </summary>
+        public static Result<MonthlySummaryYear> Create(int value, int currentYear)
         {
-            if (value != DateTimeOffset.UtcNow.Year)
+            if (value != currentYear)
                 return MonthlySummaryErrors.YearNotCurrent;
 
             return new MonthlySummaryYear(value);

@@ -217,7 +217,7 @@ namespace LifeManager.Application.Test.BudgetPlans
 
             var result = await Save("2026-10", 6000m, new BudgetSliceDto(MoneyFlowType.Expense, MarketCategoryId, 25m));
 
-            Assert.Single(result.Value.AutoCheckIns!);
+            Assert.Single(result.Value!.AutoCheckIns!);
             Assert.Equal(new DateOnly(2026, 10, 3), Assert.Single(HabitCheckInSingleton.Instance).Date);
         }
 
@@ -228,7 +228,7 @@ namespace LifeManager.Application.Test.BudgetPlans
 
             var result = await _budgetPlanService.GetAsync("2026-10", FirstUserId, CancellationToken.None);
 
-            Assert.Null(result.Value.AutoCheckIns);
+            Assert.Null(result.Value!.AutoCheckIns);
             Assert.Empty(HabitCheckInSingleton.Instance);
         }
 

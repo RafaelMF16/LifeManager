@@ -22,6 +22,8 @@ namespace LifeManager.Application.Test.Auth
     [Collection("ApplicationServices")]
     public partial class RegistrationServiceTest : BaseTest
     {
+        private static readonly DateTimeOffset CreationDate = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
+
         private readonly RegistrationService _registrationService;
         private readonly FakeTimeProvider _clock;
 
@@ -46,7 +48,7 @@ namespace LifeManager.Application.Test.Auth
 
         private async Task<User> AddActiveUserAsync(string email, Language language)
         {
-            var user = User.Create("Bia", email, "hash").Value!;
+            var user = User.Create("Bia", email, "hash", CreationDate).Value!;
             return await ((UserRepositoryMock)ServiceProvider.GetRequiredService<IUserRepository>()).AddWithStarterDataAsync(user, Theme.Light, language, CancellationToken.None);
         }
 
@@ -243,6 +245,17 @@ namespace LifeManager.Application.Test.Auth
         }
 
         [Fact]
+        public async Task CompleteAsync_ShouldStampTheAccountCreationDateWithTheClock()
+        {
+            var token = await SignUpAsync("ana@example.com", "Ana Silva");
+            _clock.UtcNow = _clock.UtcNow.AddHours(2);
+
+            await _registrationService.CompleteAsync(new CompleteRegistrationDto(token, "my-password"), CancellationToken.None);
+
+            Assert.Equal(_clock.UtcNow, Assert.Single(UserSingleton.Instance).CreationDate);
+        }
+
+        [Fact]
         public async Task CompleteAsync_ShouldLetTheNewAccountLogIn()
         {
             var token = await SignUpAsync("ana@example.com");
@@ -373,7 +386,7 @@ namespace LifeManager.Application.Test.Auth
         [Fact]
         public async Task RegisterAsync_ShouldEscapeTheAccountsNameInTheHtml()
         {
-            var user = User.Create("<b>Ana</b>", "ana@example.com", "hash").Value!;
+            var user = User.Create("<b>Ana</b>", "ana@example.com", "hash", CreationDate).Value!;
             await ((UserRepositoryMock)ServiceProvider.GetRequiredService<IUserRepository>()).AddWithStarterDataAsync(user, Theme.Light, Language.PTBR, CancellationToken.None);
 
             await _registrationService.RegisterAsync(new RegisterDto("ana@example.com", "Ana", null, null), CancellationToken.None);

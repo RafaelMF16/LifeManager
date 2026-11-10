@@ -496,7 +496,7 @@ namespace LifeManager.Application.Test.FinanceDashboard
             var days = await GetDays("2026-10");
             var dashboard = await Get("2026-10", "2026-10");
 
-            Assert.Equal(dashboard.Value.Months.Single().Expense, days.Value.Total);
+            Assert.Equal(dashboard.Value!.Months.Single().Expense, days.Value!.Total);
             Assert.Equal(days.Value.Total, days.Value.Days.Sum(day => day.Total));
         }
 
@@ -518,7 +518,7 @@ namespace LifeManager.Application.Test.FinanceDashboard
 
             var result = await Get("2026-04", "2026-06");
 
-            var savings = result.Value.HabitSavings;
+            var savings = result.Value!.HabitSavings;
             Assert.Equal(105m, savings.Total);
             Assert.Equal(
                 [new DashboardHabitSavingsItemDto(delivery.Id!.Value, "Delivery", 2, 90m), new DashboardHabitSavingsItemDto(smoking.Id!.Value, "Cigarro", 1, 15m)],
@@ -530,7 +530,7 @@ namespace LifeManager.Application.Test.FinanceDashboard
         {
             var result = await Get("2026-04", "2026-06");
 
-            Assert.Equal(0m, result.Value.HabitSavings.Total);
+            Assert.Equal(0m, result.Value!.HabitSavings.Total);
             Assert.Empty(result.Value.HabitSavings.Habits);
         }
 

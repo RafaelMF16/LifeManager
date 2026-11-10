@@ -17,6 +17,8 @@ namespace LifeManager.Application.Test.Users
     [Collection("ApplicationServices")]
     public class UserServiceTest : BaseTest
     {
+        private static readonly DateTimeOffset CreationDate = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
+
         private readonly UserService _userService;
 
         public UserServiceTest()
@@ -45,7 +47,7 @@ namespace LifeManager.Application.Test.Users
         private async Task<User> AddUserAsync(string email, string name, string password)
         {
             var hashedPassword = ServiceProvider.GetRequiredService<AuthService>().EncryptPassword(password);
-            var user = User.Create(name, email, hashedPassword).Value!;
+            var user = User.Create(name, email, hashedPassword, CreationDate).Value!;
             var userRepository = (UserRepositoryMock)ServiceProvider.GetRequiredService<IUserRepository>();
 
             return await userRepository.AddWithStarterDataAsync(user, null, null, CancellationToken.None);
@@ -106,7 +108,7 @@ namespace LifeManager.Application.Test.Users
         [Fact]
         public async Task AuthenticateUserAsync_ShouldRehashPassword_WhenStoredHashIsCheaperThanConfigured()
         {
-            var user = User.Create("name", "email@email.com", BCrypt.Net.BCrypt.HashPassword("password", InjectionModule.TestPasswordWorkFactor - 1)).Value!;
+            var user = User.Create("name", "email@email.com", BCrypt.Net.BCrypt.HashPassword("password", InjectionModule.TestPasswordWorkFactor - 1), CreationDate).Value!;
             await UserRepository.AddWithStarterDataAsync(user, null, null, CancellationToken.None);
 
             var result = await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "password"), TestIp, CancellationToken.None);
@@ -131,7 +133,7 @@ namespace LifeManager.Application.Test.Users
         [Fact]
         public async Task AuthenticateUserAsync_ShouldNotRehashPassword_WhenPasswordIsIncorrect()
         {
-            var user = User.Create("name", "email@email.com", BCrypt.Net.BCrypt.HashPassword("password", InjectionModule.TestPasswordWorkFactor - 1)).Value!;
+            var user = User.Create("name", "email@email.com", BCrypt.Net.BCrypt.HashPassword("password", InjectionModule.TestPasswordWorkFactor - 1), CreationDate).Value!;
             await UserRepository.AddWithStarterDataAsync(user, null, null, CancellationToken.None);
 
             await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "wrongPassword"), TestIp, CancellationToken.None);

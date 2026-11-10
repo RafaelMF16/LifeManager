@@ -29,6 +29,8 @@ namespace LifeManager.Application.Test.StatementImports
     [Collection("ApplicationServices")]
     public class StatementImportServiceTest : BaseTest
     {
+        private static readonly DateTimeOffset CreationDate = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
+
         private static readonly UserId FirstUserId = new(1);
         private static readonly UserId SecondUserId = new(2);
         private static readonly DateOnly Today = new(2026, 10, 19);
@@ -396,7 +398,7 @@ namespace LifeManager.Application.Test.StatementImports
 
             var result = await _service.CommitAsync(created.Value!.Id, FirstUserId, CancellationToken.None);
 
-            var autoCheckIn = Assert.Single(result.Value.AutoCheckIns);
+            var autoCheckIn = Assert.Single(result.Value!.AutoCheckIns);
             Assert.Equal(1, autoCheckIn.HabitId);
             Assert.Equal(Today, Assert.Single(HabitCheckInSingleton.Instance).Date);
         }
@@ -409,7 +411,7 @@ namespace LifeManager.Application.Test.StatementImports
 
             var result = await _service.CommitAsync(created.Value!.Id, FirstUserId, CancellationToken.None);
 
-            Assert.Empty(result.Value.AutoCheckIns);
+            Assert.Empty(result.Value!.AutoCheckIns);
         }
 
         [Fact]
@@ -1037,7 +1039,7 @@ namespace LifeManager.Application.Test.StatementImports
 
         private static void SeedUser(UserId userId, string name)
         {
-            var user = User.Create(name, $"user{userId.Value}@example.com", "hash").Value!;
+            var user = User.Create(name, $"user{userId.Value}@example.com", "hash", CreationDate).Value!;
             user.AssignId(userId.Value);
             UserSingleton.Instance.Add(user);
         }
