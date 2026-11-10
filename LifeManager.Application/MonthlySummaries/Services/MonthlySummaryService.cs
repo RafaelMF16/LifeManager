@@ -20,10 +20,10 @@ namespace LifeManager.Application.MonthlySummaries.Services
 
         public async Task<Result<MonthlySummaryResponseDto>> CreateAsync(MonthlySummaryDto monthlySummaryDto, UserId userId, CancellationToken cancellationToken)
         {
-            // The request only picks the month: its year is always "today's" in the business time zone, passed twice on purpose
-            // (the month's year and the current year), so the domain's current-year rule always holds on this path.
+            // "Current" is today's year in the business time zone; a request without a year means that one.
             var currentYear = _appClock.Today().Year;
-            var monthlySummaryResult = MonthlySummary.Create(userId.Value, monthlySummaryDto.Month, currentYear, currentYear);
+            var monthlySummaryResult = MonthlySummary.Create(
+                userId.Value, monthlySummaryDto.Month, monthlySummaryDto.Year ?? currentYear, currentYear);
             if (!monthlySummaryResult.IsSuccess)
                 return monthlySummaryResult.Error;
 

@@ -73,6 +73,53 @@ namespace LifeManager.Application.Test.MonthlySummaries
             Assert.Equal(2027, result.Value!.Year);
         }
 
+        [Fact]
+        public async Task CreateAsync_ShouldUseTheCurrentYear_WhenYearIsOmitted()
+        {
+            var result = await _monthlySummaryService.CreateAsync(new MonthlySummaryDto(3, null), FirstUserId, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(CurrentYear, result.Value!.Year);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldCreatePreviousYearsMonth_WhenYearIsThePreviousOne()
+        {
+            // January: December of last year can still be opened by hand.
+            _clock.SetToday(new DateOnly(CurrentYear, 1, 10));
+
+            var result = await _monthlySummaryService.CreateAsync(new MonthlySummaryDto(12, CurrentYear - 1), FirstUserId, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(CurrentYear - 1, result.Value!.Year);
+            var stored = Assert.Single(MonthlySummarySingleton.Instance);
+            Assert.Equal(CurrentYear - 1, stored.Year.Value);
+            Assert.Equal(12, stored.Month.Value);
+        }
+
+        [Theory]
+        [InlineData(-2)]
+        [InlineData(1)]
+        public async Task CreateAsync_ShouldReturnYearNotCurrent_WhenYearIsNeitherCurrentNorPrevious(int offsetFromCurrentYear)
+        {
+            var result = await _monthlySummaryService.CreateAsync(new MonthlySummaryDto(3, CurrentYear + offsetFromCurrentYear), FirstUserId, CancellationToken.None);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(MonthlySummaryErrors.YearNotCurrent, result.Error);
+            Assert.Empty(MonthlySummarySingleton.Instance);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldReturnAlreadyExists_WhenPreviousYearsMonthWasAlreadyCreated()
+        {
+            await _monthlySummaryService.CreateAsync(new MonthlySummaryDto(12, CurrentYear - 1), FirstUserId, CancellationToken.None);
+
+            var result = await _monthlySummaryService.CreateAsync(new MonthlySummaryDto(12, CurrentYear - 1), FirstUserId, CancellationToken.None);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(MonthlySummaryErrors.AlreadyExists, result.Error);
+        }
+
         [Theory]
         [InlineData(0)]
         [InlineData(13)]
