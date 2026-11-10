@@ -1,5 +1,6 @@
 using LifeManager.Domain.Auth.Errors;
 using LifeManager.WebApi.RankingGroups;
+using LifeManager.WebApi.Users;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.HttpOverrides;
 using System.Globalization;
@@ -58,6 +59,7 @@ namespace LifeManager.WebApi.Auth
                     SessionPartition(httpContext),
                     _ => new FixedWindowRateLimiterOptions { PermitLimit = RefreshPerWindow, Window = Window, QueueLimit = 0 }));
                 RankingGroupRateLimits.AddPolicies(options);
+                AccountRateLimits.AddPolicies(options);
                 options.OnRejected = WriteTooManyRequestsAsync;
             });
         }

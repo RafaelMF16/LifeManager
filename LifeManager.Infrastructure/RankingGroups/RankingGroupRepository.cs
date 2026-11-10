@@ -179,32 +179,8 @@ namespace LifeManager.Infrastructure.RankingGroups
         {
             await using var databaseTransaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
-            var group = await LockGroupAsync(groupId, cancellationToken);
-            if (group is null)
+            if (!await RankingGroupLeaving.LeaveAsync(_dbContext, groupId, userId, cancellationToken))
                 return false;
-
-            var members = await _dbContext.RankingGroupMembers
-                .AsNoTracking()
-                .Where(member => member.GroupId == groupId)
-                .ToListAsync(cancellationToken);
-            if (members.All(member => member.UserId != userId))
-                return false;
-
-            var newOwner = RankingGroupMembership.OwnerAfterLeaving(group, members, userId);
-            if (newOwner is null)
-            {
-                // The last one out: the members and everything else of the group go with it (cascade).
-                await _dbContext.RankingGroups.Where(storedGroup => storedGroup.Id == groupId).ExecuteDeleteAsync(cancellationToken);
-            }
-            else
-            {
-                await _dbContext.RankingGroupMembers
-                    .Where(member => member.GroupId == groupId && member.UserId == userId)
-                    .ExecuteDeleteAsync(cancellationToken);
-                await _dbContext.RankingGroups
-                    .Where(storedGroup => storedGroup.Id == groupId)
-                    .ExecuteUpdateAsync(setters => setters.SetProperty(storedGroup => storedGroup.OwnerUserId, newOwner), cancellationToken);
-            }
 
             await databaseTransaction.CommitAsync(cancellationToken);
 
@@ -216,7 +192,7 @@ namespace LifeManager.Infrastructure.RankingGroups
         {
             await using var databaseTransaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
-            var group = await LockGroupAsync(groupId, cancellationToken);
+            var group = await RankingGroupLeaving.LockGroupAsync(_dbContext, groupId, cancellationToken);
             if (group is null)
                 return RankingGroupErrors.NotFound;
 
@@ -236,16 +212,5 @@ namespace LifeManager.Infrastructure.RankingGroups
 
         private Task<int> CountGroupsAsync(UserId userId, CancellationToken cancellationToken)
             => _dbContext.RankingGroupMembers.CountAsync(member => member.UserId == userId, cancellationToken);
-
-        private async Task<RankingGroup?> LockGroupAsync(RankingGroupId groupId, CancellationToken cancellationToken)
-        {
-            var id = groupId.Value;
-            var lockedGroups = await _dbContext.RankingGroups
-                .FromSql($"""SELECT * FROM "RankingGroups" WHERE "Id" = {id} FOR UPDATE""")
-                .AsNoTracking()
-                .ToListAsync(cancellationToken);
-
-            return lockedGroups.SingleOrDefault();
-        }
     }
 }

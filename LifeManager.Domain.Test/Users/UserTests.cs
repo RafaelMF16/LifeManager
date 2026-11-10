@@ -106,5 +106,78 @@ namespace LifeManager.Domain.Test.Users
             Assert.NotEqual(user1, user2);
             Assert.Equal(user1, user1);
         }
+
+        [Fact]
+        public void Rename_ShouldTrimAndChangeTheName_WhenTheNameIsValid()
+        {
+            var user = User.Create("test", "r@email.com", "hash", CreationDate).Value!;
+
+            var result = user.Rename("  Rafa  ");
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal("Rafa", user.Name.Value);
+        }
+
+        [Theory]
+        [InlineData("")]
+        [InlineData("   ")]
+        public void Rename_ShouldKeepTheName_WhenTheNameIsBlank(string name)
+        {
+            var user = User.Create("test", "r@email.com", "hash", CreationDate).Value!;
+
+            var result = user.Rename(name);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(UserErrors.UserNameIsNullOrWhiteSpace, result.Error);
+            Assert.Equal("test", user.Name.Value);
+        }
+
+        [Fact]
+        public void Rename_ShouldReturnTooLong_WhenTheNameHasMoreThan100Characters()
+        {
+            var user = User.Create("test", "r@email.com", "hash", CreationDate).Value!;
+
+            var result = user.Rename(new string('a', 101));
+
+            Assert.Equal(UserErrors.UserNameTooLong, result.Error);
+        }
+
+        [Fact]
+        public void ScheduleDeletion_ShouldSetTheDateGraceDaysAhead_WhenNoneIsPending()
+        {
+            var user = User.Create("test", "r@email.com", "hash", CreationDate).Value!;
+            var now = CreationDate.AddMonths(1);
+
+            Assert.True(user.ScheduleDeletion(now));
+
+            Assert.True(user.IsDeletionPending);
+            Assert.Equal(now, user.DeletionRequestedAt);
+            Assert.Equal(now.AddDays(AccountDeletion.GraceDays), user.DeletionScheduledFor);
+        }
+
+        [Fact]
+        public void ScheduleDeletion_ShouldKeepTheFirstDate_WhenAskedAgain()
+        {
+            var user = User.Create("test", "r@email.com", "hash", CreationDate).Value!;
+            user.ScheduleDeletion(CreationDate);
+
+            Assert.False(user.ScheduleDeletion(CreationDate.AddDays(3)));
+
+            Assert.Equal(CreationDate, user.DeletionRequestedAt);
+            Assert.Equal(CreationDate.AddDays(AccountDeletion.GraceDays), user.DeletionScheduledFor);
+        }
+
+        [Fact]
+        public void CancelDeletion_ShouldClearBothDates()
+        {
+            var user = User.Create("test", "r@email.com", "hash", CreationDate).Value!;
+            user.ScheduleDeletion(CreationDate);
+
+            user.CancelDeletion();
+
+            Assert.False(user.IsDeletionPending);
+            Assert.Null(user.DeletionRequestedAt);
+            Assert.Null(user.DeletionScheduledFor);
+        }
     }
 }

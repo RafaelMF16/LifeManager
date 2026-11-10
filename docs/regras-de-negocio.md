@@ -73,7 +73,7 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
 - O tempo de resposta pode variar um pouco entre e-mail com conta e sem conta na recuperação (só o primeiro envia e-mail). Foi aceito para o porte do projeto.
 
 **Limpeza automática**
-- De hora em hora são apagados: cadastros pendentes vencidos há mais de **7 dias**, links de recuperação vencidos ou usados há mais de **7 dias**, os registros do limite de um minuto com mais de **1 dia** e as tentativas de login cuja janela de 15 minutos acabou há mais de **1 dia**.
+- De hora em hora são apagados: as contas cuja exclusão venceu (ver [Minha conta](#contas-e-sessão)), cadastros pendentes vencidos há mais de **7 dias**, links de recuperação vencidos ou usados há mais de **7 dias**, os registros do limite de um minuto com mais de **1 dia** e as tentativas de login cuja janela de 15 minutos acabou há mais de **1 dia**.
 
 **Login**
 - E-mail ou senha errados retornam sempre o mesmo erro, sem revelar qual dos dois está errado. A resposta também leva o mesmo tempo com ou sem conta para o e-mail.
@@ -92,6 +92,17 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
 **Logout**
 - Encerra a sessão no servidor. Pode ser repetido sem erro, mesmo se a sessão já tiver acabado.
 - O acesso já emitido continua válido até expirar (no máximo 15 minutos).
+
+**Minha conta**
+- **Nome:** pode ser trocado a qualquer momento, com as mesmas regras do cadastro (obrigatório, até 100 caracteres, espaços nas pontas removidos). O e-mail não muda.
+- **Trocar a senha:** pede a senha atual e a nova (8 a 50 caracteres). Senha atual errada não muda nada e é avisada antes de qualquer problema da nova. Ao salvar, **as outras sessões da conta são encerradas**, e a sessão de onde a troca foi feita continua aberta. O dono recebe um e-mail "Sua senha foi alterada" (no idioma da conta) com o link para escolher uma nova senha, caso não tenha sido ele; se o e-mail falhar, a troca vale do mesmo jeito.
+- **Sair de todos os aparelhos:** encerra todas as sessões da conta, inclusive a atual, e volta para o login. O acesso já emitido em cada aparelho continua válido até expirar (no máximo 15 minutos).
+- **Baixar meus dados:** um arquivo JSON (`lifemanager-aaaa-mm-dd.json`) com tudo o que é do usuário: conta (nome, e-mail, data de criação), preferências, categorias, meses, lançamentos, recorrências, orçamentos, titulares, o histórico das importações (sem as linhas de rascunhos em revisão), hábitos, check-ins, registros de meta, desafios, personagem, extrato do jogo, recompensas e resgates, itens comprados, conquistas e, dos grupos de ranking, só o nome de cada grupo e a data de entrada. **Nunca entram:** senha (nem cifrada), sessões, tentativas de login, a identificação das linhas do banco e qualquer dado de outros membros dos grupos. No máximo **3 downloads por hora**.
+- **Excluir a conta:** pede a senha. A conta não some na hora: a exclusão fica marcada para **7 dias** depois, todas as sessões são encerradas e um e-mail, no idioma da conta, avisa a data e que entrar de novo até lá cancela. Pedir de novo durante o prazo não muda a data nem manda outro e-mail. Se o e-mail falhar, a exclusão continua marcada.
+  - **Exclusão definitiva:** de hora em hora, as contas com o prazo vencido são apagadas com **todos os dados** (finanças, hábitos, jogo, importações, preferências, sessões). Antes, a pessoa sai de cada grupo de ranking pela regra de saída: num grupo de que era dona, o membro mais antigo vira o dono; um grupo em que estava sozinha é apagado. Não há como desfazer.
+  - Os resultados das semanas já fechadas do ranking perdem a linha da pessoa (os pódios dos outros membros continuam).
+  - **Durante o prazo** a conta funciona normalmente. **Entrar com a senha certa cancela a exclusão**, e o app avisa "a exclusão da sua conta foi cancelada". "Esqueceu a senha?" continua funcionando, para quem quiser voltar.
+- **Limites por usuário:** no máximo **10 trocas de senha ou pedidos de exclusão a cada 10 minutos**, o que também barra quem tenta adivinhar a senha atual.
 
 **Preferências**
 - Tema (claro ou escuro) e idioma (português ou inglês) ficam salvos por usuário e são aplicados no login.
@@ -621,13 +632,14 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 
 | Código | Tipo | Quando acontece |
 |---|---|---|
-| `User.UserNameIsNullOrWhiteSpace` | Validation | Nome vazio no cadastro |
+| `User.UserNameIsNullOrWhiteSpace` | Validation | Nome vazio no cadastro ou em Minha conta |
 | `User.UserNameTooLong` | Validation | Nome com mais de 100 caracteres |
 | `User.EmailIsNullOrWhiteSpace` | Validation | E-mail vazio |
 | `User.EmailIsInvalid` | Validation | E-mail fora do formato |
 | `User.PlainPasswordIsNullOrWhiteSpace` | Validation | Senha vazia |
 | `User.PlainPasswordTooShort` | Validation | Senha com menos de 8 caracteres |
 | `User.PlainPasswordTooLong` | Validation | Senha com mais de 50 caracteres |
+| `User.WrongPassword` | Validation | Senha atual errada em Minha conta (trocar a senha, excluir a conta) |
 | `User.InvalidCredentials` | Unauthorized | E-mail ou senha errados |
 | `User.NotFound` | NotFound | Usuário não existe |
 | `Auth.InvalidRefreshToken` | Unauthorized | Sessão expirada, revogada ou inválida (é preciso entrar de novo) |

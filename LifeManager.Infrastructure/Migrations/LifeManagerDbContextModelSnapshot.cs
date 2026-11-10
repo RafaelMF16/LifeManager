@@ -1336,6 +1336,12 @@ namespace LifeManager.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("CreationDate")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTimeOffset?>("DeletionRequestedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("DeletionScheduledFor")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -1351,6 +1357,9 @@ namespace LifeManager.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DeletionScheduledFor")
+                        .HasFilter("\"DeletionScheduledFor\" IS NOT NULL");
 
                     b.HasIndex("Email")
                         .IsUnique();

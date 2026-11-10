@@ -47,6 +47,8 @@ namespace LifeManager.Infrastructure.DI
             services.AddDbContext<LifeManagerDbContext>(options => options.UseNpgsql(connectionString));
 
             services.AddScoped<IUserRepository, UserRepository>();
+            services.AddScoped<IAccountDeletionRepository, AccountDeletionRepository>();
+            services.AddScoped<IAccountDataExporter, AccountDataExporter>();
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
             services.AddScoped<IEmailCooldownRepository, EmailCooldownRepository>();
             services.AddScoped<ILoginAttemptRepository, LoginAttemptRepository>();

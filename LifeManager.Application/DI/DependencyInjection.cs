@@ -31,6 +31,9 @@ namespace LifeManager.Application.DI
             services.AddScoped<AuthService>();
             services.AddScoped<TokenService>();
             services.AddScoped<UserService>();
+            services.AddScoped<UserAccountService>();
+            services.AddScoped<AccountDeletionService>();
+            services.AddScoped<AccountExportService>();
             services.AddScoped<RegistrationService>();
             services.AddScoped<PasswordResetService>();
             services.AddScoped<AuthCleanupService>();

@@ -15,6 +15,9 @@ namespace LifeManager.Domain.Users.Errors
         public static readonly Error PlainPasswordTooLong = Error.Validation("User.PlainPasswordTooLong", "PlainPassword cannot be longer than 50 characters");
         public static readonly Error PlainPasswordTooShort = Error.Validation("User.PlainPasswordTooShort", "PlainPassword must be at least 8 characters long");
 
+        /// <summary>The current password typed in "My account" is wrong. A 400, not a 401: the frontend reads every 401 outside <c>/api/Auth</c> as an expired session.</summary>
+        public static readonly Error WrongPassword = Error.Validation("User.WrongPassword", "The password is wrong");
+
         public static readonly Error InvalidCredentials = Error.Unauthorized("User.InvalidCredentials", "Invalid email or password");
     }
 }
