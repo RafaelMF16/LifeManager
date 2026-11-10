@@ -1,4 +1,6 @@
 using LifeManager.Domain.Categories;
+using LifeManager.Domain.Habits;
+using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.MonthlySummaries;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.Results;
@@ -62,6 +64,18 @@ namespace LifeManager.Infrastructure.Test.Seed
             var date = new DateOnly(month.Year.Value, month.Month.Value, day);
 
             return Transaction.Create(type, category.Id!.Value, amount, description, date, month).Unwrap();
+        }
+
+        /// <summary>A daily habit to build, started on <paramref name="startDate"/>.</summary>
+        public static async Task<Habit> AddHabitAsync(this LifeManagerDbContext context, User user, string name, DateOnly startDate)
+        {
+            var habit = Habit.Create(
+                user.Id!.Value, name, description: null, trigger: null, HabitKind.Positive, HabitDifficulty.Easy,
+                HabitFrequencyType.Daily, HabitWeekDays.None, timesPerWeek: null, startDate, Now).Unwrap();
+            context.Add(habit);
+            await context.SaveChangesAsync();
+
+            return habit;
         }
     }
 }
