@@ -3,6 +3,7 @@
   <Project Path="LifeManager.Application/LifeManager.Application.csproj" />
   <Project Path="LifeManager.Domain.Test/LifeManager.Domain.Test.csproj" Id="2f872792-c3a6-48f5-901c-90704cbbb0d6" />
   <Project Path="LifeManager.Domain/LifeManager.Domain.csproj" />
+  <Project Path="LifeManager.Infrastructure.Test/LifeManager.Infrastructure.Test.csproj" />
   <Project Path="LifeManager.Infrastructure/LifeManager.Infrastructure.csproj" />
   <Project Path="LifeManager.WebApi/LifeManager.WebApi.csproj" />
 </Solution>

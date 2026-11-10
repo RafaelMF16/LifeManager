@@ -57,6 +57,10 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
                 .HasForeignKey(transaction => transaction.MonthlySummaryId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            // NO ACTION, made DEFERRABLE INITIALLY DEFERRED by migration MakeUserDeletionForeignKeysDeferrable (EF can't
+            // express it): deleting a user cascades to its categories and, through its months, to its transactions, and
+            // Postgres checks a plain NO ACTION at the end of the categories' cascade, before the transactions are gone.
+            // Deferred, it is checked at the commit. A category still in use is blocked by CategoryService first.
             builder.HasOne<Category>()
                 .WithMany()
                 .HasForeignKey(transaction => transaction.CategoryId)
