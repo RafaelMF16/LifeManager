@@ -6,7 +6,7 @@ O mapa completo (diagnóstico, ordem, decisões e as specs dos dois repos) fica 
 |---|---|---|
 | `review-fixes` (relógio, higiene dos testes e CI; o spec ficava no front e já saiu) | `fix/review-fixes` | **mergeado na `dev`** em 10/11/2026 (PR #41) |
 | `integration-tests` (Testcontainers, um teste por repositório e a migration `MakeUserDeletionForeignKeysDeferrable`; o spec já saiu) | `test/integration-tests` | **mergeado na `dev`** em 10/11/2026 (PR #43) |
-| [`quick-transaction`](quick-transaction.md) | `feature/quick-transaction` | aprovado |
+| `quick-transaction` (`POST /api/Transactions` e o ano anterior na criação de mês; o spec já saiu) | `feature/quick-transaction` | **mergeado na `dev`** em 10/11/2026 (PR #45) |
 | [`home-overview`](home-overview.md) | `feature/home-overview` | aprovado |
 | [`account-settings`](account-settings.md) | `feature/account-settings` | aprovado |
 | [`habit-reminders`](habit-reminders.md) | `feature/habit-reminders` | aprovado · dependência em discussão |
