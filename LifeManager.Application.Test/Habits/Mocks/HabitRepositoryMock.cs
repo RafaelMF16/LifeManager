@@ -94,6 +94,20 @@ namespace LifeManager.Application.Test.Habits.Mocks
             return Task.FromResult(habits);
         }
 
+        public Task<IReadOnlyList<Habit>> GetActiveByUserIdAsync(UserId userId, CancellationToken cancellationToken)
+        {
+            IReadOnlyList<Habit> habits =
+            [
+                .. _instance
+                    .Where(habit => habit.UserId == userId && !habit.IsArchived)
+                    .OrderBy(habit => habit.NormalizedName, StringComparer.Ordinal)
+                    .ThenBy(habit => habit.Id!.Value)
+                    .Select(ToDetachedCopy)
+            ];
+
+            return Task.FromResult(habits);
+        }
+
         public Task<IReadOnlyList<Habit>> GetActiveByUserIdAsync(UserId userId, HabitKind kind, CancellationToken cancellationToken)
         {
             IReadOnlyList<Habit> habits =

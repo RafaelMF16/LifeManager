@@ -1,6 +1,7 @@
 using LifeManager.Application.Test.Configurations.SingletonLists;
 using LifeManager.Domain.BudgetPlans;
 using LifeManager.Domain.BudgetPlans.Interfaces;
+using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.ValueObjects;
 using LifeManager.Domain.Users.ValueObjects;
 
@@ -20,6 +21,34 @@ namespace LifeManager.Application.Test.BudgetPlans.Mocks
             var stored = _instance.SingleOrDefault(plan => plan.UserId == userId && plan.MonthStart == month.FirstDay);
 
             return Task.FromResult(stored is null ? null : new BudgetPlanListItem(ToDetachedCopy(stored), CategoryNames(userId)));
+        }
+
+        // Mirrors BudgetPlanRepository.GetWithSliceSpendingAsync: each expense slice's category (the user's) with its
+        // expenses dated in the month, positive.
+        public Task<BudgetPlanSpending?> GetWithSliceSpendingAsync(UserId userId, YearMonth month, CancellationToken cancellationToken)
+        {
+            var stored = _instance.SingleOrDefault(plan => plan.UserId == userId && plan.MonthStart == month.FirstDay);
+            if (stored is null)
+                return Task.FromResult<BudgetPlanSpending?>(null);
+
+            var categoryIds = stored.Slices
+                .Where(slice => slice.Type == MoneyFlowType.Expense)
+                .Select(slice => slice.CategoryId!.Value)
+                .ToHashSet();
+
+            IReadOnlyList<BudgetSliceSpending> slices = [.. CategorySingleton.Instance
+                .Where(category => category.UserId == userId && categoryIds.Contains(category.Id!.Value))
+                .Select(category => new BudgetSliceSpending(
+                    category.Id!.Value,
+                    category.Name.Value,
+                    -TransactionSingleton.Instance
+                        .Where(transaction => transaction.CategoryId.Value == category.Id!.Value
+                            && transaction.Type == MoneyFlowType.Expense
+                            && transaction.TransactionDate >= month.FirstDay
+                            && transaction.TransactionDate <= month.LastDay)
+                        .Sum(transaction => transaction.SignedAmount)))];
+
+            return Task.FromResult<BudgetPlanSpending?>(new BudgetPlanSpending(ToDetachedCopy(stored), slices));
         }
 
         public Task<YearMonth?> GetLatestMonthBeforeAsync(UserId userId, YearMonth month, CancellationToken cancellationToken)

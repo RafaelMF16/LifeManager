@@ -8,6 +8,12 @@ namespace LifeManager.Domain.BudgetPlans.Interfaces
         /// <summary>The user's plan for <paramref name="month"/>, if there is one.</summary>
         Task<BudgetPlanListItem?> GetAsync(UserId userId, YearMonth month, CancellationToken cancellationToken);
 
+        /// <summary>
+        /// The user's plan for <paramref name="month"/> with the month's expenses in each expense slice's category, in
+        /// two queries (the plan, then the slices' names and sums); null without a plan. The Home's budget read.
+        /// </summary>
+        Task<BudgetPlanSpending?> GetWithSliceSpendingAsync(UserId userId, YearMonth month, CancellationToken cancellationToken);
+
         /// <summary>The latest month before <paramref name="month"/> that has a plan, if any.</summary>
         Task<YearMonth?> GetLatestMonthBeforeAsync(UserId userId, YearMonth month, CancellationToken cancellationToken);
 
