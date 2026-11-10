@@ -211,7 +211,7 @@ Cada pull request para a `dev` ou a `main` roda os testes, para um erro aparecer
 
 O workflow não usa segredo nem autentica no GCP (`permissions: contents: read`), então um PR de fork é tão seguro quanto um da própria conta. Um push novo no mesmo PR cancela o run anterior.
 
-**Para o check travar o merge**, é preciso uma regra de proteção em cada repositório: GitHub → Settings → Branches (ou Rules) → nova regra para `dev` (e para `main`) → "Require status checks to pass before merging" → marcar o check `test` do workflow `CI`. Sem essa regra, o check aparece no PR, mas um vermelho ainda pode ser mergeado.
+**Para o check travar o merge**, cada repositório tem um ruleset (GitHub → Settings → Rules → Rulesets) ativo para `dev` e `main`, com "Require a pull request before merging" (0 aprovações), "Block force pushes", "Restrict deletions" e "Require status checks to pass" com o job do workflow `CI` vindo do GitHub Actions: **`test`** na API e **`check`** no front. Sem o ruleset, o check aparece no PR, mas um vermelho ainda pode ser mergeado. Um job renomeado no `ci.yml` precisa ser trocado no ruleset também, ou nenhum PR consegue ser mergeado.
 
 ### Setup único
 

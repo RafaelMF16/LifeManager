@@ -4,7 +4,7 @@ O mapa completo (diagnóstico, ordem, decisões e as specs dos dois repos) fica 
 
 | Spec | Branch | Status |
 |---|---|---|
-| [`review-fixes`](../../../LifeManagerFront/docs/specs/review-fixes.md) (relógio e higiene dos testes; o spec fica no front, junto com as correções de tela) | `fix/review-fixes` | aguardando aprovação |
+| `review-fixes` (relógio, higiene dos testes e CI; o spec ficava no front e já saiu) | `fix/review-fixes` | **mergeado na `dev`** em 10/11/2026 (PR #41) |
 | [`integration-tests`](integration-tests.md) | `test/integration-tests` | aprovado |
 | [`quick-transaction`](quick-transaction.md) | `feature/quick-transaction` | aprovado |
 | [`home-overview`](home-overview.md) | `feature/home-overview` | aprovado |
