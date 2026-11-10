@@ -158,6 +158,8 @@ namespace LifeManager.WebApi.DI
                     .WithOrigins("https://localhost:5173")
                     .AllowAnyMethod()
                     .AllowAnyHeader()
+                    // The data export's file name: cross-origin (local dev only), the browser hides it otherwise.
+                    .WithExposedHeaders("Content-Disposition")
                     .AllowCredentials());
             });
         }
