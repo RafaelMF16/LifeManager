@@ -29,7 +29,7 @@ Baixar os lançamentos de um período num CSV que abre direto no Excel ou no Goo
 - **Ordem:** data, depois `Id`.
 - **Streaming:** `AsAsyncEnumerable` com `AsNoTracking`, escrevendo linha a linha na resposta. Um período de 36 meses nunca é carregado inteiro na memória.
 - **`X-Row-Count`:** antes do streaming, um `COUNT` com o mesmo filtro preenche esse cabeçalho. O front usa o número para avisar quando o período está vazio.
-- **CORS (só no dev, onde front e API têm origens diferentes):** a política `AllowFrontend` ganha `WithExposedHeaders("Content-Disposition", "X-Row-Count")`. Sem isso, o front não lê esses cabeçalhos. A exportação da conta (`account-settings`) aproveita o mesmo ajuste.
+- **CORS (só no dev, onde front e API têm origens diferentes):** a política `AllowFrontend` já expõe o `Content-Disposition` (desde o `account-settings`) e ganha o `X-Row-Count` em `WithExposedHeaders`. Sem isso, o front não lê esse cabeçalho.
 - **Rate limit:** política `TransactionsExport`, 10 por 10 min por usuário.
 
 ## Desenho
