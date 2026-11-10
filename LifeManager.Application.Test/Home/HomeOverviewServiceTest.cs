@@ -1,4 +1,5 @@
 using LifeManager.Application.Habits.Services;
+using LifeManager.Application.Test.FinanceDashboard.Mocks;
 using LifeManager.Application.Home.Services;
 using LifeManager.Application.Test.Configurations;
 using LifeManager.Application.Test.Configurations.SingletonLists;
@@ -264,6 +265,35 @@ namespace LifeManager.Application.Test.Home
             Assert.Equal(4500m, budget.SpendingLimit);
             Assert.Equal(0m, budget.Spent);
             Assert.Null(budget.Tightest);
+        }
+
+        [Fact]
+        public async Task GetAsync_ShouldBreakATightestTieByTheNormalizedName()
+        {
+            SeedCategory(MarketCategoryId, "Mercado");
+            SeedCategory(HousingCategoryId, "Água");
+            SeedPlan(UserId, October, 1000m, ExpenseSlice(MarketCategoryId, 10m), ExpenseSlice(HousingCategoryId, 10m));
+            var october = SeedMonth(UserId, 2026, 10, expense: 100m);
+            SeedExpense(october, MarketCategoryId, 50m);
+            SeedExpense(october, HousingCategoryId, 50m);
+
+            var budget = (await _service.GetAsync(UserId, CancellationToken.None)).Finance.Budget;
+
+            // "agua" sorts before "mercado"; an ordinal sort of the raw names would put "Mercado" first.
+            Assert.Equal(HousingCategoryId, budget?.Tightest?.CategoryId);
+        }
+
+        [Fact]
+        public async Task GetAsync_ShouldReadTheBudgetWithoutTheDashboardsCategoryTotals()
+        {
+            SeedCategory(MarketCategoryId, "Mercado");
+            SeedPlan(UserId, October, 1000m, ExpenseSlice(MarketCategoryId, 10m));
+            FinanceDashboardRepositoryMock.CategoryMonthTotalsCalls = 0;
+
+            await _service.GetAsync(UserId, CancellationToken.None);
+
+            // That read costs two queries; the Home's budget comes from the plan's own read, to stay within six.
+            Assert.Equal(0, FinanceDashboardRepositoryMock.CategoryMonthTotalsCalls);
         }
 
         [Fact]

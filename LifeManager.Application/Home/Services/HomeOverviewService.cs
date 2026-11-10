@@ -2,13 +2,12 @@ using LifeManager.Application.Home.DTOs;
 using LifeManager.Application.Shared.Time;
 using LifeManager.Domain.BudgetPlans;
 using LifeManager.Domain.BudgetPlans.Interfaces;
-using LifeManager.Domain.FinanceDashboard;
-using LifeManager.Domain.FinanceDashboard.Interfaces;
 using LifeManager.Domain.Habits;
 using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.Habits.Interfaces;
+using LifeManager.Domain.MonthlySummaries;
 using LifeManager.Domain.MonthlySummaries.Interfaces;
-using LifeManager.Domain.Shared.Enums;
+using LifeManager.Domain.Shared.Text;
 using LifeManager.Domain.Shared.ValueObjects;
 using LifeManager.Domain.Users.ValueObjects;
 
@@ -18,7 +17,7 @@ namespace LifeManager.Application.Home.Services
     /// The Home's summary of the day. A pure read: it never syncs achievements or challenges (those stay on the habits
     /// screens) and never creates the player's profile. The habits are counted by <see cref="HabitDayAgenda"/>, the
     /// same rules as <c>GET api/Habits/Today</c>. At most 6 queries (habits, check-ins, profile, month, plan, and the
-    /// month's category totals only with a plan), one after the other on the request's DbContext.
+    /// plan's slices with their spending, only with a plan), one after the other on the request's DbContext.
     /// </summary>
     public class HomeOverviewService(
         IHabitRepository habitRepository,
@@ -26,7 +25,6 @@ namespace LifeManager.Application.Home.Services
         IPlayerProfileRepository playerProfileRepository,
         IMonthlySummaryRepository monthlySummaryRepository,
         IBudgetPlanRepository budgetPlanRepository,
-        IFinanceDashboardRepository financeDashboardRepository,
         AppClock appClock)
     {
         private readonly IHabitRepository _habitRepository = habitRepository;
@@ -34,7 +32,6 @@ namespace LifeManager.Application.Home.Services
         private readonly IPlayerProfileRepository _playerProfileRepository = playerProfileRepository;
         private readonly IMonthlySummaryRepository _monthlySummaryRepository = monthlySummaryRepository;
         private readonly IBudgetPlanRepository _budgetPlanRepository = budgetPlanRepository;
-        private readonly IFinanceDashboardRepository _financeDashboardRepository = financeDashboardRepository;
         private readonly AppClock _appClock = appClock;
 
         /// <summary>Decimal places of <see cref="HomeTightestSliceDto.Ratio"/>.</summary>
@@ -75,7 +72,7 @@ namespace LifeManager.Application.Home.Services
         private async Task<HomeFinanceDto> GetFinanceAsync(UserId userId, YearMonth month, CancellationToken cancellationToken)
         {
             var monthlySummary = await _monthlySummaryRepository.GetByPeriodAsync(userId, month, cancellationToken);
-            var budget = await GetBudgetAsync(userId, month, cancellationToken);
+            var budget = await GetBudgetAsync(userId, month, monthlySummary, cancellationToken);
 
             if (monthlySummary is null)
                 return new HomeFinanceDto(month.ToString(), null, 0m, 0m, 0m, 0m, budget);
@@ -90,51 +87,52 @@ namespace LifeManager.Application.Home.Services
                 budget);
         }
 
-        /// <summary>The month's plan against what was spent: the same reads and rules as the budget screen.</summary>
-        private async Task<HomeBudgetDto?> GetBudgetAsync(UserId userId, YearMonth month, CancellationToken cancellationToken)
+        /// <summary>The month's plan against what was spent: the same rules as the budget screen.</summary>
+        /// <param name="monthlySummary">The month, whose stored expense total is what was spent (none without it).</param>
+        private async Task<HomeBudgetDto?> GetBudgetAsync(UserId userId, YearMonth month, MonthlySummary? monthlySummary, CancellationToken cancellationToken)
         {
-            var item = await _budgetPlanRepository.GetAsync(userId, month, cancellationToken);
-            if (item is null)
+            var spending = await _budgetPlanRepository.GetWithSliceSpendingAsync(userId, month, cancellationToken);
+            if (spending is null)
                 return null;
 
-            var expenses = (await _financeDashboardRepository.GetCategoryMonthTotalsAsync(userId, month.FirstDay, month.LastDay, cancellationToken))
-                .Where(total => total.Type == MoneyFlowType.Expense)
-                .ToList();
-
-            return new HomeBudgetDto(item.Plan.SpendingLimit, expenses.Sum(total => total.Amount), Tightest(item, expenses));
+            return new HomeBudgetDto(spending.Plan.SpendingLimit, monthlySummary?.TotalExpense.Value ?? 0m, Tightest(spending));
         }
 
-        /// <summary>The expense slice with the highest spent-to-amount ratio (the free part has no slice); ties by name, then id.</summary>
-        private static HomeTightestSliceDto? Tightest(BudgetPlanListItem item, IReadOnlyList<DashboardCategoryMonthTotal> expenses)
+        /// <summary>
+        /// The expense slice with the highest spent-to-amount ratio (the free part has no slice); ties by normalized
+        /// name (ordinal, so the server's culture never changes the pick), then id.
+        /// </summary>
+        private static HomeTightestSliceDto? Tightest(BudgetPlanSpending spending)
         {
-            var plan = item.Plan;
+            var plan = spending.Plan;
+            var slicesByCategory = plan.Slices
+                .Where(slice => slice.CategoryId is not null)
+                .ToDictionary(slice => slice.CategoryId!.Value);
 
-            return plan.Slices
-                .Where(slice => slice.Type == MoneyFlowType.Expense)
-                .Select(slice =>
-                {
-                    var categoryId = slice.CategoryId!.Value;
-                    var spent = expenses.Where(total => total.CategoryId == categoryId).Sum(total => total.Amount);
-
-                    return new HomeTightestSliceDto(
-                        categoryId,
-                        item.CategoryNames.GetValueOrDefault(categoryId) ?? string.Empty,
-                        decimal.Round(slice.ProgressOf(spent, plan.Total), RatioDecimalPlaces, MidpointRounding.AwayFromZero));
-                })
+            return spending.ExpenseSlices
+                .Where(sliceSpending => slicesByCategory.ContainsKey(sliceSpending.CategoryId))
+                .Select(sliceSpending => new HomeTightestSliceDto(
+                    sliceSpending.CategoryId,
+                    sliceSpending.CategoryName,
+                    decimal.Round(
+                        slicesByCategory[sliceSpending.CategoryId].ProgressOf(sliceSpending.Spent, plan.Total),
+                        RatioDecimalPlaces,
+                        MidpointRounding.AwayFromZero)))
                 .OrderByDescending(slice => slice.Ratio)
-                .ThenBy(slice => slice.Name, StringComparer.CurrentCultureIgnoreCase)
+                .ThenBy(slice => SearchText.Normalize(slice.Name), StringComparer.Ordinal)
                 .ThenBy(slice => slice.CategoryId)
                 .FirstOrDefault();
         }
 
-        /// <summary>The longest current streak in days (a weekly habit's weeks × 7); ties by name, then id.</summary>
+        /// <summary>The longest current streak in days (a weekly habit's weeks × 7); ties by normalized name (ordinal), then id.</summary>
         private static HomeBestStreakDto? BestStreak(IEnumerable<Habit> habits)
             => habits
-                .Select(habit => new HomeBestStreakDto(habit.Id!.Value, habit.Name.Value, HabitRewards.StreakBonusDays(habit, habit.CurrentStreak)))
+                .Select(habit => (Habit: habit, Days: HabitRewards.StreakBonusDays(habit, habit.CurrentStreak)))
                 .Where(streak => streak.Days > 0)
                 .OrderByDescending(streak => streak.Days)
-                .ThenBy(streak => streak.Name, StringComparer.CurrentCultureIgnoreCase)
-                .ThenBy(streak => streak.HabitId)
+                .ThenBy(streak => streak.Habit.NormalizedName, StringComparer.Ordinal)
+                .ThenBy(streak => streak.Habit.Id!.Value)
+                .Select(streak => new HomeBestStreakDto(streak.Habit.Id!.Value, streak.Habit.Name.Value, streak.Days))
                 .FirstOrDefault();
     }
 }

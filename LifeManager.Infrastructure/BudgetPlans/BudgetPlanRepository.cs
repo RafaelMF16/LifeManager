@@ -1,5 +1,6 @@
 using LifeManager.Domain.BudgetPlans;
 using LifeManager.Domain.BudgetPlans.Interfaces;
+using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.ValueObjects;
 using LifeManager.Domain.Users.ValueObjects;
 using LifeManager.Infrastructure.Postgres;
@@ -23,6 +24,49 @@ namespace LifeManager.Infrastructure.BudgetPlans
                 return null;
 
             return new BudgetPlanListItem(plan, await CategoryNamesAsync(userId, cancellationToken));
+        }
+
+        public async Task<BudgetPlanSpending?> GetWithSliceSpendingAsync(UserId userId, YearMonth month, CancellationToken cancellationToken)
+        {
+            var from = month.FirstDay;
+            var to = month.LastDay;
+
+            var plan = await _dbContext.BudgetPlans
+                .AsNoTracking()
+                .SingleOrDefaultAsync(plan => plan.UserId == userId && plan.MonthStart == from, cancellationToken);
+
+            if (plan is null)
+                return null;
+
+            var categoryIds = plan.Slices
+                .Where(slice => slice.Type == MoneyFlowType.Expense)
+                .Select(slice => slice.CategoryId!)
+                .ToList();
+
+            if (categoryIds.Count == 0)
+                return new BudgetPlanSpending(plan, []);
+
+            // One query for the names and the sums: each slice's category (the user's, so its transactions are the
+            // user's too) with its expenses dated in the month, summed from SignedAmount (negative for expenses).
+            var rows = await _dbContext.Categories
+                .AsNoTracking()
+                .Where(category => category.UserId == userId && categoryIds.Contains(category.Id!))
+                .Select(category => new
+                {
+                    category.Id,
+                    category.Name,
+                    Total = _dbContext.Transactions
+                        .Where(transaction => transaction.CategoryId == category.Id
+                            && transaction.Type == MoneyFlowType.Expense
+                            && transaction.TransactionDate >= from
+                            && transaction.TransactionDate <= to)
+                        .Sum(transaction => (decimal?)transaction.SignedAmount)
+                })
+                .ToListAsync(cancellationToken);
+
+            return new BudgetPlanSpending(
+                plan,
+                [.. rows.Select(row => new BudgetSliceSpending(row.Id!.Value, row.Name.Value, -(row.Total ?? 0m)))]);
         }
 
         public async Task<YearMonth?> GetLatestMonthBeforeAsync(UserId userId, YearMonth month, CancellationToken cancellationToken)
