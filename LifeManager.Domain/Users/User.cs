@@ -41,6 +41,17 @@ namespace LifeManager.Domain.Users
             Id = new UserId(id);
         }
 
+        /// <summary>The account's display name; trimmed, since only the sign-up form trimmed it before.</summary>
+        public Result Rename(string name)
+        {
+            var nameResult = UserName.Create(name?.Trim() ?? string.Empty);
+            if (!nameResult.IsSuccess)
+                return nameResult.Error;
+
+            Name = nameResult.Value;
+            return Result.Success();
+        }
+
         public void ChangePassword(PasswordHash passwordHash)
         {
             PasswordHash = passwordHash;

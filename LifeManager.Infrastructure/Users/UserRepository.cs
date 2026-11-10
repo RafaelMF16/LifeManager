@@ -24,6 +24,13 @@ namespace LifeManager.Infrastructure.Users
                 .SingleOrDefaultAsync(user => user.Email == email, cancellationToken);
         }
 
+        public async Task UpdateNameAsync(UserId id, UserName name, CancellationToken cancellationToken)
+        {
+            await _dbContext.Users
+                .Where(user => user.Id == id)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(user => user.Name, name), cancellationToken);
+        }
+
         public async Task UpdatePasswordHashAsync(UserId id, PasswordHash passwordHash, CancellationToken cancellationToken)
         {
             await _dbContext.Users

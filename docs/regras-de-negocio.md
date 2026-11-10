@@ -93,6 +93,9 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
 - Encerra a sessão no servidor. Pode ser repetido sem erro, mesmo se a sessão já tiver acabado.
 - O acesso já emitido continua válido até expirar (no máximo 15 minutos).
 
+**Minha conta**
+- **Nome:** pode ser trocado a qualquer momento, com as mesmas regras do cadastro (obrigatório, até 100 caracteres, espaços nas pontas removidos). O e-mail não muda.
+
 **Preferências**
 - Tema (claro ou escuro) e idioma (português ou inglês) ficam salvos por usuário e são aplicados no login.
 
@@ -621,7 +624,7 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 
 | Código | Tipo | Quando acontece |
 |---|---|---|
-| `User.UserNameIsNullOrWhiteSpace` | Validation | Nome vazio no cadastro |
+| `User.UserNameIsNullOrWhiteSpace` | Validation | Nome vazio no cadastro ou em Minha conta |
 | `User.UserNameTooLong` | Validation | Nome com mais de 100 caracteres |
 | `User.EmailIsNullOrWhiteSpace` | Validation | E-mail vazio |
 | `User.EmailIsInvalid` | Validation | E-mail fora do formato |

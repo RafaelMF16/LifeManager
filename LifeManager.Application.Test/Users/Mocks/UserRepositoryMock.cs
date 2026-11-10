@@ -48,6 +48,12 @@ namespace LifeManager.Application.Test.Users.Mocks
         public Task<User?> GetByEmailAsync(Email email, CancellationToken cancellationToken)
             => Task.FromResult(_instance.SingleOrDefault(user => user.Email.Value == email.Value));
 
+        public Task UpdateNameAsync(UserId id, UserName name, CancellationToken cancellationToken)
+        {
+            _instance.SingleOrDefault(user => user.Id == id)?.Rename(name.Value);
+            return Task.CompletedTask;
+        }
+
         public int PasswordHashUpdateCount { get; private set; }
 
         public Task UpdatePasswordHashAsync(UserId id, PasswordHash passwordHash, CancellationToken cancellationToken)

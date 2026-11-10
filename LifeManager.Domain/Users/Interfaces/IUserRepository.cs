@@ -6,6 +6,7 @@ namespace LifeManager.Domain.Users.Interfaces
     {
         Task<User?> GetByIdAsync(UserId id, CancellationToken cancellationToken);
         Task<User?> GetByEmailAsync(Email email, CancellationToken cancellationToken);
+        Task UpdateNameAsync(UserId id, UserName name, CancellationToken cancellationToken);
         Task UpdatePasswordHashAsync(UserId id, PasswordHash passwordHash, CancellationToken cancellationToken);
     }
 }

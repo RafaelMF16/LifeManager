@@ -30,7 +30,22 @@ namespace LifeManager.Application.Users.Services
             if (user is null)
                 return UserErrors.NotFound;
 
-            return new CurrentUserResponseDto(user.Name.Value);
+            return new CurrentUserResponseDto(user.Name.Value, user.Email.Value);
+        }
+
+        public async Task<Result<UpdatedUserNameResponseDto>> RenameAsync(UserId userId, UpdateCurrentUserDto dto, CancellationToken cancellationToken)
+        {
+            var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
+            if (user is null)
+                return UserErrors.NotFound;
+
+            var renameResult = user.Rename(dto.Name);
+            if (!renameResult.IsSuccess)
+                return renameResult.Error;
+
+            await _userRepository.UpdateNameAsync(userId, user.Name, cancellationToken);
+
+            return new UpdatedUserNameResponseDto(user.Name.Value);
         }
 
         /// <param name="ipAddress">The client's address; with the e-mail, the pair whose wrong passwords are counted.</param>

@@ -1,3 +1,4 @@
+using LifeManager.Application.Users.DTOs;
 using LifeManager.Application.Users.Services;
 using LifeManager.WebApi.Extensions;
 using Microsoft.AspNetCore.Authorization;
@@ -15,5 +16,9 @@ namespace LifeManager.WebApi.Users.Controllers
         [HttpGet("Me")]
         public async Task<IActionResult> GetCurrentUser(CancellationToken cancellationToken)
             => (await _userService.GetCurrentUserAsync(User.GetUserId(), cancellationToken)).Match(Ok);
+
+        [HttpPut("Me")]
+        public async Task<IActionResult> Rename([FromBody] UpdateCurrentUserDto updateCurrentUserDto, CancellationToken cancellationToken)
+            => (await _userService.RenameAsync(User.GetUserId(), updateCurrentUserDto, cancellationToken)).Match(Ok);
     }
 }

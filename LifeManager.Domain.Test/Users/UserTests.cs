@@ -106,5 +106,40 @@ namespace LifeManager.Domain.Test.Users
             Assert.NotEqual(user1, user2);
             Assert.Equal(user1, user1);
         }
+
+        [Fact]
+        public void Rename_ShouldTrimAndChangeTheName_WhenTheNameIsValid()
+        {
+            var user = User.Create("test", "r@email.com", "hash", CreationDate).Value!;
+
+            var result = user.Rename("  Rafa  ");
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal("Rafa", user.Name.Value);
+        }
+
+        [Theory]
+        [InlineData("")]
+        [InlineData("   ")]
+        public void Rename_ShouldKeepTheName_WhenTheNameIsBlank(string name)
+        {
+            var user = User.Create("test", "r@email.com", "hash", CreationDate).Value!;
+
+            var result = user.Rename(name);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(UserErrors.UserNameIsNullOrWhiteSpace, result.Error);
+            Assert.Equal("test", user.Name.Value);
+        }
+
+        [Fact]
+        public void Rename_ShouldReturnTooLong_WhenTheNameHasMoreThan100Characters()
+        {
+            var user = User.Create("test", "r@email.com", "hash", CreationDate).Value!;
+
+            var result = user.Rename(new string('a', 101));
+
+            Assert.Equal(UserErrors.UserNameTooLong, result.Error);
+        }
     }
 }
