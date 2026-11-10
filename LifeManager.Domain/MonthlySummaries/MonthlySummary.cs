@@ -56,7 +56,7 @@ namespace LifeManager.Domain.MonthlySummaries
 
         /// <summary>
         /// Opens the month a recurring transaction is posted into when the user hasn't opened it yet. Unlike
-        /// <see cref="Create"/> it isn't limited to the current year: an occurrence from late December can be posted
+        /// <see cref="Create"/> it isn't limited to the current and previous years: an occurrence from late December can be posted
         /// after the year turns, when the service catches up.
         /// </summary>
         public static MonthlySummary OpenForRecurringPosting(UserId userId, YearMonth month)
@@ -77,7 +77,7 @@ namespace LifeManager.Domain.MonthlySummaries
             => OpenForRecurringPosting(userId, month);
 
         /// <summary>
-        /// Rehydrates a stored summary without the creation rules (current year only, zero totals):
+        /// Rehydrates a stored summary without the creation rules (current or previous year only, zero totals):
         /// stored summaries can belong to past years and already have totals.
         /// </summary>
         internal static MonthlySummary FromPersistence(

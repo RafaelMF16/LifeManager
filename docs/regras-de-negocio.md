@@ -110,7 +110,7 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
 ### Meses
 
 - Os lançamentos ficam dentro de um mês. Cada usuário tem **no máximo um registro por mês**.
-- Pelo app, **só é possível criar meses do ano corrente**. Meses de anos passados só aparecem quando já existiam, quando uma recorrência os abre ou quando uma [importação de extrato](#importação-de-extrato) é confirmada.
+- Pelo app, **só é possível criar meses do ano corrente ou do anterior** (em janeiro, ainda dá para criar dezembro). Sem escolher o ano, vale o corrente. Meses mais antigos só aparecem quando já existiam, quando uma recorrência os abre ou quando uma [importação de extrato](#importação-de-extrato) é confirmada.
 - Um mês novo começa com os totais zerados.
 - **Totais:** receitas, gastos e investido nunca são negativos e só mudam pelos lançamentos.
 - **Saldo = receitas − gastos − investido.** Investir é dinheiro guardado: ele sai da conta como um gasto, mas fica separado dos gastos. Um resgate de investimento não é receita: na [importação de extrato](#importação-de-extrato) ele já vem fora da importação (o usuário pode incluí-lo, como receita, se quiser).
@@ -648,7 +648,7 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 | `Category.InUse` | Conflict | Exclusão de categoria usada por lançamentos ou recorrências |
 | `Category.NotFound` | NotFound | Categoria não existe ou é de outro usuário |
 | `MonthlySummary.InvalidMonth` | Validation | Mês fora de 1 a 12 |
-| `MonthlySummary.YearNotCurrent` | Validation | Criação de mês fora do ano corrente |
+| `MonthlySummary.YearNotCurrent` | Validation | Criação de mês fora do ano corrente e do anterior ("O ano deve ser o corrente ou o anterior") |
 | `MonthlySummary.AlreadyExists` | Conflict | O mês já foi criado |
 | `MonthlySummary.NotFound` | NotFound | Mês não existe ou é de outro usuário |
 | `Transaction.InvalidType` | Validation | Tipo diferente de gasto, receita ou investimento |

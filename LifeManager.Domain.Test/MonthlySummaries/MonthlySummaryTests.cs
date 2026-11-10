@@ -40,9 +40,27 @@ namespace LifeManager.Domain.Test.MonthlySummaries
         }
 
         [Fact]
-        public void Create_ShouldReturnFailure_WhenYearIsNotCurrent()
+        public void Create_ShouldReturnFailure_WhenYearIsNeitherCurrentNorPrevious()
         {
-            var result = MonthlySummary.Create(1, 5, CurrentYear - 1, CurrentYear);
+            var result = MonthlySummary.Create(1, 5, CurrentYear - 2, CurrentYear);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(MonthlySummaryErrors.YearNotCurrent, result.Error);
+        }
+
+        [Fact]
+        public void Create_ShouldOpenPreviousYearsMonth_WhenYearIsPrevious()
+        {
+            var result = MonthlySummary.Create(1, 12, CurrentYear - 1, CurrentYear);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(CurrentYear - 1, result.Value!.Year.Value);
+        }
+
+        [Fact]
+        public void Create_ShouldReturnFailure_WhenYearIsNext()
+        {
+            var result = MonthlySummary.Create(1, 5, CurrentYear + 1, CurrentYear);
 
             Assert.False(result.IsSuccess);
             Assert.Equal(MonthlySummaryErrors.YearNotCurrent, result.Error);

@@ -8,10 +8,11 @@ namespace LifeManager.Domain.Test.MonthlySummaries
         private const int CurrentYear = 2026;
 
         [Theory]
-        [InlineData(-1)]
+        [InlineData(-2)]
+        [InlineData(-1000)]
         [InlineData(1)]
         [InlineData(1000)]
-        public void Create_ShouldReturnFailure_WhenYearIsNotCurrent(int offsetFromCurrentYear)
+        public void Create_ShouldReturnFailure_WhenYearIsNeitherCurrentNorPrevious(int offsetFromCurrentYear)
         {
             var result = MonthlySummaryYear.Create(CurrentYear + offsetFromCurrentYear, CurrentYear);
 
@@ -26,6 +27,15 @@ namespace LifeManager.Domain.Test.MonthlySummaries
 
             Assert.True(result.IsSuccess);
             Assert.Equal(CurrentYear, result.Value!.Value);
+        }
+
+        [Fact]
+        public void Create_ShouldReturnMonthlySummaryYear_WhenValueIsPreviousYear()
+        {
+            var result = MonthlySummaryYear.Create(CurrentYear - 1, CurrentYear);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(CurrentYear - 1, result.Value!.Value);
         }
 
         [Fact]
