@@ -105,7 +105,11 @@ Junto com a API sobem quatro jobs em segundo plano, que rodam ao iniciar e depoi
 dotnet test LifeManager.slnx
 ```
 
-Os testes não usam banco: os repositórios são substituídos por mocks em memória.
+Os testes de domínio e de aplicação não usam banco (os repositórios são substituídos por mocks em memória). Os de integração (`LifeManager.Infrastructure.Test`) sobem um PostgreSQL descartável num contêiner, então **o Docker precisa estar rodando**. Sem ele, esses testes falham com uma mensagem dizendo isso. Para rodar só eles:
+
+```bash
+dotnet test LifeManager.slnx --filter Category=Integration
+```
 
 ## Deploy
 

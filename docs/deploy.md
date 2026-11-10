@@ -206,7 +206,7 @@ Cada merge na `main` publica o repositório em produção sozinho: a API pelo `.
 ### CI dos PRs
 
 Cada pull request para a `dev` ou a `main` roda os testes, para um erro aparecer antes do merge e não só no deploy. É o `.github/workflows/ci.yml`, um em cada repositório:
-- **API:** `dotnet test LifeManager.slnx`.
+- **API:** `dotnet test LifeManager.slnx`, incluindo os testes de integração contra um PostgreSQL descartável (Testcontainers; o runner `ubuntu-latest` já tem Docker).
 - **Front:** `npm run lint`, `npm test` e `npm run build`.
 
 O workflow não usa segredo nem autentica no GCP (`permissions: contents: read`), então um PR de fork é tão seguro quanto um da própria conta. Um push novo no mesmo PR cancela o run anterior.
