@@ -5,14 +5,16 @@ using LifeManager.WebApi.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Net.Http.Headers;
 
 namespace LifeManager.WebApi.Users.Controllers
 {
     [ApiController]
     [Authorize]
     [Route("api/[controller]")]
-    public class UsersController(UserService userService, UserAccountService userAccountService) : Controller
+    public class UsersController(UserService userService, UserAccountService userAccountService, AccountExportService accountExportService) : Controller
     {
+        private readonly AccountExportService _accountExportService = accountExportService;
         private readonly UserAccountService _userAccountService = userAccountService;
         private readonly UserService _userService = userService;
 
@@ -23,6 +25,23 @@ namespace LifeManager.WebApi.Users.Controllers
         [HttpPut("Me")]
         public async Task<IActionResult> Rename([FromBody] UpdateCurrentUserDto updateCurrentUserDto, CancellationToken cancellationToken)
             => (await _userService.RenameAsync(User.GetUserId(), updateCurrentUserDto, cancellationToken)).Match(Ok);
+
+        /// <summary>
+        /// Downloads everything the user owns as one JSON file, streamed straight to the response. Once it started, a
+        /// failure can no longer change the status: the file comes out cut, so its JSON doesn't parse.
+        /// </summary>
+        [HttpGet("Me/Export")]
+        [EnableRateLimiting(AccountRateLimits.Export)]
+        public async Task Export(CancellationToken cancellationToken)
+        {
+            Response.ContentType = "application/json; charset=utf-8";
+            Response.Headers.ContentDisposition = new ContentDispositionHeaderValue("attachment")
+            {
+                FileName = _accountExportService.FileName(),
+            }.ToString();
+
+            await _accountExportService.WriteAsync(User.GetUserId(), Response.Body, cancellationToken);
+        }
 
         /// <summary>Schedules the account's deletion and signs this browser out (every other session ends too).</summary>
         [HttpPost("Me/Deletion")]
