@@ -4,6 +4,7 @@ using LifeManager.Domain.Rewards;
 using LifeManager.Domain.Rewards.Errors;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Transactions;
+using LifeManager.Domain.Transactions.Enums;
 using LifeManager.Domain.Transactions.Errors;
 
 namespace LifeManager.Domain.Test.Transactions
@@ -216,6 +217,23 @@ namespace LifeManager.Domain.Test.Transactions
             var transaction = Transaction.Create(MoneyFlowType.Expense, 1, 50m, "description", MarchDay(1), March()).Value!;
 
             Assert.Null(transaction.RecurringTransactionId);
+        }
+
+        [Theory]
+        [InlineData(null, null, null, false, TransactionOrigin.Manual)]
+        [InlineData(null, null, null, true, TransactionOrigin.Reward)]
+        [InlineData(7, null, null, false, TransactionOrigin.Recurring)]
+        [InlineData(null, 8, "abc", false, TransactionOrigin.Import)]
+        [InlineData(null, null, "abc", false, TransactionOrigin.Import)]
+        [InlineData(7, 8, "abc", true, TransactionOrigin.Recurring)]
+        [InlineData(null, 8, "abc", true, TransactionOrigin.Import)]
+        public void Origin_ShouldPreferRecurrenceThenImportThenReward_WhenLinksAreSet(
+            int? recurringId, int? importId, string? externalId, bool isRewardExpense, TransactionOrigin expected)
+        {
+            var transaction = Transaction.FromPersistence(
+                1, 1, MoneyFlowType.Expense, 1, 10m, "Compra", new DateOnly(2026, 11, 1), recurringId, importId, externalId);
+
+            Assert.Equal(expected, transaction.Origin(isRewardExpense));
         }
     }
 }

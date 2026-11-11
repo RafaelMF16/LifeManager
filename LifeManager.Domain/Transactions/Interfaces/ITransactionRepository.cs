@@ -53,6 +53,15 @@ namespace LifeManager.Domain.Transactions.Interfaces
         /// </summary>
         Task<IReadOnlyList<CategoryHistoryEntry>> GetCategoryHistoryAsync(UserId userId, CancellationToken cancellationToken);
 
+        /// <summary>How many of the user's transactions dated from <paramref name="from"/> to <paramref name="to"/> the export writes.</summary>
+        Task<int> CountForExportAsync(UserId userId, DateOnly from, DateOnly to, TransactionTypeFilter typeFilter, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// The user's transactions dated from <paramref name="from"/> to <paramref name="to"/>, by date then id, read one
+        /// at a time so a long period is never held in memory.
+        /// </summary>
+        IAsyncEnumerable<TransactionExportRow> StreamForExportAsync(UserId userId, DateOnly from, DateOnly to, TransactionTypeFilter typeFilter, CancellationToken cancellationToken);
+
         Task UpdateAsync(Transaction transaction, CancellationToken cancellationToken);
         Task<bool> DeleteAsync(TransactionId transactionId, MonthlySummaryId monthlySummaryId, CancellationToken cancellationToken);
     }

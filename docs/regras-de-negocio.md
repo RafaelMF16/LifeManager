@@ -142,6 +142,14 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
   - Se o mês não existe, ele é **criado na hora**, mas só se for do ano corrente ou do anterior (a mesma regra da criação manual). Fora disso, o erro é o do ano (`MonthlySummary.YearNotCurrent`).
   - Tudo é conferido antes de criar o mês (categoria, descrição, valor): um lançamento recusado nunca deixa um mês vazio criado.
   - Conta para os [check-in automático](#check-in-automático-rotinas-financeiras) como qualquer lançamento digitado.
+- **Exportar lançamentos (CSV):** baixa os lançamentos de um período numa planilha. É diferente de "Baixar meus dados" (Minha conta), que é o JSON completo da conta.
+  - **Período:** as mesmas regras do [Painel](#painel): meses inteiros, fim não anterior ao início, no máximo **36 meses**, e os mesmos códigos de erro. Pode filtrar por tipo (todos, gastos, receitas ou investimentos).
+  - **Colunas:** data, descrição, categoria, tipo, valor, mês (`aaaa-mm`) e origem. O **valor sai com sinal**: receita positiva, gasto e investimento negativos, então a soma da coluna dá o saldo do período.
+  - **Origem:** "Recorrente" (lançado por uma recorrência), "Importação" (veio de um extrato, mesmo depois de a importação sair do histórico), "Resgate" (o gasto real de uma recompensa resgatada) ou "Manual". Um lançamento cuja recorrência foi excluída sai como "Manual".
+  - **Formatos:** "português" (separador `;`, vírgula decimal, data `dd/mm/aaaa`, cabeçalhos em português; arquivo `lancamentos-aaaa-mm_aaaa-mm.csv`) ou "inglês" (separador `,`, ponto decimal, data `aaaa-mm-dd`, cabeçalhos em inglês; arquivo `transactions-aaaa-mm_aaaa-mm.csv`). O arquivo é UTF-8 com BOM, para o Excel ler os acentos.
+  - **Ordem:** por data; no mesmo dia, na ordem em que foram criados.
+  - **Segurança:** uma descrição ou categoria que começa com `=`, `+`, `-`, `@` ou tab ganha um `'` na frente, para a planilha não a executar como fórmula.
+  - Um período sem lançamentos gera só o cabeçalho; o app avisa e não salva o arquivo. No máximo **10 exportações a cada 10 minutos**.
 
 ### Transações recorrentes
 
@@ -644,7 +652,7 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 | `User.NotFound` | NotFound | Usuário não existe |
 | `Auth.InvalidRefreshToken` | Unauthorized | Sessão expirada, revogada ou inválida (é preciso entrar de novo) |
 | `Auth.InvalidEmailToken` | Validation | Link do e-mail (cadastro ou recuperação) vencido, já usado ou desconhecido |
-| `Auth.TooManyRequests` | TooManyRequests (429) | Muitos pedidos de cadastro/recuperação, usos de link ou logins do mesmo IP em 10 minutos; e-mail bloqueado naquele IP por 5 senhas erradas em 15 minutos; muitas renovações da mesma sessão em 10 minutos; ou tentativas de convite do mesmo jogador |
+| `Auth.TooManyRequests` | TooManyRequests (429) | Muitos pedidos de cadastro/recuperação, usos de link ou logins do mesmo IP em 10 minutos; e-mail bloqueado naquele IP por 5 senhas erradas em 15 minutos; muitas renovações da mesma sessão em 10 minutos; tentativas de convite do mesmo jogador; ou mais de 10 exportações de lançamentos em 10 minutos |
 | `UserPreferences.InvalidTheme` | Validation | Tema desconhecido |
 | `UserPreferences.InvalidLanguage` | Validation | Idioma desconhecido |
 
@@ -711,9 +719,9 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 | `BudgetPlan.ExpenseSliceWithoutCategory` | Validation | Fatia de gasto sem categoria |
 | `BudgetPlan.InvalidInvestmentSlice` | Validation | Fatia de investimento com categoria, ou mais de uma |
 | `BudgetPlan.NotFound` | NotFound | O mês não tem orçamento para excluir |
-| `FinanceDashboard.InvalidFrom` / `InvalidTo` | Validation | Mês do período em formato inválido |
-| `FinanceDashboard.EndBeforeStart` | Validation | Fim do período antes do início |
-| `FinanceDashboard.PeriodTooLong` | Validation | Período maior que 36 meses |
+| `FinanceDashboard.InvalidFrom` / `InvalidTo` | Validation | Mês do período (painel ou exportação de lançamentos) em formato inválido |
+| `FinanceDashboard.EndBeforeStart` | Validation | Fim do período antes do início (painel ou exportação de lançamentos) |
+| `FinanceDashboard.PeriodTooLong` | Validation | Período maior que 36 meses (painel ou exportação de lançamentos) |
 | `FinanceDashboard.InvalidComparison` | Validation | Tipo de comparação desconhecido |
 | `FinanceDashboard.ComparisonTooLong` | Validation | Comparação com o ano anterior em período maior que 12 meses |
 | `FinanceDashboard.InvalidMonth` | Validation | Mês dos gastos por dia ausente ou em formato inválido |

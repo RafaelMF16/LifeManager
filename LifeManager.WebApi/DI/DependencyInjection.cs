@@ -1,3 +1,4 @@
+using LifeManager.WebApi.Transactions.Controllers;
 ﻿using LifeManager.Application.Auth.Emails;
 using LifeManager.Application.Auth.Services;
 using LifeManager.Domain.Auth.Interfaces;
@@ -158,8 +159,9 @@ namespace LifeManager.WebApi.DI
                     .WithOrigins("https://localhost:5173")
                     .AllowAnyMethod()
                     .AllowAnyHeader()
-                    // The data export's file name: cross-origin (local dev only), the browser hides it otherwise.
-                    .WithExposedHeaders("Content-Disposition")
+                    // The exports' file name and the CSV export's row count: cross-origin (local dev only), the
+                    // browser hides them otherwise.
+                    .WithExposedHeaders("Content-Disposition", TransactionsEntryController.RowCountHeader)
                     .AllowCredentials());
             });
         }
