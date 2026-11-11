@@ -1,4 +1,5 @@
 using LifeManager.Application.Habits.Services;
+using LifeManager.Application.SavingsGoals.Services;
 using LifeManager.Application.Shared.DTOs;
 using LifeManager.Application.Shared.Time;
 using LifeManager.Application.Transactions.DTOs;
@@ -34,6 +35,7 @@ namespace LifeManager.Application.Transactions.Services
         IMonthlySummaryRepository monthlySummaryRepository,
         ICategoryRepository categoryRepository,
         ISavingsGoalRepository savingsGoalRepository,
+        SavingsGoalCompletion savingsGoalCompletion,
         HabitAutoCheckInService habitAutoCheckInService,
         AppClock appClock)
     {
@@ -41,6 +43,7 @@ namespace LifeManager.Application.Transactions.Services
         private readonly IMonthlySummaryRepository _monthlySummaryRepository = monthlySummaryRepository;
         private readonly ICategoryRepository _categoryRepository = categoryRepository;
         private readonly ISavingsGoalRepository _savingsGoalRepository = savingsGoalRepository;
+        private readonly SavingsGoalCompletion _savingsGoalCompletion = savingsGoalCompletion;
         private readonly HabitAutoCheckInService _habitAutoCheckInService = habitAutoCheckInService;
         private readonly AppClock _appClock = appClock;
 
@@ -71,6 +74,7 @@ namespace LifeManager.Application.Transactions.Services
 
             var transaction = transactionResult.Value;
             await _transactionRepository.AddAsync(transaction, cancellationToken);
+            await RecordGoalCompletionAsync(transaction, userId, cancellationToken);
 
             // Only a transaction typed by hand: recurrences, imports and reward expenses don't come through here.
             var autoCheckIns = await _habitAutoCheckInService.OnEventAsync(userId, HabitAutoTrigger.TransactionCreated, cancellationToken);
@@ -119,6 +123,7 @@ namespace LifeManager.Application.Transactions.Services
 
             var transaction = transactionResult.Value!;
             await _transactionRepository.AddAsync(transaction, cancellationToken);
+            await RecordGoalCompletionAsync(transaction, userId, cancellationToken);
 
             var autoCheckIns = await _habitAutoCheckInService.OnEventAsync(userId, HabitAutoTrigger.TransactionCreated, cancellationToken);
 
@@ -215,6 +220,7 @@ namespace LifeManager.Application.Transactions.Services
                 return goalResult.Error;
 
             await _transactionRepository.UpdateAsync(transaction, cancellationToken);
+            await RecordGoalCompletionAsync(transaction, userId, cancellationToken);
 
             return ToResponseDto(transaction, category.Name.Value);
         }
@@ -257,6 +263,12 @@ namespace LifeManager.Application.Transactions.Services
                 return SavingsGoalErrors.NotFound;
 
             return goal.EnsureCanLink();
+        }
+
+        private async Task RecordGoalCompletionAsync(Transaction transaction, UserId userId, CancellationToken cancellationToken)
+        {
+            if (transaction.SavingsGoalId is not null)
+                await _savingsGoalCompletion.RecordIfReachedAsync(transaction.SavingsGoalId, userId, cancellationToken);
         }
 
         private static TransactionResponseDto ToResponseDto(TransactionListItem item)

@@ -193,5 +193,19 @@ namespace LifeManager.Infrastructure.Test.SavingsGoals
 
             Assert.Equal(["Nada", "Um décimo", "Metade"], ascending.Items.Select(goal => goal.Name.Value));
         }
+
+        [Fact]
+        public async Task MarkCompletedAsync_ShouldKeepTheFirstDate()
+        {
+            await using var context = Fixture.CreateContext();
+            var user = await context.AddUserAsync();
+            var goal = await context.AddSavingsGoalAsync(user);
+            var repository = new SavingsGoalRepository(context);
+
+            await repository.MarkCompletedAsync(goal.Id!, new DateOnly(2026, 11, 10), default);
+            await repository.MarkCompletedAsync(goal.Id!, new DateOnly(2026, 12, 1), default);
+
+            Assert.Equal(new DateOnly(2026, 11, 10), (await repository.GetByIdAsync(goal.Id!, user.Id!, default))!.CompletedAt);
+        }
     }
 }

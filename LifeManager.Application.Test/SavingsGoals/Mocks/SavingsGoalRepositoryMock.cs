@@ -111,6 +111,19 @@ namespace LifeManager.Application.Test.SavingsGoals.Mocks
             return Task.FromResult(exists);
         }
 
+        public Task MarkCompletedAsync(SavingsGoalId savingsGoalId, DateOnly date, CancellationToken cancellationToken)
+        {
+            var index = _instance.FindIndex(goal => goal.Id == savingsGoalId);
+            if (index >= 0)
+            {
+                var copy = ToDetachedCopy(_instance[index]);
+                copy.MarkCompleted(date);
+                _instance[index] = copy;
+            }
+
+            return Task.CompletedTask;
+        }
+
         public Task UpdateAsync(SavingsGoal savingsGoal, CancellationToken cancellationToken)
         {
             var index = _instance.FindIndex(storedGoal => storedGoal.Id == savingsGoal.Id && storedGoal.UserId == savingsGoal.UserId);

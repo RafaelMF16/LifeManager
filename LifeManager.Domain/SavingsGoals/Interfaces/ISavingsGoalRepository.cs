@@ -39,6 +39,9 @@ namespace LifeManager.Domain.SavingsGoals.Interfaces
         /// <summary>The goal's linked investments summed per month, from <paramref name="from"/> on, oldest first.</summary>
         Task<IReadOnlyList<SavingsGoalMonthAmount>> GetMonthlyAmountsAsync(SavingsGoalId savingsGoalId, DateOnly from, CancellationToken cancellationToken);
 
+        /// <summary>Stores the day the target was first reached; nothing changes when one is already stored.</summary>
+        Task MarkCompletedAsync(SavingsGoalId savingsGoalId, DateOnly date, CancellationToken cancellationToken);
+
         /// <summary>Saves every field the user, archiving or restoring can change (not <see cref="SavingsGoal.CompletedAt"/>).</summary>
         Task UpdateAsync(SavingsGoal savingsGoal, CancellationToken cancellationToken);
     }

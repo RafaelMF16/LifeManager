@@ -17,12 +17,17 @@ namespace LifeManager.Application.SavingsGoals.Services
     /// Deleting a goal archives it: its investments keep pointing at it, its name is free for a new goal, and it can be
     /// restored as long as no active goal took that name meanwhile.
     /// </remarks>
-    public class SavingsGoalService(ISavingsGoalRepository savingsGoalRepository, AppClock appClock, TimeProvider timeProvider)
+    public class SavingsGoalService(
+        ISavingsGoalRepository savingsGoalRepository,
+        SavingsGoalCompletion savingsGoalCompletion,
+        AppClock appClock,
+        TimeProvider timeProvider)
     {
         /// <summary>How many months, the current one last, the details' chart covers.</summary>
         public const int ChartMonths = 12;
 
         private readonly ISavingsGoalRepository _savingsGoalRepository = savingsGoalRepository;
+        private readonly SavingsGoalCompletion _savingsGoalCompletion = savingsGoalCompletion;
         private readonly AppClock _appClock = appClock;
         private readonly TimeProvider _timeProvider = timeProvider;
 
@@ -49,6 +54,9 @@ namespace LifeManager.Application.SavingsGoals.Services
                 return SavingsGoalErrors.NameAlreadyExists;
 
             await _savingsGoalRepository.AddAsync(goal, cancellationToken);
+
+            // What was already saved may reach the target on its own.
+            await _savingsGoalCompletion.RecordIfReachedAsync(goal, SavingsGoalSums.Zero, cancellationToken);
 
             return ToResponseDto(goal, SavingsGoalSums.Zero);
         }
@@ -115,7 +123,11 @@ namespace LifeManager.Application.SavingsGoals.Services
 
             await _savingsGoalRepository.UpdateAsync(goal, cancellationToken);
 
-            return ToResponseDto(goal, await GetSumsAsync(goal, cancellationToken));
+            // A lower target or a higher initial amount may reach it.
+            var sums = await GetSumsAsync(goal, cancellationToken);
+            await _savingsGoalCompletion.RecordIfReachedAsync(goal, sums, cancellationToken);
+
+            return ToResponseDto(goal, sums);
         }
 
         /// <summary>Archives the goal; its investments keep pointing at it.</summary>

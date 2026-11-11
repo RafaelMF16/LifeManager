@@ -409,5 +409,42 @@ namespace LifeManager.Application.Test.SavingsGoals
             Assert.Equal(["Metade", "Um quarto", "Nada"], descending.Value!.Items.Select(goal => goal.Name));
             Assert.All(ascending.Value.Items, goal => Assert.Null(goal.Monthly));
         }
+
+        [Fact]
+        public async Task CreateAsync_ShouldCompleteTheGoal_WhenWhatWasAlreadySavedReachesTheTarget()
+        {
+            var result = await _service.CreateAsync(new SavingsGoalDto("Reserva", 1000m, null, 1000m), UserId, CancellationToken.None);
+
+            Assert.Equal(Today, result.Value!.CompletedAt);
+            Assert.Equal(SavingsGoalPace.Done, result.Value.Pace);
+            Assert.Equal(Today, Assert.Single(SavingsGoalSingleton.Instance).CompletedAt);
+        }
+
+        [Fact]
+        public async Task UpdateAsync_ShouldCompleteTheGoal_WhenTheTargetIsLoweredToWhatIsSaved_AndListItAsCompleted()
+        {
+            var goal = SeedGoal("Viagem", target: 1000m);
+            SeedTransaction(goal, 400m, new DateOnly(2026, 11, 2));
+
+            var result = await _service.UpdateAsync(goal.Id!.Value, new SavingsGoalDto("Viagem", 400m), UserId, CancellationToken.None);
+            var completed = await _service.GetPagedAsync(new SavingsGoalListQueryDto { Status = SavingsGoalStatusFilter.Completed }, UserId, CancellationToken.None);
+            var active = await _service.GetPagedAsync(new SavingsGoalListQueryDto(), UserId, CancellationToken.None);
+
+            Assert.Equal(Today, result.Value!.CompletedAt);
+            Assert.Equal("Viagem", Assert.Single(completed.Value!.Items).Name);
+            Assert.Empty(active.Value!.Items);
+        }
+
+        [Fact]
+        public async Task GetByIdAsync_ShouldKeepCompletedAt_ButLeaveDone_WhenTheSavedAmountDrops()
+        {
+            var goal = SeedGoal("Viagem", target: 1000m, completedAt: new DateOnly(2026, 10, 1));
+            SeedTransaction(goal, 300m, new DateOnly(2026, 11, 2));
+
+            var dto = (await _service.GetByIdAsync(goal.Id!.Value, UserId, CancellationToken.None)).Value!;
+
+            Assert.Equal(new DateOnly(2026, 10, 1), dto.CompletedAt);
+            Assert.Equal(SavingsGoalPace.NoDeadline, dto.Pace);
+        }
     }
 }

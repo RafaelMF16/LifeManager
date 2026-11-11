@@ -112,6 +112,14 @@ namespace LifeManager.Infrastructure.SavingsGoals
             return await query.AnyAsync(cancellationToken);
         }
 
+        public async Task MarkCompletedAsync(SavingsGoalId savingsGoalId, DateOnly date, CancellationToken cancellationToken)
+        {
+            // Conditional, so two writes reaching the target at once keep the first date.
+            await _dbContext.SavingsGoals
+                .Where(goal => goal.Id == savingsGoalId && goal.CompletedAt == null)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(goal => goal.CompletedAt, date), cancellationToken);
+        }
+
         public async Task UpdateAsync(SavingsGoal savingsGoal, CancellationToken cancellationToken)
         {
             await _dbContext.SavingsGoals

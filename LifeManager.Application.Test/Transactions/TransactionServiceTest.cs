@@ -593,5 +593,33 @@ namespace LifeManager.Application.Test.Transactions
 
             Assert.Equal("Viagem", Assert.Single(result.Value!.Items).Description);
         }
+
+        [Fact]
+        public async Task CreateAsync_ShouldCompleteTheGoalOnce_WhenALinkedInvestmentReachesTheTarget()
+        {
+            var clock = (FakeTimeProvider)ServiceProvider.GetRequiredService<TimeProvider>();
+            var goalId = SeedGoal(FirstUserId);
+            clock.SetToday(new DateOnly(CurrentYear, 3, 10));
+            await Create(Investment("Aporte", 600m, 3) with { SavingsGoalId = goalId });
+            Assert.Null(SavingsGoalSingleton.Instance[0].CompletedAt);
+
+            await Create(Investment("Aporte", 400m, 4) with { SavingsGoalId = goalId });
+            clock.SetToday(new DateOnly(CurrentYear, 3, 20));
+            var third = await Create(Investment("Aporte", 100m, 5) with { SavingsGoalId = goalId });
+            await _transactionService.DeleteAsync(MonthId, third.Id, FirstUserId, CancellationToken.None);
+
+            Assert.Equal(new DateOnly(CurrentYear, 3, 10), SavingsGoalSingleton.Instance[0].CompletedAt);
+        }
+
+        [Fact]
+        public async Task UpdateAsync_ShouldCompleteTheGoal_WhenTheAmountGrowsToTheTarget()
+        {
+            var goalId = SeedGoal(FirstUserId);
+            var created = await Create(Investment("Aporte", 100m, 3) with { SavingsGoalId = goalId });
+
+            await _transactionService.UpdateAsync(MonthId, created.Id, Investment("Aporte", 1000m, 3) with { SavingsGoalId = goalId }, FirstUserId, CancellationToken.None);
+
+            Assert.NotNull(SavingsGoalSingleton.Instance[0].CompletedAt);
+        }
     }
 }
