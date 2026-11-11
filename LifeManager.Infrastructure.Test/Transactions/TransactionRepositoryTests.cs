@@ -167,6 +167,7 @@ namespace LifeManager.Infrastructure.Test.Transactions
             var expected = new Dictionary<string, TransactionOrigin>
             {
                 ["Compra"] = TransactionOrigin.Manual,
+                ["Aporte"] = TransactionOrigin.Manual,
                 ["Academia"] = TransactionOrigin.Recurring,
                 ["Padaria"] = TransactionOrigin.Import,
                 ["Cinema"] = TransactionOrigin.Reward,

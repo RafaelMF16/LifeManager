@@ -17,7 +17,7 @@ namespace LifeManager.Infrastructure.Test.Users
         private static readonly string[] Sections =
         [
             "version", "exportedAt", "user", "preferences",
-            "categories", "months", "transactions", "recurringTransactions", "budgetPlans", "accountHolders", "statementImports",
+            "categories", "months", "transactions", "recurringTransactions", "budgetPlans", "savingsGoals", "accountHolders", "statementImports",
             "habits", "checkIns", "progressEntries", "challenges",
             "player", "ledger", "rewards", "redemptions", "gameItemPurchases", "achievements",
             "rankingGroups",
@@ -44,8 +44,10 @@ namespace LifeManager.Infrastructure.Test.Users
             Assert.Equal("Dark", root.GetProperty("preferences").GetProperty("theme").GetString());
             Assert.Equal(["Mercado"], Names(root, "categories"));
             Assert.Equal(1, root.GetProperty("months").GetArrayLength());
-            // The hand-typed one, the recurrence's and the import's.
-            Assert.Equal(3, root.GetProperty("transactions").GetArrayLength());
+            // The hand-typed one, the savings goal's investment, the recurrence's and the import's.
+            Assert.Equal(4, root.GetProperty("transactions").GetArrayLength());
+            Assert.Equal(["Viagem"], Names(root, "savingsGoals"));
+            Assert.Single(root.GetProperty("transactions").EnumerateArray(), item => item.GetProperty("savingsGoalId").ValueKind == JsonValueKind.Number);
             Assert.Equal(["Academia"], root.GetProperty("recurringTransactions").EnumerateArray().Select(item => item.GetProperty("description").GetString()));
             Assert.Equal(1, root.GetProperty("budgetPlans")[0].GetProperty("slices").GetArrayLength());
             Assert.Equal(["Ana da Silva"], Names(root, "accountHolders"));
