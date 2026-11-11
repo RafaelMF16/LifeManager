@@ -12,6 +12,7 @@ using LifeManager.Application.RankingGroups.Services;
 using LifeManager.Application.MonthlySummaries.Services;
 using LifeManager.Application.RecurringTransactions.Services;
 using LifeManager.Application.Rewards.Services;
+using LifeManager.Application.SavingsGoals.Services;
 using LifeManager.Application.Shared.Time;
 using LifeManager.Application.StatementImports.Services;
 using LifeManager.Application.Transactions.Services;
@@ -60,6 +61,7 @@ namespace LifeManager.Application.DI
             services.AddScoped<GameLedgerService>();
             services.AddScoped<RewardService>();
             services.AddScoped<RewardRedemptionService>();
+            services.AddScoped<SavingsGoalService>();
             services.AddScoped<GameItemService>();
             services.AddScoped<AchievementService>();
             services.AddScoped<ChallengeService>();

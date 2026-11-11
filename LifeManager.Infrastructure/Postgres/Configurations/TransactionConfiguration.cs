@@ -1,6 +1,7 @@
 using LifeManager.Domain.Categories;
 using LifeManager.Domain.MonthlySummaries;
 using LifeManager.Domain.RecurringTransactions;
+using LifeManager.Domain.SavingsGoals;
 using LifeManager.Domain.StatementImports;
 using LifeManager.Domain.Transactions;
 using LifeManager.Domain.Transactions.ValueObjects;
@@ -90,6 +91,14 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
             builder.HasIndex(transaction => new { transaction.MonthlySummaryId, transaction.ExternalId })
                 .IsUnique()
                 .HasFilter("\"ExternalId\" IS NOT NULL");
+
+            // Deleting a savings goal (only through the user's deletion; the UI archives) keeps its investments.
+            builder.HasOne<SavingsGoal>()
+                .WithMany()
+                .HasForeignKey(transaction => transaction.SavingsGoalId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.HasIndex(transaction => transaction.SavingsGoalId);
         }
     }
 }

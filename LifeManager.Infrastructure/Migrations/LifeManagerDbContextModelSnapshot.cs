@@ -1110,6 +1110,65 @@ namespace LifeManager.Infrastructure.Migrations
                     b.ToTable("RewardRedemptions");
                 });
 
+            modelBuilder.Entity("LifeManager.Domain.SavingsGoals.SavingsGoal", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset?>("ArchivedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly?>("CompletedAt")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Icon")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<decimal>("InitialAmount")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<decimal>("TargetAmount")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<DateOnly?>("TargetMonthStart")
+                        .HasColumnType("date");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedName");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("NormalizedName"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("NormalizedName"), new[] { "gin_trgm_ops" });
+
+                    b.HasIndex("UserId", "NormalizedName")
+                        .IsUnique()
+                        .HasFilter("\"ArchivedAt\" IS NULL");
+
+                    b.ToTable("SavingsGoals");
+                });
+
             modelBuilder.Entity("LifeManager.Domain.StatementImports.StatementImport", b =>
                 {
                     b.Property<int>("Id")
@@ -1288,6 +1347,9 @@ namespace LifeManager.Infrastructure.Migrations
                     b.Property<int?>("RecurringTransactionId")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("SavingsGoalId")
+                        .HasColumnType("integer");
+
                     b.Property<decimal>("SignedAmount")
                         .HasPrecision(14, 2)
                         .HasColumnType("numeric(14,2)");
@@ -1309,6 +1371,8 @@ namespace LifeManager.Infrastructure.Migrations
 
                     NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("NormalizedDescription"), "gin");
                     NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("NormalizedDescription"), new[] { "gin_trgm_ops" });
+
+                    b.HasIndex("SavingsGoalId");
 
                     b.HasIndex("StatementImportId");
 
@@ -1715,6 +1779,15 @@ namespace LifeManager.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("LifeManager.Domain.SavingsGoals.SavingsGoal", b =>
+                {
+                    b.HasOne("LifeManager.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("LifeManager.Domain.StatementImports.StatementImport", b =>
                 {
                     b.HasOne("LifeManager.Domain.Users.User", null)
@@ -1755,6 +1828,11 @@ namespace LifeManager.Infrastructure.Migrations
                     b.HasOne("LifeManager.Domain.RecurringTransactions.RecurringTransaction", null)
                         .WithMany()
                         .HasForeignKey("RecurringTransactionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("LifeManager.Domain.SavingsGoals.SavingsGoal", null)
+                        .WithMany()
+                        .HasForeignKey("SavingsGoalId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("LifeManager.Domain.StatementImports.StatementImport", null)
