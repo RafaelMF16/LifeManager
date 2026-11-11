@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using LifeManager.Application.Test.Configurations.SingletonLists;
 using LifeManager.Domain.Categories.ValueObjects;
 using LifeManager.Domain.MonthlySummaries.ValueObjects;
@@ -140,6 +141,52 @@ namespace LifeManager.Application.Test.Transactions.Mocks
                     group.Max(transaction => transaction.TransactionDate)))];
 
             return Task.FromResult(history);
+        }
+
+        // Mirrors TransactionRepository: owned through the month, dated inside the period, by date then id.
+        public Task<int> CountForExportAsync(UserId userId, DateOnly from, DateOnly to, TransactionTypeFilter typeFilter, CancellationToken cancellationToken)
+            => Task.FromResult(ForExport(userId, from, to, typeFilter).Count());
+
+        public async IAsyncEnumerable<TransactionExportRow> StreamForExportAsync(
+            UserId userId,
+            DateOnly from,
+            DateOnly to,
+            TransactionTypeFilter typeFilter,
+            [EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            var rows = ForExport(userId, from, to, typeFilter)
+                .OrderBy(transaction => transaction.TransactionDate)
+                .ThenBy(transaction => transaction.Id!.Value)
+                .ToList();
+
+            foreach (var transaction in rows)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await Task.Yield();
+
+                yield return new TransactionExportRow(
+                    transaction.TransactionDate,
+                    transaction.Description.Value,
+                    CategorySingleton.Instance.Single(category => category.Id == transaction.CategoryId).Name.Value,
+                    transaction.Type,
+                    transaction.SignedAmount,
+                    transaction.Origin(RewardRedemptionSingleton.Instance.Any(redemption => redemption.TransactionId == transaction.Id)));
+            }
+        }
+
+        private IEnumerable<Transaction> ForExport(UserId userId, DateOnly from, DateOnly to, TransactionTypeFilter typeFilter)
+        {
+            var query = _instance.Where(transaction => transaction.TransactionDate >= from
+                && transaction.TransactionDate <= to
+                && BelongsTo(transaction, userId));
+
+            return typeFilter switch
+            {
+                TransactionTypeFilter.Income => query.Where(transaction => transaction.Type == MoneyFlowType.Income),
+                TransactionTypeFilter.Expense => query.Where(transaction => transaction.Type == MoneyFlowType.Expense),
+                TransactionTypeFilter.Investment => query.Where(transaction => transaction.Type == MoneyFlowType.Investment),
+                _ => query
+            };
         }
 
         public Task UpdateAsync(Transaction transaction, CancellationToken cancellationToken)

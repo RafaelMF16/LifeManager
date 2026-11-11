@@ -10,6 +10,7 @@ using LifeManager.Domain.Shared.Results;
 using LifeManager.Domain.StatementImports;
 using LifeManager.Domain.StatementImports.Errors;
 using LifeManager.Domain.StatementImports.ValueObjects;
+using LifeManager.Domain.Transactions.Enums;
 using LifeManager.Domain.Transactions.Errors;
 using LifeManager.Domain.Transactions.ValueObjects;
 
@@ -130,6 +131,22 @@ namespace LifeManager.Domain.Transactions
                 return RewardErrors.ExpenseNotConfigured;
 
             return Create(MoneyFlowType.Expense, reward.ExpenseCategoryId!.Value, reward.ExpenseAmount!.Value, reward.Name.Value, date, monthlySummary);
+        }
+
+        /// <summary>
+        /// Where the transaction came from: its recurrence first, then its import (the import's id, or the bank line once
+        /// the import left the history), then a reward redemption pointing to it (<paramref name="isRewardExpense"/>,
+        /// stored on the redemption), otherwise typed by hand.
+        /// </summary>
+        public TransactionOrigin Origin(bool isRewardExpense)
+        {
+            if (RecurringTransactionId is not null)
+                return TransactionOrigin.Recurring;
+
+            if (StatementImportId is not null || ExternalId is not null)
+                return TransactionOrigin.Import;
+
+            return isRewardExpense ? TransactionOrigin.Reward : TransactionOrigin.Manual;
         }
 
         /// <summary>Changes every field except the month: a transaction always stays in the month it was created in.</summary>

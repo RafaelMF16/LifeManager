@@ -43,6 +43,7 @@ namespace LifeManager.Application.DI
             services.AddScoped<CategoryService>();
             services.AddScoped<MonthlySummaryService>();
             services.AddScoped<TransactionService>();
+            services.AddScoped<TransactionExportService>();
             services.AddScoped<FinanceDashboardService>();
             services.AddScoped<RecurringTransactionService>();
             services.AddScoped<RecurringTransactionPostingService>();

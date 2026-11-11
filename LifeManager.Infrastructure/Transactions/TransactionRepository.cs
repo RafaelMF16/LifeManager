@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using LifeManager.Domain.Categories;
 using LifeManager.Domain.Categories.ValueObjects;
 using LifeManager.Domain.MonthlySummaries.ValueObjects;
@@ -195,6 +196,59 @@ namespace LifeManager.Infrastructure.Transactions
             await databaseTransaction.CommitAsync(cancellationToken);
 
             return result;
+        }
+
+        public Task<int> CountForExportAsync(UserId userId, DateOnly from, DateOnly to, TransactionTypeFilter typeFilter, CancellationToken cancellationToken)
+            => ForExport(userId, from, to, typeFilter).CountAsync(cancellationToken);
+
+        public async IAsyncEnumerable<TransactionExportRow> StreamForExportAsync(
+            UserId userId,
+            DateOnly from,
+            DateOnly to,
+            TransactionTypeFilter typeFilter,
+            [EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            var rows = WithCategory(ForExport(userId, from, to, typeFilter))
+                .OrderBy(row => row.Transaction.TransactionDate)
+                .ThenBy(row => row.Transaction.Id)
+                .Select(row => new
+                {
+                    row.Transaction,
+                    CategoryName = row.Category.Name,
+                    IsRewardExpense = _dbContext.RewardRedemptions.Any(redemption => redemption.TransactionId == row.Transaction.Id),
+                })
+                .AsAsyncEnumerable()
+                .WithCancellation(cancellationToken);
+
+            await foreach (var row in rows)
+            {
+                var transaction = row.Transaction;
+                yield return new TransactionExportRow(
+                    transaction.TransactionDate,
+                    transaction.Description.Value,
+                    row.CategoryName.Value,
+                    transaction.Type,
+                    transaction.SignedAmount,
+                    transaction.Origin(row.IsRewardExpense));
+            }
+        }
+
+        /// <summary>The user's transactions (owned through their month, like the dashboard) dated inside the period, of the type asked.</summary>
+        private IQueryable<Transaction> ForExport(UserId userId, DateOnly from, DateOnly to, TransactionTypeFilter typeFilter)
+        {
+            var transactions = _dbContext.Transactions
+                .AsNoTracking()
+                .Where(transaction => transaction.TransactionDate >= from
+                    && transaction.TransactionDate <= to
+                    && _dbContext.MonthlySummaries.Any(monthlySummary => monthlySummary.Id == transaction.MonthlySummaryId && monthlySummary.UserId == userId));
+
+            return typeFilter switch
+            {
+                TransactionTypeFilter.Income => transactions.Where(transaction => transaction.Type == MoneyFlowType.Income),
+                TransactionTypeFilter.Expense => transactions.Where(transaction => transaction.Type == MoneyFlowType.Expense),
+                TransactionTypeFilter.Investment => transactions.Where(transaction => transaction.Type == MoneyFlowType.Investment),
+                _ => transactions
+            };
         }
 
         private IQueryable<TransactionWithCategory> WithCategory(IQueryable<Transaction> transactions)
