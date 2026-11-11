@@ -190,6 +190,33 @@ namespace LifeManager.Infrastructure.Test.Transactions
             return rows.ToDictionary(row => row.Description, row => row.Origin);
         }
 
+        [Fact]
+        public async Task UpdateAsync_ShouldSaveTheSavingsGoal_AndTheListingShouldFilterByIt()
+        {
+            await using var context = Fixture.CreateContext();
+            var user = await context.AddUserAsync();
+            var category = await context.AddCategoryAsync(user);
+            var month = await context.AddMonthAsync(user, 2026, 11);
+            var travel = await context.AddSavingsGoalAsync(user, "Viagem");
+            var reserve = await context.AddSavingsGoalAsync(user, "Reserva");
+            var repository = new TransactionRepository(context);
+            var linked = Transaction.Create(MoneyFlowType.Investment, category.Id!.Value, 500m, "Aporte", new DateOnly(2026, 11, 3), month, travel.Id!.Value).Value!;
+            await repository.AddAsync(linked, default);
+            await repository.AddAsync(TestData.NewTransaction(month, category, MoneyFlowType.Investment, 100m), default);
+
+            linked.Update(MoneyFlowType.Investment, category.Id.Value, 600m, "Aporte maior", new DateOnly(2026, 11, 3), month, reserve.Id!.Value).Unwrap();
+            await using (var writeContext = Fixture.CreateContext())
+                await new TransactionRepository(writeContext).UpdateAsync(linked, default);
+
+            await using var readContext = Fixture.CreateContext();
+            var page = await new TransactionRepository(readContext).GetPagedAsync(
+                month.Id!, Domain.Shared.Paging.PageRequest.Create(1, 20).Value!, TransactionTypeFilter.All, null, null, reserve.Id, null,
+                TransactionSortBy.Date, SortDirection.Desc, default);
+            var item = Assert.Single(page.Items);
+            Assert.Equal(reserve.Id, item.Transaction.SavingsGoalId);
+            Assert.Equal(600m, item.Transaction.Amount.Value);
+        }
+
         private async Task<(MonthlySummary Month, Domain.Categories.Category Category)> SeedMonthAsync()
         {
             await using var context = Fixture.CreateContext();

@@ -1,5 +1,6 @@
 using LifeManager.Domain.Categories.ValueObjects;
 using LifeManager.Domain.MonthlySummaries.ValueObjects;
+using LifeManager.Domain.SavingsGoals.ValueObjects;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.Paging;
 using LifeManager.Domain.Transactions.Enums;
@@ -19,6 +20,7 @@ namespace LifeManager.Domain.Transactions.Interfaces
 
         /// <param name="categoryId">Null means every category.</param>
         /// <param name="date">Null means every day.</param>
+        /// <param name="savingsGoalId">Null means linked to any goal or none.</param>
         /// <param name="normalizedSearch">Already normalized (see <c>SearchText.Normalize</c>); null or empty means no filter.</param>
         Task<PagedList<TransactionListItem>> GetPagedAsync(
             MonthlySummaryId monthlySummaryId,
@@ -26,6 +28,7 @@ namespace LifeManager.Domain.Transactions.Interfaces
             TransactionTypeFilter typeFilter,
             CategoryId? categoryId,
             DateOnly? date,
+            SavingsGoalId? savingsGoalId,
             string? normalizedSearch,
             TransactionSortBy sortBy,
             SortDirection sortDirection,

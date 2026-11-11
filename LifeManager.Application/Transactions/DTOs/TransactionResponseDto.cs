@@ -5,6 +5,7 @@ using LifeManager.Domain.Shared.Enums;
 namespace LifeManager.Application.Transactions.DTOs
 {
     /// <param name="RecurringTransactionId">The recurrence that posted it; null for transactions entered by hand.</param>
+    /// <param name="SavingsGoalId">The savings goal this investment counts towards; null for none.</param>
     /// <param name="AutoCheckIns">
     /// Only on create: the habits the new transaction checked in by themselves (empty when none). Left out of every
     /// other response.
@@ -18,5 +19,6 @@ namespace LifeManager.Application.Transactions.DTOs
         string Description,
         DateOnly Date,
         int? RecurringTransactionId = null,
+        int? SavingsGoalId = null,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<AutoCheckInDto>? AutoCheckIns = null);
 }

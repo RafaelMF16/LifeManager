@@ -235,5 +235,46 @@ namespace LifeManager.Domain.Test.Transactions
 
             Assert.Equal(expected, transaction.Origin(isRewardExpense));
         }
+
+        [Fact]
+        public void Create_ShouldLinkAnInvestmentToASavingsGoal()
+        {
+            var result = Transaction.Create(MoneyFlowType.Investment, 2, 500m, "Aporte", MarchDay(10), March(), idSavingsGoal: 4);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(4, result.Value!.SavingsGoalId!.Value);
+        }
+
+        [Theory]
+        [InlineData(MoneyFlowType.Expense)]
+        [InlineData(MoneyFlowType.Income)]
+        public void Create_ShouldReturnGoalRequiresInvestment_WhenTheTypeIsNotInvestment(MoneyFlowType type)
+        {
+            var result = Transaction.Create(type, 2, 500m, "Aporte", MarchDay(10), March(), idSavingsGoal: 4);
+
+            Assert.Equal(TransactionErrors.GoalRequiresInvestment, result.Error);
+        }
+
+        [Fact]
+        public void Update_ShouldReturnGoalRequiresInvestment_WhenTheTypeChangesButTheGoalStays()
+        {
+            var transaction = Transaction.Create(MoneyFlowType.Investment, 2, 500m, "Aporte", MarchDay(10), March(), idSavingsGoal: 4).Value!;
+
+            var result = transaction.Update(MoneyFlowType.Expense, 2, 500m, "Aporte", MarchDay(10), March(), idSavingsGoal: 4);
+
+            Assert.Equal(TransactionErrors.GoalRequiresInvestment, result.Error);
+            Assert.Equal(MoneyFlowType.Investment, transaction.Type);
+        }
+
+        [Fact]
+        public void Update_ShouldUnlinkTheGoal_WhenNoneIsGiven()
+        {
+            var transaction = Transaction.Create(MoneyFlowType.Investment, 2, 500m, "Aporte", MarchDay(10), March(), idSavingsGoal: 4).Value!;
+
+            var result = transaction.Update(MoneyFlowType.Expense, 2, 500m, "Compra", MarchDay(10), March());
+
+            Assert.True(result.IsSuccess);
+            Assert.Null(transaction.SavingsGoalId);
+        }
     }
 }

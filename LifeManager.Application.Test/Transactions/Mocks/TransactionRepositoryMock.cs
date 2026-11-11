@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using LifeManager.Application.Test.Configurations.SingletonLists;
 using LifeManager.Domain.Categories.ValueObjects;
 using LifeManager.Domain.MonthlySummaries.ValueObjects;
+using LifeManager.Domain.SavingsGoals.ValueObjects;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.Paging;
 using LifeManager.Domain.Transactions;
@@ -55,6 +56,7 @@ namespace LifeManager.Application.Test.Transactions.Mocks
             TransactionTypeFilter typeFilter,
             CategoryId? categoryId,
             DateOnly? date,
+            SavingsGoalId? savingsGoalId,
             string? normalizedSearch,
             TransactionSortBy sortBy,
             SortDirection sortDirection,
@@ -75,6 +77,9 @@ namespace LifeManager.Application.Test.Transactions.Mocks
 
             if (date is not null)
                 query = query.Where(transaction => transaction.TransactionDate == date);
+
+            if (savingsGoalId is not null)
+                query = query.Where(transaction => transaction.SavingsGoalId == savingsGoalId);
 
             if (!string.IsNullOrEmpty(normalizedSearch))
                 query = query.Where(transaction => transaction.NormalizedDescription.Contains(normalizedSearch, StringComparison.Ordinal));
@@ -278,6 +283,7 @@ namespace LifeManager.Application.Test.Transactions.Mocks
                 transaction.TransactionDate,
                 transaction.RecurringTransactionId?.Value,
                 transaction.StatementImportId?.Value,
-                transaction.ExternalId);
+                transaction.ExternalId,
+                transaction.SavingsGoalId?.Value);
     }
 }

@@ -88,7 +88,7 @@ namespace LifeManager.Infrastructure.Test.Search
         private static Task<PagedList<Domain.Transactions.TransactionListItem>> SearchAsync(
             TransactionRepository repository, Domain.MonthlySummaries.ValueObjects.MonthlySummaryId monthId, string term)
             => repository.GetPagedAsync(
-                monthId, FirstPage, TransactionTypeFilter.All, categoryId: null, date: null,
+                monthId, FirstPage, TransactionTypeFilter.All, categoryId: null, date: null, savingsGoalId: null,
                 SearchText.Normalize(term), TransactionSortBy.Date, SortDirection.Desc, default);
     }
 }

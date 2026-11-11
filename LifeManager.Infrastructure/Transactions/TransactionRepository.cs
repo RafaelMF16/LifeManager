@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using LifeManager.Domain.Categories;
 using LifeManager.Domain.Categories.ValueObjects;
 using LifeManager.Domain.MonthlySummaries.ValueObjects;
+using LifeManager.Domain.SavingsGoals.ValueObjects;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.Paging;
 using LifeManager.Domain.Transactions;
@@ -47,6 +48,7 @@ namespace LifeManager.Infrastructure.Transactions
             TransactionTypeFilter typeFilter,
             CategoryId? categoryId,
             DateOnly? date,
+            SavingsGoalId? savingsGoalId,
             string? normalizedSearch,
             TransactionSortBy sortBy,
             SortDirection sortDirection,
@@ -69,6 +71,9 @@ namespace LifeManager.Infrastructure.Transactions
 
             if (date is not null)
                 transactions = transactions.Where(transaction => transaction.TransactionDate == date);
+
+            if (savingsGoalId is not null)
+                transactions = transactions.Where(transaction => transaction.SavingsGoalId == savingsGoalId);
 
             if (!string.IsNullOrEmpty(normalizedSearch))
             {
@@ -162,7 +167,8 @@ namespace LifeManager.Infrastructure.Transactions
                         .SetProperty(storedTransaction => storedTransaction.SignedAmount, transaction.SignedAmount)
                         .SetProperty(storedTransaction => storedTransaction.Description, transaction.Description)
                         .SetProperty(storedTransaction => storedTransaction.NormalizedDescription, transaction.NormalizedDescription)
-                        .SetProperty(storedTransaction => storedTransaction.TransactionDate, transaction.TransactionDate), cancellationToken);
+                        .SetProperty(storedTransaction => storedTransaction.TransactionDate, transaction.TransactionDate)
+                        .SetProperty(storedTransaction => storedTransaction.SavingsGoalId, transaction.SavingsGoalId), cancellationToken);
                 return true;
             }, cancellationToken);
         }
