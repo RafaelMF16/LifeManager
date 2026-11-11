@@ -10,6 +10,8 @@ using LifeManager.Domain.Habits;
 using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.MonthlySummaries;
 using LifeManager.Domain.MonthlySummaries.Errors;
+using LifeManager.Domain.SavingsGoals;
+using LifeManager.Domain.SavingsGoals.Errors;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.Paging;
 using LifeManager.Domain.Shared.Results;
@@ -52,6 +54,7 @@ namespace LifeManager.Application.Test.Transactions
             PlayerProfileSingleton.Instance.Clear();
             GameLedgerEntrySingleton.Instance.Clear();
             HabitCheckInRepositoryMock.FailNextRecord = null;
+            SavingsGoalSingleton.Instance.Clear();
 
             MonthlySummarySingleton.Instance.AddRange(
                 MonthlySummary.FromPersistence(MonthId, FirstUserId.Value, 3, CurrentYear, 0, 0, 0),
@@ -495,6 +498,142 @@ namespace LifeManager.Application.Test.Transactions
             var category = Category.Create(userId.Value, name).Value!;
             category.AssignId(id);
             CategorySingleton.Instance.Add(category);
+        }
+
+        private static int SeedGoal(UserId userId, bool archived = false)
+        {
+            var id = SavingsGoalSingleton.Instance.Count + 1;
+            SavingsGoalSingleton.Instance.Add(SavingsGoal.FromPersistence(
+                id, userId.Value, $"Objetivo {id}", 1000m, null, 0m, null, DateTimeOffset.UnixEpoch,
+                archived ? DateTimeOffset.UnixEpoch : null, completedAt: null));
+
+            return id;
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldLinkTheInvestmentToTheGoal()
+        {
+            var goalId = SeedGoal(FirstUserId);
+
+            var created = await Create(Investment("Aporte", 500m, 3) with { SavingsGoalId = goalId });
+
+            Assert.Equal(goalId, created.SavingsGoalId);
+            Assert.Equal(goalId, Assert.Single(TransactionSingleton.Instance).SavingsGoalId!.Value);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldReturnGoalRequiresInvestment_ForAnExpenseWithAGoal()
+        {
+            var goalId = SeedGoal(FirstUserId);
+
+            var result = await _transactionService.CreateAsync(MonthId, Expense("Mercado", 50m, 3) with { SavingsGoalId = goalId }, FirstUserId, CancellationToken.None);
+
+            Assert.Equal(TransactionErrors.GoalRequiresInvestment, result.Error);
+            Assert.Empty(TransactionSingleton.Instance);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldRefuseAnotherUsersOrAnArchivedGoal()
+        {
+            var otherUsersGoal = SeedGoal(SecondUserId);
+            var archivedGoal = SeedGoal(FirstUserId, archived: true);
+
+            var otherUsers = await _transactionService.CreateAsync(MonthId, Investment("Aporte", 50m, 3) with { SavingsGoalId = otherUsersGoal }, FirstUserId, CancellationToken.None);
+            var archived = await _transactionService.CreateAsync(MonthId, Investment("Aporte", 50m, 3) with { SavingsGoalId = archivedGoal }, FirstUserId, CancellationToken.None);
+            var missing = await _transactionService.CreateAsync(MonthId, Investment("Aporte", 50m, 3) with { SavingsGoalId = 99 }, FirstUserId, CancellationToken.None);
+
+            Assert.Equal(SavingsGoalErrors.NotFound, otherUsers.Error);
+            Assert.Equal(SavingsGoalErrors.Archived, archived.Error);
+            Assert.Equal(SavingsGoalErrors.NotFound, missing.Error);
+            Assert.Empty(TransactionSingleton.Instance);
+        }
+
+        [Fact]
+        public async Task UpdateAsync_ShouldKeepTheLinkToAGoalArchivedMeanwhile_ButNotLinkANewArchivedOne()
+        {
+            var goalId = SeedGoal(FirstUserId);
+            var anotherArchived = SeedGoal(FirstUserId, archived: true);
+            var created = await Create(Investment("Aporte", 500m, 3) with { SavingsGoalId = goalId });
+            var stored = SavingsGoalSingleton.Instance[0];
+            SavingsGoalSingleton.Instance[0] = SavingsGoal.FromPersistence(
+                goalId, FirstUserId.Value, stored.Name.Value, 1000m, null, 0m, null, DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch, null);
+
+            // Enough to reach the target: an archived goal is still never marked completed.
+            var kept = await _transactionService.UpdateAsync(MonthId, created.Id, Investment("Aporte maior", 1200m, 3) with { SavingsGoalId = goalId }, FirstUserId, CancellationToken.None);
+            var moved = await _transactionService.UpdateAsync(MonthId, created.Id, Investment("Aporte", 600m, 3) with { SavingsGoalId = anotherArchived }, FirstUserId, CancellationToken.None);
+
+            Assert.True(kept.IsSuccess);
+            Assert.Equal(goalId, kept.Value!.SavingsGoalId);
+            Assert.Equal(SavingsGoalErrors.Archived, moved.Error);
+            Assert.Equal(goalId, Assert.Single(TransactionSingleton.Instance).SavingsGoalId!.Value);
+            Assert.Null(SavingsGoalSingleton.Instance[0].CompletedAt);
+        }
+
+        [Fact]
+        public async Task UpdateAsync_ShouldUnlinkTheGoal_WhenItIsLeftOut()
+        {
+            var goalId = SeedGoal(FirstUserId);
+            var created = await Create(Investment("Aporte", 500m, 3) with { SavingsGoalId = goalId });
+
+            var result = await _transactionService.UpdateAsync(MonthId, created.Id, Expense("Mercado", 500m, 3), FirstUserId, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.Null(result.Value!.SavingsGoalId);
+            Assert.Null(Assert.Single(TransactionSingleton.Instance).SavingsGoalId);
+        }
+
+        [Fact]
+        public async Task GetPagedAsync_ShouldFilterBySavingsGoal()
+        {
+            var travel = SeedGoal(FirstUserId);
+            var reserve = SeedGoal(FirstUserId);
+            await Create(Investment("Viagem", 100m, 3) with { SavingsGoalId = travel });
+            await Create(Investment("Reserva", 100m, 3) with { SavingsGoalId = reserve });
+            await Create(Investment("Solto", 100m, 3));
+
+            var result = await _transactionService.GetPagedAsync(MonthId, new TransactionListQueryDto { SavingsGoalId = travel }, FirstUserId, CancellationToken.None);
+
+            Assert.Equal("Viagem", Assert.Single(result.Value!.Items).Description);
+        }
+
+        [Fact]
+        public async Task GetByIdAsync_ShouldCarryTheGoalsName()
+        {
+            var goalId = SeedGoal(FirstUserId);
+            var created = await Create(Investment("Aporte", 100m, 3) with { SavingsGoalId = goalId });
+
+            var result = await _transactionService.GetByIdAsync(MonthId, created.Id, FirstUserId, CancellationToken.None);
+
+            Assert.Equal($"Objetivo {goalId}", result.Value!.SavingsGoalName);
+            Assert.Null(created.SavingsGoalName);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldCompleteTheGoalOnce_WhenALinkedInvestmentReachesTheTarget()
+        {
+            var clock = (FakeTimeProvider)ServiceProvider.GetRequiredService<TimeProvider>();
+            var goalId = SeedGoal(FirstUserId);
+            clock.SetToday(new DateOnly(CurrentYear, 3, 10));
+            await Create(Investment("Aporte", 600m, 3) with { SavingsGoalId = goalId });
+            Assert.Null(SavingsGoalSingleton.Instance[0].CompletedAt);
+
+            await Create(Investment("Aporte", 400m, 4) with { SavingsGoalId = goalId });
+            clock.SetToday(new DateOnly(CurrentYear, 3, 20));
+            var third = await Create(Investment("Aporte", 100m, 5) with { SavingsGoalId = goalId });
+            await _transactionService.DeleteAsync(MonthId, third.Id, FirstUserId, CancellationToken.None);
+
+            Assert.Equal(new DateOnly(CurrentYear, 3, 10), SavingsGoalSingleton.Instance[0].CompletedAt);
+        }
+
+        [Fact]
+        public async Task UpdateAsync_ShouldCompleteTheGoal_WhenTheAmountGrowsToTheTarget()
+        {
+            var goalId = SeedGoal(FirstUserId);
+            var created = await Create(Investment("Aporte", 100m, 3) with { SavingsGoalId = goalId });
+
+            await _transactionService.UpdateAsync(MonthId, created.Id, Investment("Aporte", 1000m, 3) with { SavingsGoalId = goalId }, FirstUserId, CancellationToken.None);
+
+            Assert.NotNull(SavingsGoalSingleton.Instance[0].CompletedAt);
         }
     }
 }

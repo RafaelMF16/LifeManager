@@ -33,7 +33,7 @@ namespace LifeManager.Infrastructure.Test.Seed
     {
         private static readonly DateOnly Today = new(2026, 11, 10);
 
-        /// <summary>A user with data in every module: finance, recurrences, budget, imports and rules, habits and the game, rewards, account holders, auth.</summary>
+        /// <summary>A user with data in every module: finance, savings goals, recurrences, budget, imports and rules, habits and the game, rewards, account holders, auth.</summary>
         public static async Task<User> AddUserWithEverythingAsync(this LifeManagerDbContext context, string name)
         {
             var user = await context.AddUserAsync(name);
@@ -46,8 +46,14 @@ namespace LifeManager.Infrastructure.Test.Seed
             context.Add(Reward.Create(userId, "Cinema", 50, null, TestData.Now, category.Id!.Value, 40m).Unwrap());
             await context.SaveChangesAsync();
 
-            await new TransactionRepository(context)
-                .AddAsync(TestData.NewTransaction(month, category, MoneyFlowType.Expense, 25m), default);
+            var transactions = new TransactionRepository(context);
+            await transactions.AddAsync(TestData.NewTransaction(month, category, MoneyFlowType.Expense, 25m), default);
+
+            // A savings goal with a linked investment: deleting the user takes both, through two cascades and a SET NULL.
+            var goal = await context.AddSavingsGoalAsync(user, "Viagem");
+            await transactions.AddAsync(
+                Transaction.Create(MoneyFlowType.Investment, category.Id!.Value, 300m, "Aporte", new DateOnly(2026, 11, 5), month, goal.Id!.Value).Unwrap(),
+                default);
 
             var recurrence = RecurringTransaction
                 .Create(userId, MoneyFlowType.Expense, category.Id!.Value, 100m, "Academia", 1, "2026-11", null, Today).Unwrap();

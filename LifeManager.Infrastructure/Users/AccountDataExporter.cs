@@ -113,6 +113,7 @@ namespace LifeManager.Infrastructure.Users
                     Date = transaction.TransactionDate,
                     RecurringTransactionId = transaction.RecurringTransactionId?.Value,
                     StatementImportId = transaction.StatementImportId?.Value,
+                    SavingsGoalId = transaction.SavingsGoalId?.Value,
                 },
                 cancellationToken);
 
@@ -142,6 +143,22 @@ namespace LifeManager.Infrastructure.Users
                     plan.CreatedAt,
                     plan.UpdatedAt,
                     Slices = plan.Slices.Select(slice => new { slice.Type, CategoryId = slice.CategoryId?.Value, Percent = slice.Percent.Value }),
+                },
+                cancellationToken);
+
+            await WriteArrayAsync(writer, "savingsGoals",
+                _dbContext.SavingsGoals.AsNoTracking().Where(goal => goal.UserId == userId).OrderBy(goal => goal.Id),
+                goal => new
+                {
+                    Id = goal.Id!.Value,
+                    Name = goal.Name.Value,
+                    goal.TargetAmount,
+                    TargetMonth = goal.TargetMonth == null ? null : goal.TargetMonth.ToString(),
+                    goal.InitialAmount,
+                    goal.Icon,
+                    goal.CreatedAt,
+                    goal.ArchivedAt,
+                    goal.CompletedAt,
                 },
                 cancellationToken);
 

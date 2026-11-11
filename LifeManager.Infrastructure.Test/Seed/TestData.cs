@@ -2,6 +2,7 @@ using LifeManager.Domain.Categories;
 using LifeManager.Domain.Habits;
 using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.MonthlySummaries;
+using LifeManager.Domain.SavingsGoals;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.Results;
 using LifeManager.Domain.Shared.ValueObjects;
@@ -55,6 +56,16 @@ namespace LifeManager.Infrastructure.Test.Seed
             await context.SaveChangesAsync();
 
             return monthlySummary;
+        }
+
+        /// <summary>An active savings goal without a deadline (the deadline rule depends on the clock).</summary>
+        public static async Task<SavingsGoal> AddSavingsGoalAsync(this LifeManagerDbContext context, User user, string name = "Viagem", decimal target = 5000m)
+        {
+            var goal = SavingsGoal.Create(user.Id!.Value, name, target, null, 0m, null, Month(2026, 11), Now).Unwrap();
+            context.Add(goal);
+            await context.SaveChangesAsync();
+
+            return goal;
         }
 
         /// <summary>A transaction built by the domain, not stored: the test hands it to the repository under test.</summary>

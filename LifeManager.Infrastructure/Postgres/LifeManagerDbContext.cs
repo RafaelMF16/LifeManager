@@ -7,6 +7,7 @@ using LifeManager.Domain.Categorization;
 using LifeManager.Domain.GameItems;
 using LifeManager.Domain.Habits;
 using LifeManager.Domain.Rewards;
+using LifeManager.Domain.SavingsGoals;
 using LifeManager.Domain.MonthlySummaries;
 using LifeManager.Domain.RecurringTransactions;
 using LifeManager.Domain.StatementImports;
@@ -52,6 +53,7 @@ namespace LifeManager.Infrastructure.Postgres
         public DbSet<StatementImportRow> StatementImportRows { get; set; }
         public DbSet<CategorizationRule> CategorizationRules { get; set; }
         public DbSet<AccountHolder> AccountHolders { get; set; }
+        public DbSet<SavingsGoal> SavingsGoals { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
