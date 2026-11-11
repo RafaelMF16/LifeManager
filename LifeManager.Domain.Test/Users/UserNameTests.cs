@@ -47,8 +47,8 @@ namespace LifeManager.Domain.Test.Users
         public void Equals_ShouldBeEqual_WhenValuesAreEquals()
         {
             const string userName = "userName";
-            var valueOne = UserName.Create(userName).Value;
-            var valueTwo = UserName.Create(userName).Value;
+            var valueOne = UserName.Create(userName).Value!;
+            var valueTwo = UserName.Create(userName).Value!;
             var result = valueOne.Equals(valueTwo);
 
             Assert.True(result);
@@ -58,8 +58,8 @@ namespace LifeManager.Domain.Test.Users
         public void GetHashCode_ShouldBeEqual_WhenValuesAreEquals()
         {
             const string userName = "userName";
-            var valueOne = UserName.Create(userName).Value;
-            var valueTwo = UserName.Create(userName).Value;
+            var valueOne = UserName.Create(userName).Value!;
+            var valueTwo = UserName.Create(userName).Value!;
 
             Assert.Equal(valueOne.GetHashCode(), valueTwo.GetHashCode());
         }

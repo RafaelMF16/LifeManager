@@ -7,7 +7,7 @@ namespace LifeManager.Domain.Test.MonthlySummaries
 {
     public class MonthlySummaryTests
     {
-        private static readonly int CurrentYear = DateTimeOffset.UtcNow.Year;
+        private const int CurrentYear = 2026;
 
         [Fact]
         public void Create_ShouldReturnMonthlySummaryWithZeroTotals_WhenValuesAreValid()
@@ -15,7 +15,7 @@ namespace LifeManager.Domain.Test.MonthlySummaries
             const int userId = 1;
             const int month = 11;
 
-            var result = MonthlySummary.Create(userId, month, CurrentYear);
+            var result = MonthlySummary.Create(userId, month, CurrentYear, CurrentYear);
 
             Assert.True(result.IsSuccess);
             var monthlySummary = result.Value;
@@ -33,16 +33,34 @@ namespace LifeManager.Domain.Test.MonthlySummaries
         [Fact]
         public void Create_ShouldReturnFailure_WhenMonthIsInvalid()
         {
-            var result = MonthlySummary.Create(1, 13, CurrentYear);
+            var result = MonthlySummary.Create(1, 13, CurrentYear, CurrentYear);
 
             Assert.False(result.IsSuccess);
             Assert.Equal(MonthlySummaryErrors.InvalidMonth, result.Error);
         }
 
         [Fact]
-        public void Create_ShouldReturnFailure_WhenYearIsNotCurrent()
+        public void Create_ShouldReturnFailure_WhenYearIsNeitherCurrentNorPrevious()
         {
-            var result = MonthlySummary.Create(1, 5, CurrentYear - 1);
+            var result = MonthlySummary.Create(1, 5, CurrentYear - 2, CurrentYear);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(MonthlySummaryErrors.YearNotCurrent, result.Error);
+        }
+
+        [Fact]
+        public void Create_ShouldOpenPreviousYearsMonth_WhenYearIsPrevious()
+        {
+            var result = MonthlySummary.Create(1, 12, CurrentYear - 1, CurrentYear);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(CurrentYear - 1, result.Value!.Year.Value);
+        }
+
+        [Fact]
+        public void Create_ShouldReturnFailure_WhenYearIsNext()
+        {
+            var result = MonthlySummary.Create(1, 5, CurrentYear + 1, CurrentYear);
 
             Assert.False(result.IsSuccess);
             Assert.Equal(MonthlySummaryErrors.YearNotCurrent, result.Error);
@@ -51,7 +69,7 @@ namespace LifeManager.Domain.Test.MonthlySummaries
         [Fact]
         public void AssignId_ShouldSetId_WhenMonthlySummaryHasNoIdYet()
         {
-            var monthlySummary = MonthlySummary.Create(1, 11, CurrentYear).Value!;
+            var monthlySummary = MonthlySummary.Create(1, 11, CurrentYear, CurrentYear).Value!;
 
             monthlySummary.AssignId(10);
 
@@ -67,7 +85,7 @@ namespace LifeManager.Domain.Test.MonthlySummaries
         [InlineData(100, 0, 300, -200)]
         public void ApplyTotals_ShouldReplaceTotalsAndKeepBalanceInSync(decimal totalIncome, decimal totalExpense, decimal totalInvestment, decimal expectedBalance)
         {
-            var monthlySummary = MonthlySummary.Create(1, 11, CurrentYear).Value!;
+            var monthlySummary = MonthlySummary.Create(1, 11, CurrentYear, CurrentYear).Value!;
 
             var result = monthlySummary.ApplyTotals(totalIncome, totalExpense, totalInvestment);
 
@@ -82,7 +100,7 @@ namespace LifeManager.Domain.Test.MonthlySummaries
         [Fact]
         public void ApplyTotals_ShouldKeepCurrentTotals_WhenATotalIsNegative()
         {
-            var monthlySummary = MonthlySummary.Create(1, 11, CurrentYear).Value!;
+            var monthlySummary = MonthlySummary.Create(1, 11, CurrentYear, CurrentYear).Value!;
 
             var result = monthlySummary.ApplyTotals(-1, 10, 0);
 
@@ -95,7 +113,7 @@ namespace LifeManager.Domain.Test.MonthlySummaries
         [Fact]
         public void ApplyTotals_ShouldKeepCurrentTotals_WhenInvestmentIsNegative()
         {
-            var monthlySummary = MonthlySummary.Create(1, 11, CurrentYear).Value!;
+            var monthlySummary = MonthlySummary.Create(1, 11, CurrentYear, CurrentYear).Value!;
 
             var result = monthlySummary.ApplyTotals(100, 10, -1);
 
@@ -109,8 +127,8 @@ namespace LifeManager.Domain.Test.MonthlySummaries
         [Fact]
         public void Equals_ShouldCompareById()
         {
-            var first = MonthlySummary.Create(1, 1, CurrentYear).Value!;
-            var second = MonthlySummary.Create(1, 2, CurrentYear).Value!;
+            var first = MonthlySummary.Create(1, 1, CurrentYear, CurrentYear).Value!;
+            var second = MonthlySummary.Create(1, 2, CurrentYear, CurrentYear).Value!;
             first.AssignId(7);
             second.AssignId(7);
 
@@ -120,8 +138,8 @@ namespace LifeManager.Domain.Test.MonthlySummaries
         [Fact]
         public void Equals_ShouldBeFalse_WhenIdsAreMissing()
         {
-            var first = MonthlySummary.Create(1, 1, CurrentYear).Value!;
-            var second = MonthlySummary.Create(1, 1, CurrentYear).Value!;
+            var first = MonthlySummary.Create(1, 1, CurrentYear, CurrentYear).Value!;
+            var second = MonthlySummary.Create(1, 1, CurrentYear, CurrentYear).Value!;
 
             Assert.False(first.Equals(second));
         }
@@ -141,6 +159,34 @@ namespace LifeManager.Domain.Test.MonthlySummaries
             Assert.Equal(0m, monthlySummary.TotalExpense.Value);
             Assert.Equal(0m, monthlySummary.TotalInvestment.Value);
             Assert.Equal(0m, monthlySummary.BalanceAmount);
+        }
+        [Theory]
+        [InlineData(0)]
+        [InlineData(-1)]
+        public void OpenForEntry_ShouldOpenAnEmptyMonth_WhenYearIsCurrentOrPrevious(int offsetFromCurrentYear)
+        {
+            var month = YearMonth.From(new DateOnly(CurrentYear + offsetFromCurrentYear, 12, 1));
+
+            var result = MonthlySummary.OpenForEntry(new UserId(3), month, CurrentYear);
+
+            Assert.True(result.IsSuccess);
+            var monthlySummary = result.Value!;
+            Assert.Null(monthlySummary.Id);
+            Assert.Equal(3, monthlySummary.UserId.Value);
+            Assert.Equal(12, monthlySummary.Month.Value);
+            Assert.Equal(CurrentYear + offsetFromCurrentYear, monthlySummary.Year.Value);
+            Assert.Equal(0m, monthlySummary.BalanceAmount);
+        }
+
+        [Theory]
+        [InlineData(-2)]
+        [InlineData(1)]
+        public void OpenForEntry_ShouldReturnYearNotCurrent_WhenYearIsNeitherCurrentNorPrevious(int offsetFromCurrentYear)
+        {
+            var result = MonthlySummary.OpenForEntry(new UserId(3), YearMonth.From(new DateOnly(CurrentYear + offsetFromCurrentYear, 5, 1)), CurrentYear);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(MonthlySummaryErrors.YearNotCurrent, result.Error);
         }
     }
 }

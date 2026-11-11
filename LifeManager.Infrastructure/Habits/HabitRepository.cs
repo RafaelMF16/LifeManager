@@ -68,6 +68,16 @@ namespace LifeManager.Infrastructure.Habits
                 .ToListAsync(cancellationToken);
         }
 
+        public async Task<IReadOnlyList<Habit>> GetActiveByUserIdAsync(UserId userId, CancellationToken cancellationToken)
+        {
+            return await _dbContext.Habits
+                .AsNoTracking()
+                .Where(habit => habit.UserId == userId && habit.ArchivedAt == null)
+                .OrderBy(habit => habit.NormalizedName)
+                .ThenBy(habit => habit.Id)
+                .ToListAsync(cancellationToken);
+        }
+
         public async Task<IReadOnlyList<Habit>> GetAutoTriggeredAsync(UserId userId, HabitAutoTrigger trigger, CancellationToken cancellationToken)
         {
             return await _dbContext.Habits

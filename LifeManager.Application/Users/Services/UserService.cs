@@ -30,7 +30,22 @@ namespace LifeManager.Application.Users.Services
             if (user is null)
                 return UserErrors.NotFound;
 
-            return new CurrentUserResponseDto(user.Name.Value);
+            return new CurrentUserResponseDto(user.Name.Value, user.Email.Value);
+        }
+
+        public async Task<Result<UpdatedUserNameResponseDto>> RenameAsync(UserId userId, UpdateCurrentUserDto dto, CancellationToken cancellationToken)
+        {
+            var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
+            if (user is null)
+                return UserErrors.NotFound;
+
+            var renameResult = user.Rename(dto.Name);
+            if (!renameResult.IsSuccess)
+                return renameResult.Error;
+
+            await _userRepository.UpdateNameAsync(userId, user.Name, cancellationToken);
+
+            return new UpdatedUserNameResponseDto(user.Name.Value);
         }
 
         /// <param name="ipAddress">The client's address; with the e-mail, the pair whose wrong passwords are counted.</param>
@@ -63,7 +78,21 @@ namespace LifeManager.Application.Users.Services
                 && PasswordHash.Create(_authService.EncryptPassword(loginDto.Password)) is { IsSuccess: true } rehashed)
                 await _userRepository.UpdatePasswordHashAsync(user.Id!, rehashed.Value, cancellationToken);
 
-            return await _tokenService.GenerateTokensAsync(user.Id!.Value, cancellationToken);
+            // Signing in during the grace period keeps the account. If the deletion job got the row first, there's no
+            // account left to sign in to.
+            var deletionCancelled = false;
+            if (user.IsDeletionPending)
+            {
+                if (!await _userRepository.CancelDeletionAsync(user.Id!, cancellationToken)
+                    && await _userRepository.GetByIdAsync(user.Id!, cancellationToken) is null)
+                    return UserErrors.InvalidCredentials;
+
+                deletionCancelled = true;
+            }
+
+            var tokensResult = await _tokenService.GenerateTokensAsync(user.Id!.Value, cancellationToken);
+
+            return tokensResult.Map(tokens => tokens with { DeletionCancelled = deletionCancelled });
         }
     }
 }

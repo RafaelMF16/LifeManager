@@ -44,7 +44,9 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
                 .HasForeignKey(checkIn => checkIn.HabitId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // NO ACTION: deleting a user cascades to its habits, which cascade to their check-ins.
+            // NO ACTION, made DEFERRABLE INITIALLY DEFERRED by migration MakeUserDeletionForeignKeysDeferrable (EF can't
+            // express it): deleting a user cascades to its habits, which cascade to their check-ins, and Postgres checks a
+            // plain NO ACTION at the end of each cascade, before that one ran. Deferred, it is checked at the commit.
             builder.HasOne<User>()
                 .WithMany()
                 .HasForeignKey(checkIn => checkIn.UserId)

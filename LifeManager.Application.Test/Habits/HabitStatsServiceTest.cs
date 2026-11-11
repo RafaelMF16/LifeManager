@@ -72,7 +72,7 @@ namespace LifeManager.Application.Test.Habits
 
             var result = await _statsService.GetAsync(habit.Id!.Value, UserId, CancellationToken.None);
 
-            Assert.Equal(2, result.Value.TotalKept);
+            Assert.Equal(2, result.Value!.TotalKept);
             Assert.Equal(90m, result.Value.SavedAmount);
             Assert.Equal(45m, result.Value.Habit.RelapseCost);
         }
@@ -85,7 +85,7 @@ namespace LifeManager.Application.Test.Habits
 
             var result = await _statsService.GetAsync(habit.Id!.Value, UserId, CancellationToken.None);
 
-            Assert.Null(result.Value.SavedAmount);
+            Assert.Null(result.Value!.SavedAmount);
         }
 
         [Fact]
@@ -154,7 +154,7 @@ namespace LifeManager.Application.Test.Habits
 
             var result = await _ledgerService.GetPagedAsync(new GameLedgerListQueryDto { HabitId = 1 }, UserId, CancellationToken.None);
 
-            var entry = Assert.Single(result.Value.Items);
+            var entry = Assert.Single(result.Value!.Items);
             Assert.Equal(1, entry.HabitId);
         }
 

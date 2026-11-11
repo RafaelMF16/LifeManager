@@ -20,15 +20,18 @@ namespace LifeManager.Application.Test.MonthlySummaries
     {
         private static readonly UserId FirstUserId = new(1);
         private static readonly UserId SecondUserId = new(2);
-        private static readonly int CurrentYear = DateTimeOffset.UtcNow.Year;
+        private const int CurrentYear = 2026;
 
         private readonly MonthlySummaryService _monthlySummaryService;
         private readonly MonthlySummaryRepositoryMock _monthlySummaryRepository;
+        private readonly FakeTimeProvider _clock;
 
         public MonthlySummaryServiceTest()
         {
             _monthlySummaryService = ServiceProvider.GetRequiredService<MonthlySummaryService>();
             _monthlySummaryRepository = (MonthlySummaryRepositoryMock)ServiceProvider.GetRequiredService<IMonthlySummaryRepository>();
+            _clock = (FakeTimeProvider)ServiceProvider.GetRequiredService<TimeProvider>();
+            _clock.SetToday(new DateOnly(CurrentYear, 6, 15));
 
             MonthlySummarySingleton.Instance.Clear();
             TransactionSingleton.Instance.Clear();
@@ -43,6 +46,78 @@ namespace LifeManager.Application.Test.MonthlySummaries
             Assert.Equal(new MonthlySummaryResponseDto(1, 3, CurrentYear, 0, 0, 0, 0), result.Value);
             var stored = Assert.Single(MonthlySummarySingleton.Instance);
             Assert.Equal(FirstUserId, stored.UserId);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldUseTheBusinessTimeZoneYear_WhenUtcHasAlreadyTurnedTheYear()
+        {
+            // 31/12/2026 at 22:00 in São Paulo (UTC−3) is already 01/01/2027 in UTC.
+            _clock.UtcNow = new DateTimeOffset(2027, 1, 1, 1, 0, 0, TimeSpan.Zero);
+
+            var result = await _monthlySummaryService.CreateAsync(new MonthlySummaryDto(12), FirstUserId, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(2026, result.Value!.Year);
+            Assert.Equal(2026, Assert.Single(MonthlySummarySingleton.Instance).Year.Value);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldCreateTheNewYearsMonth_WhenTheBusinessTimeZoneHasTurnedTheYear()
+        {
+            // 01/01/2027 at 10:00 in São Paulo: December now means December 2027, still allowed (current year).
+            _clock.UtcNow = new DateTimeOffset(2027, 1, 1, 13, 0, 0, TimeSpan.Zero);
+
+            var result = await _monthlySummaryService.CreateAsync(new MonthlySummaryDto(12), FirstUserId, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(2027, result.Value!.Year);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldUseTheCurrentYear_WhenYearIsOmitted()
+        {
+            var result = await _monthlySummaryService.CreateAsync(new MonthlySummaryDto(3, null), FirstUserId, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(CurrentYear, result.Value!.Year);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldCreatePreviousYearsMonth_WhenYearIsThePreviousOne()
+        {
+            // January: December of last year can still be opened by hand.
+            _clock.SetToday(new DateOnly(CurrentYear, 1, 10));
+
+            var result = await _monthlySummaryService.CreateAsync(new MonthlySummaryDto(12, CurrentYear - 1), FirstUserId, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(CurrentYear - 1, result.Value!.Year);
+            var stored = Assert.Single(MonthlySummarySingleton.Instance);
+            Assert.Equal(CurrentYear - 1, stored.Year.Value);
+            Assert.Equal(12, stored.Month.Value);
+        }
+
+        [Theory]
+        [InlineData(-2)]
+        [InlineData(1)]
+        public async Task CreateAsync_ShouldReturnYearNotCurrent_WhenYearIsNeitherCurrentNorPrevious(int offsetFromCurrentYear)
+        {
+            var result = await _monthlySummaryService.CreateAsync(new MonthlySummaryDto(3, CurrentYear + offsetFromCurrentYear), FirstUserId, CancellationToken.None);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(MonthlySummaryErrors.YearNotCurrent, result.Error);
+            Assert.Empty(MonthlySummarySingleton.Instance);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldReturnAlreadyExists_WhenPreviousYearsMonthWasAlreadyCreated()
+        {
+            await _monthlySummaryService.CreateAsync(new MonthlySummaryDto(12, CurrentYear - 1), FirstUserId, CancellationToken.None);
+
+            var result = await _monthlySummaryService.CreateAsync(new MonthlySummaryDto(12, CurrentYear - 1), FirstUserId, CancellationToken.None);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(MonthlySummaryErrors.AlreadyExists, result.Error);
         }
 
         [Theory]

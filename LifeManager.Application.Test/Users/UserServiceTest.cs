@@ -17,6 +17,8 @@ namespace LifeManager.Application.Test.Users
     [Collection("ApplicationServices")]
     public class UserServiceTest : BaseTest
     {
+        private static readonly DateTimeOffset CreationDate = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
+
         private readonly UserService _userService;
 
         public UserServiceTest()
@@ -45,7 +47,7 @@ namespace LifeManager.Application.Test.Users
         private async Task<User> AddUserAsync(string email, string name, string password)
         {
             var hashedPassword = ServiceProvider.GetRequiredService<AuthService>().EncryptPassword(password);
-            var user = User.Create(name, email, hashedPassword).Value!;
+            var user = User.Create(name, email, hashedPassword, CreationDate).Value!;
             var userRepository = (UserRepositoryMock)ServiceProvider.GetRequiredService<IUserRepository>();
 
             return await userRepository.AddWithStarterDataAsync(user, null, null, CancellationToken.None);
@@ -60,6 +62,53 @@ namespace LifeManager.Application.Test.Users
 
             Assert.True(result.IsSuccess);
             Assert.Equal("name", result.Value.Name);
+            Assert.Equal("email@email.com", result.Value.Email);
+        }
+
+        [Fact]
+        public async Task RenameAsync_ShouldSaveTheTrimmedName_WhenTheNameIsValid()
+        {
+            var user = await AddUserAsync("email@email.com", "name", "password");
+            var other = await AddUserAsync("other@email.com", "other", "password");
+
+            var result = await _userService.RenameAsync(user.Id!, new UpdateCurrentUserDto("  Rafa "), CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal("Rafa", result.Value.Name);
+            Assert.Equal("Rafa", (await UserRepository.GetByIdAsync(user.Id!, CancellationToken.None))!.Name.Value);
+            Assert.Equal("other", (await UserRepository.GetByIdAsync(other.Id!, CancellationToken.None))!.Name.Value);
+        }
+
+        [Theory]
+        [InlineData("   ", "User.UserNameIsNullOrWhiteSpace")]
+        [InlineData(null, "User.UserNameIsNullOrWhiteSpace")]
+        public async Task RenameAsync_ShouldKeepTheName_WhenTheNameIsInvalid(string? name, string code)
+        {
+            var user = await AddUserAsync("email@email.com", "name", "password");
+
+            var result = await _userService.RenameAsync(user.Id!, new UpdateCurrentUserDto(name!), CancellationToken.None);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(code, result.Error.Code);
+            Assert.Equal("name", (await UserRepository.GetByIdAsync(user.Id!, CancellationToken.None))!.Name.Value);
+        }
+
+        [Fact]
+        public async Task RenameAsync_ShouldReturnTooLong_WhenTheNameHasMoreThan100Characters()
+        {
+            var user = await AddUserAsync("email@email.com", "name", "password");
+
+            var result = await _userService.RenameAsync(user.Id!, new UpdateCurrentUserDto(new string('a', 101)), CancellationToken.None);
+
+            Assert.Equal(UserErrors.UserNameTooLong, result.Error);
+        }
+
+        [Fact]
+        public async Task RenameAsync_ShouldReturnNotFound_WhenTheUserDoesNotExist()
+        {
+            var result = await _userService.RenameAsync(new UserId(999), new UpdateCurrentUserDto("Rafa"), CancellationToken.None);
+
+            Assert.Equal(UserErrors.NotFound, result.Error);
         }
 
         [Fact]
@@ -101,12 +150,39 @@ namespace LifeManager.Application.Test.Users
             Assert.True(result.IsSuccess);
             Assert.False(string.IsNullOrWhiteSpace(result.Value.AccessToken));
             Assert.False(string.IsNullOrWhiteSpace(result.Value.RefreshToken));
+            Assert.False(result.Value.DeletionCancelled);
+            Assert.Equal(0, UserRepository.CancelDeletionCount);
+        }
+
+        [Fact]
+        public async Task AuthenticateUserAsync_ShouldCancelThePendingDeletion_WhenTheUserSignsInDuringTheGracePeriod()
+        {
+            var user = await AddUserAsync("email@email.com", "name", "password");
+            user.ScheduleDeletion(Clock.UtcNow.AddDays(-2));
+
+            var result = await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "password"), TestIp, CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            Assert.True(result.Value.DeletionCancelled);
+            Assert.False((await UserRepository.GetByIdAsync(user.Id!, CancellationToken.None))!.IsDeletionPending);
+        }
+
+        [Fact]
+        public async Task AuthenticateUserAsync_ShouldKeepThePendingDeletion_WhenThePasswordIsWrong()
+        {
+            var user = await AddUserAsync("email@email.com", "name", "password");
+            user.ScheduleDeletion(Clock.UtcNow);
+
+            var result = await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "wrongPassword"), TestIp, CancellationToken.None);
+
+            Assert.False(result.IsSuccess);
+            Assert.True(user.IsDeletionPending);
         }
 
         [Fact]
         public async Task AuthenticateUserAsync_ShouldRehashPassword_WhenStoredHashIsCheaperThanConfigured()
         {
-            var user = User.Create("name", "email@email.com", BCrypt.Net.BCrypt.HashPassword("password", InjectionModule.TestPasswordWorkFactor - 1)).Value!;
+            var user = User.Create("name", "email@email.com", BCrypt.Net.BCrypt.HashPassword("password", InjectionModule.TestPasswordWorkFactor - 1), CreationDate).Value!;
             await UserRepository.AddWithStarterDataAsync(user, null, null, CancellationToken.None);
 
             var result = await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "password"), TestIp, CancellationToken.None);
@@ -131,7 +207,7 @@ namespace LifeManager.Application.Test.Users
         [Fact]
         public async Task AuthenticateUserAsync_ShouldNotRehashPassword_WhenPasswordIsIncorrect()
         {
-            var user = User.Create("name", "email@email.com", BCrypt.Net.BCrypt.HashPassword("password", InjectionModule.TestPasswordWorkFactor - 1)).Value!;
+            var user = User.Create("name", "email@email.com", BCrypt.Net.BCrypt.HashPassword("password", InjectionModule.TestPasswordWorkFactor - 1), CreationDate).Value!;
             await UserRepository.AddWithStarterDataAsync(user, null, null, CancellationToken.None);
 
             await _userService.AuthenticateUserAsync(new LoginDto("email@email.com", "wrongPassword"), TestIp, CancellationToken.None);

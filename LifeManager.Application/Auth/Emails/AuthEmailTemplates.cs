@@ -2,6 +2,7 @@ using LifeManager.Domain.Auth;
 using LifeManager.Domain.Auth.Interfaces;
 using LifeManager.Domain.Users.ValueObjects;
 using LifeManager.Domain.UsersPreferences.Enums;
+using System.Globalization;
 using System.Net;
 
 namespace LifeManager.Application.Auth.Emails
@@ -52,6 +53,34 @@ namespace LifeManager.Application.Auth.Emails
                     "Recebemos um pedido para redefinir sua senha no LifeManager. Abra o link abaixo e escolha uma nova:",
                     "Escolher nova senha", resetPasswordUrl,
                     $"O link vale por {PasswordResetToken.ValidityHours} hora e só pode ser usado uma vez. Se você não pediu, ignore este e-mail: sua senha continua a mesma.");
+
+        /// <param name="deletionDate">The day the account goes, in the business time zone.</param>
+        /// <summary>After "My account" changed the password: if it wasn't the owner, the forgot-password link takes the account back.</summary>
+        public static EmailMessage PasswordChanged(Email to, UserName name, Language language, string forgotPasswordUrl)
+            => language == Language.EN
+                ? Build(to, name, "Your password was changed",
+                    "Hi, {0}!",
+                    "The password of your LifeManager account was just changed, and your other devices were signed out. If it wasn't you, choose a new password now:",
+                    "Choose a new password", forgotPasswordUrl,
+                    "If it was you, there's nothing to do.")
+                : Build(to, name, "Sua senha foi alterada",
+                    "Olá, {0}!",
+                    "A senha da sua conta no LifeManager acabou de ser alterada, e os seus outros aparelhos saíram da conta. Se não foi você, escolha uma nova senha agora:",
+                    "Escolher nova senha", forgotPasswordUrl,
+                    "Se foi você, não precisa fazer nada.");
+
+        public static EmailMessage AccountDeletionScheduled(Email to, UserName name, Language language, DateOnly deletionDate, string loginUrl)
+            => language == Language.EN
+                ? Build(to, name, "Your account will be deleted",
+                    "Hi, {0}!",
+                    $"Your LifeManager account and all its data will be deleted on {deletionDate.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture)}. Changed your mind? Sign in again before then and the deletion is cancelled:",
+                    "Sign in", loginUrl,
+                    "If you didn't ask for it, sign in now and change your password.")
+                : Build(to, name, "Sua conta será excluída",
+                    "Olá, {0}!",
+                    $"Sua conta no LifeManager e todos os dados dela serão excluídos em {deletionDate.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)}. Mudou de ideia? Entre de novo até lá e a exclusão é cancelada:",
+                    "Entrar", loginUrl,
+                    "Se não foi você, entre agora e troque a sua senha.");
 
         private static EmailMessage Build(
             Email to,

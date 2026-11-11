@@ -40,21 +40,32 @@ namespace LifeManager.Domain.MonthlySummaries
             BalanceAmount = Balance.Value;
         }
 
-        /// <summary>Opens a new month for the user, with no income, expenses or investments yet.</summary>
-        public static Result<MonthlySummary> Create(int idUser, int month, int year)
+        /// <summary>
+        /// Opens a new month for the user, with no income, expenses or investments yet. <paramref name="currentYear"/>
+        /// is the year of "today" in the business time zone, given by the caller so the domain never reads a clock.
+        /// </summary>
+        public static Result<MonthlySummary> Create(int idUser, int month, int year, int currentYear)
         {
             var userId = new UserId(idUser);
 
             return MonthlySummaryMonth.Create(month)
-                .Bind(summaryMonth => MonthlySummaryYear.Create(year)
+                .Bind(summaryMonth => MonthlySummaryYear.Create(year, currentYear)
                     .Map(summaryYear => new MonthlySummary(
                         userId, summaryMonth, summaryYear, TotalIncome.Zero, TotalExpense.Zero, TotalInvestment.Zero)));
         }
 
         /// <summary>
+        /// Opens the month a transaction entered without a month falls into, when the user hasn't opened it yet. Same
+        /// rules as <see cref="Create"/>: only the current year (<paramref name="currentYear"/>, in the business time
+        /// zone) or the previous one.
+        /// </summary>
+        public static Result<MonthlySummary> OpenForEntry(UserId userId, YearMonth month, int currentYear)
+            => Create(userId.Value, month.Month, month.Year, currentYear);
+
+        /// <summary>
         /// Opens the month a recurring transaction is posted into when the user hasn't opened it yet. Unlike
-        /// <see cref="Create"/> it isn't limited to the current year: an occurrence from late December can be posted
-        /// after the year turns, when the service catches up.
+        /// <see cref="Create"/> it isn't limited to the current and previous years: an occurrence from late December can
+        /// be posted after the year turns, when the service catches up.
         /// </summary>
         public static MonthlySummary OpenForRecurringPosting(UserId userId, YearMonth month)
             => new(
@@ -74,7 +85,7 @@ namespace LifeManager.Domain.MonthlySummaries
             => OpenForRecurringPosting(userId, month);
 
         /// <summary>
-        /// Rehydrates a stored summary without the creation rules (current year only, zero totals):
+        /// Rehydrates a stored summary without the creation rules (current or previous year only, zero totals):
         /// stored summaries can belong to past years and already have totals.
         /// </summary>
         internal static MonthlySummary FromPersistence(

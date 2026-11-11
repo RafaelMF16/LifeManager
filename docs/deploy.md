@@ -14,10 +14,10 @@ GitHub Actions (merge na main) ──► testes ──► deploy-api.ps1
 ```
 
 - **Uma origem só.** O Firebase Hosting repassa `/api/**` para o Cloud Run, então o navegador fala só com `web.app`. Não há CORS em produção, e o cookie do refresh token é de primeira parte. O Hosting só repassa o cookie chamado `__session`, por isso esse é o nome do cookie (`RefreshTokenCookie`).
-- **A API escala a zero.** Sem tráfego, nenhuma instância fica ligada. Por isso os jobs de hora em hora não rodam dentro da API (`backgroundJobs__enabled=false`): o Cloud Scheduler dispara um Cloud Run Job com a mesma imagem e o argumento `--run-jobs`, que roda recorrências, fechamento do dia, o fechamento da semana do ranking em grupos, a limpeza de importações de extrato abandonadas (rascunhos com mais de 30 dias) e a limpeza da autenticação por e-mail (cadastros pendentes e links de recuperação vencidos há mais de 7 dias, controles de reenvio com mais de 1 dia) uma vez e sai.
+- **A API escala a zero.** Sem tráfego, nenhuma instância fica ligada. Por isso os jobs de hora em hora não rodam dentro da API (`backgroundJobs__enabled=false`): o Cloud Scheduler dispara um Cloud Run Job com a mesma imagem e o argumento `--run-jobs`, que roda recorrências, fechamento do dia, o fechamento da semana do ranking em grupos, a limpeza de importações de extrato abandonadas (rascunhos com mais de 30 dias) e a limpeza da autenticação por e-mail (cadastros pendentes e links de recuperação vencidos há mais de 7 dias, controles de reenvio com mais de 1 dia) e a exclusão definitiva das contas cujo prazo de 7 dias venceu, uma vez e sai. O job de exclusão não pede configuração nova.
 - **As migrations rodam no deploy.** Antes de atualizar o serviço, o script de deploy executa o Cloud Run Job `lifemanager-migrate`, que roda a mesma imagem com `--migrate`. Se ele falhar, nada mais muda (veja [Migrations](#migrations)).
 - **Segredos** ficam no Secret Manager e chegam como variáveis de ambiente com os mesmos nomes que a API já lê: `lifeManagerConnectionString`, `accessTokenSecretKey`, `refreshTokenSecretKey`, `brevoApiKey` e `emailSenderAddress`.
-- **E-mails** (confirmação de cadastro e recuperação de senha) saem pelo [Brevo](https://www.brevo.com), no plano gratuito (300 e-mails por dia). Os links apontam para `frontendBaseUrl`, que o script de deploy define como `https://<projeto>.web.app` (parâmetro `-FrontendBaseUrl`). O serviço **e os dois jobs** recebem essas chaves, porque todos montam os mesmos serviços na inicialização, e a API não sobe fora de Development sem elas.
+- **E-mails** (confirmação de cadastro, recuperação de senha e aviso de exclusão da conta) saem pelo [Brevo](https://www.brevo.com), no plano gratuito (300 e-mails por dia). Os links apontam para `frontendBaseUrl`, que o script de deploy define como `https://<projeto>.web.app` (parâmetro `-FrontendBaseUrl`). O serviço **e os dois jobs** recebem essas chaves, porque todos montam os mesmos serviços na inicialização, e a API não sobe fora de Development sem elas.
 - **Região:** `southamerica-east1` (São Paulo) para tudo.
 
 ## Custos
@@ -201,7 +201,17 @@ Cada merge na `main` publica o repositório em produção sozinho: a API pelo `.
 - **Fila:** dois merges seguidos publicam um depois do outro, nunca em paralelo (`concurrency` sem cancelamento, no run inteiro, para que um merge mais novo nunca publique antes de um mais antigo). O GitHub guarda só um run na fila: com três merges seguidos, o do meio é cancelado, e o último publica a `main` com tudo.
 - **Logs públicos:** o repositório é público, então os logs do Actions também são. Nenhum segredo passa pelo GitHub (os do banco e do JWT ficam no Secret Manager), e o script só imprime o nome da imagem. O arquivo de credenciais que o `google-github-actions/auth` grava no workspace (`gha-creds-*.json`) está no `.gitignore`, no `.gcloudignore` e no `.dockerignore`, então não vai para o Cloud Build nem para a imagem.
 - **Sem chave guardada no GitHub.** O Actions troca o token OIDC do próprio run por uma credencial de curta duração da service account `github-deployer` (Workload Identity Federation). No GitHub ficam só três variáveis, que são identificadores e não credenciais.
-- **Só a `main` dos dois repositórios autentica.** O provider rejeita qualquer token de outro dono ou de outra branch, e cada repositório só pode usar a service account pelo seu próprio nome. Um fork ou um PR de terceiros nunca consegue credencial. Os workflows disparam só em `push` na `main` e em `workflow_dispatch`.
+- **Só a `main` dos dois repositórios autentica.** O provider rejeita qualquer token de outro dono ou de outra branch, e cada repositório só pode usar a service account pelo seu próprio nome. Um fork ou um PR de terceiros nunca consegue credencial. Os workflows de deploy disparam só em `push` na `main` e em `workflow_dispatch`.
+
+### CI dos PRs
+
+Cada pull request para a `dev` ou a `main` roda os testes, para um erro aparecer antes do merge e não só no deploy. É o `.github/workflows/ci.yml`, um em cada repositório:
+- **API:** `dotnet test LifeManager.slnx`, incluindo os testes de integração contra um PostgreSQL descartável (Testcontainers; o runner `ubuntu-latest` já tem Docker).
+- **Front:** `npm run lint`, `npm test` e `npm run build`.
+
+O workflow não usa segredo nem autentica no GCP (`permissions: contents: read`), então um PR de fork é tão seguro quanto um da própria conta. Um push novo no mesmo PR cancela o run anterior.
+
+**Para o check travar o merge**, cada repositório tem um ruleset (GitHub → Settings → Rules → Rulesets) ativo para `dev` e `main`, com "Require a pull request before merging" (0 aprovações), "Block force pushes", "Restrict deletions" e "Require status checks to pass" com o job do workflow `CI` vindo do GitHub Actions: **`test`** na API e **`check`** no front. Sem o ruleset, o check aparece no PR, mas um vermelho ainda pode ser mergeado. Um job renomeado no `ci.yml` precisa ser trocado no ruleset também, ou nenhum PR consegue ser mergeado.
 
 ### Setup único
 

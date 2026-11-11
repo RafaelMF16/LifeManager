@@ -57,42 +57,15 @@ namespace LifeManager.Application.Habits.Services
                 .ToList();
             DateOnly? lastMissedOn = recentMisses.Count > 0 ? recentMisses.Max(checkIn => checkIn.Date) : null;
 
-            var successDatesByHabit = checkIns
-                .Where(checkIn => checkIn.IsSuccess)
-                .GroupBy(checkIn => checkIn.HabitId.Value)
-                .ToDictionary(group => group.Key, group => group.Select(checkIn => checkIn.Date).ToHashSet());
-
-            var todayItems = new List<HabitTodayItemDto>();
-            var yesterdayPending = new List<HabitTodayItemDto>();
-
-            foreach (var habit in habits)
-            {
-                var successDates = successDatesByHabit.GetValueOrDefault(habit.Id!.Value) ?? [];
-
-                if (habit.EnsureCanCheckIn(today, today).IsSuccess)
-                    todayItems.Add(ToTodayItem(habit, today, successDates, DayEntries(entriesByHabitAndDay, habit, today)));
-
-                if (habit.EnsureCanCheckIn(yesterday, today).IsSuccess
-                    && !successDates.Contains(yesterday)
-                    && !IsWeekTargetMet(habit, successDates, yesterday))
-                    yesterdayPending.Add(ToTodayItem(habit, yesterday, successDates, DayEntries(entriesByHabitAndDay, habit, yesterday)));
-            }
-
-            var relapseDatesByHabit = checkIns
-                .Where(checkIn => checkIn.Status == HabitCheckInStatus.Relapse)
-                .GroupBy(checkIn => checkIn.HabitId.Value)
-                .ToDictionary(group => group.Key, group => group.Select(checkIn => checkIn.Date).ToHashSet());
-
-            var avoiding = new List<HabitAvoidItemDto>();
-            var freeToday = new List<string>();
-
-            foreach (var habit in habitsToAvoid)
-            {
-                if (habit.EnsureCanRelapse(today, today).IsSuccess)
-                    avoiding.Add(ToAvoidItem(habit, today, relapseDatesByHabit.GetValueOrDefault(habit.Id!.Value) ?? []));
-                else if (habit.StartDate <= today && !habit.Frequency.IsScheduledOn(today))
-                    freeToday.Add(habit.Name.Value);
-            }
+            var agenda = HabitDayAgenda.For(habits, habitsToAvoid, checkIns, today);
+            var todayItems = agenda.Today
+                .Select(due => ToTodayItem(due.Habit, due.Date, due.SuccessDates, DayEntries(entriesByHabitAndDay, due.Habit, due.Date)))
+                .ToList();
+            var yesterdayPending = agenda.YesterdayPending
+                .Select(due => ToTodayItem(due.Habit, due.Date, due.SuccessDates, DayEntries(entriesByHabitAndDay, due.Habit, due.Date)))
+                .ToList();
+            var avoiding = agenda.Avoiding.Select(avoided => ToAvoidItem(avoided.Habit, today, avoided.RelapseDates)).ToList();
+            var freeToday = agenda.FreeToday.Select(habit => habit.Name.Value).ToList();
 
             var challenges = await _challengeService.GetCurrentWeekAsync(userId, cancellationToken);
 
@@ -249,10 +222,6 @@ namespace LifeManager.Application.Habits.Services
                 habit.Id!.Value, date, false, habit.CurrentStreak, habit.LongestStreak, WalletChangeDto.From(profile!, effects.Outcome), null, 0, 0);
         }
 
-        private static bool IsWeekTargetMet(Habit habit, IReadOnlySet<DateOnly> successDates, DateOnly date)
-            => habit.FrequencyType == HabitFrequencyType.TimesPerWeek
-                && StreakCalculator.CountInWeek(successDates, date) >= habit.TimesPerWeek;
-
         private static IReadOnlyList<HabitProgressEntry> DayEntries(
             IReadOnlyDictionary<(int HabitId, DateOnly Date), IReadOnlyList<HabitProgressEntry>> entriesByHabitAndDay,
             Habit habit,
@@ -266,7 +235,7 @@ namespace LifeManager.Application.Habits.Services
             int? weekDoneCount = weekly ? StreakCalculator.CountInWeek(successDates, date) : null;
 
             // An estimate from the stored streak: a daily habit's next check-in usually extends it by one.
-            var coinsPreview = !done && IsWeekTargetMet(habit, successDates, date)
+            var coinsPreview = !done && HabitDayAgenda.IsWeekTargetMet(habit, successDates, date)
                 ? 0
                 : GameRules.CoinsWithStreakBonus(
                     GameRules.Reward(habit.Difficulty).Coins,

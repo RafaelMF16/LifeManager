@@ -14,6 +14,9 @@ namespace LifeManager.Application.Auth.Emails
         public string ResetPasswordUrl(string token)
             => $"{_baseUrl}/auth/reset-password?token={Uri.EscapeDataString(token)}";
 
+        public string LoginUrl()
+            => $"{_baseUrl}/auth";
+
         public string ForgotPasswordUrl()
             => $"{_baseUrl}/auth/forgot-password";
     }

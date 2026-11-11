@@ -19,6 +19,13 @@ namespace LifeManager.WebApi
                 if (logger.IsEnabled(LogLevel.Information))
                     logger.LogInformation("Request {Method} {Path} was cancelled by the client", httpContext.Request.Method, httpContext.Request.Path);
             }
+            catch (Exception ex) when (httpContext.Response.HasStarted)
+            {
+                // A streamed response (the data export) failed midway: the status is already sent and can't change.
+                // Cutting the connection makes the client see a failed download instead of a cut file that looks done.
+                logger.LogError(ex, "Unhandled exception after the response started");
+                httpContext.Abort();
+            }
             catch (Exception ex)
             {
                 HandleException(httpContext, ex);

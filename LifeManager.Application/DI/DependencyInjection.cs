@@ -6,6 +6,7 @@ using LifeManager.Application.Categories.Services;
 using LifeManager.Application.FinanceDashboard.Services;
 using LifeManager.Application.GameItems.Services;
 using LifeManager.Application.Habits.Services;
+using LifeManager.Application.Home.Services;
 using LifeManager.Application.Ranking.Services;
 using LifeManager.Application.RankingGroups.Services;
 using LifeManager.Application.MonthlySummaries.Services;
@@ -30,6 +31,9 @@ namespace LifeManager.Application.DI
             services.AddScoped<AuthService>();
             services.AddScoped<TokenService>();
             services.AddScoped<UserService>();
+            services.AddScoped<UserAccountService>();
+            services.AddScoped<AccountDeletionService>();
+            services.AddScoped<AccountExportService>();
             services.AddScoped<RegistrationService>();
             services.AddScoped<PasswordResetService>();
             services.AddScoped<AuthCleanupService>();
@@ -46,6 +50,7 @@ namespace LifeManager.Application.DI
             services.AddScoped<PlayerWalletService>();
             services.AddScoped<HabitService>();
             services.AddScoped<HabitCheckInService>();
+            services.AddScoped<HomeOverviewService>();
             services.AddScoped<HabitAutoCheckInService>();
             services.AddScoped<HabitProgressService>();
             services.AddScoped<HabitRelapseService>();

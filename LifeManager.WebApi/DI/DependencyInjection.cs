@@ -10,6 +10,7 @@ using LifeManager.WebApi.Habits.Jobs;
 using LifeManager.WebApi.Ranking.Jobs;
 using LifeManager.WebApi.RecurringTransactions.Jobs;
 using LifeManager.WebApi.StatementImports.Jobs;
+using LifeManager.WebApi.Users.Jobs;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
@@ -91,6 +92,7 @@ namespace LifeManager.WebApi.DI
             builder.Services.AddSingleton<RankingWeekCloseRunner>();
             builder.Services.AddSingleton<StatementImportsCleanupRunner>();
             builder.Services.AddSingleton<AuthCleanupRunner>();
+            builder.Services.AddSingleton<AccountDeletionRunner>();
 
             if (!builder.Configuration.GetValue(BACKGROUND_JOBS_ENABLED_KEY, defaultValue: true))
                 return;
@@ -100,6 +102,7 @@ namespace LifeManager.WebApi.DI
             builder.Services.AddHostedService<RankingWeekCloseJob>();
             builder.Services.AddHostedService<StatementImportsCleanupJob>();
             builder.Services.AddHostedService<AuthCleanupJob>();
+            builder.Services.AddHostedService<AccountDeletionJob>();
         }
 
         /// <summary>
@@ -155,6 +158,8 @@ namespace LifeManager.WebApi.DI
                     .WithOrigins("https://localhost:5173")
                     .AllowAnyMethod()
                     .AllowAnyHeader()
+                    // The data export's file name: cross-origin (local dev only), the browser hides it otherwise.
+                    .WithExposedHeaders("Content-Disposition")
                     .AllowCredentials());
             });
         }

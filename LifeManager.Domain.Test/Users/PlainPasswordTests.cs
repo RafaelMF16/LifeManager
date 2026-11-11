@@ -59,8 +59,8 @@ namespace LifeManager.Domain.Test.Users
         public void Equals_ShouldBeEqual_WhenValuesAreEquals()
         {
             const string password = "password";
-            var valueOne = PlainPassword.Create(password).Value;
-            var valueTwo = PlainPassword.Create(password).Value;
+            var valueOne = PlainPassword.Create(password).Value!;
+            var valueTwo = PlainPassword.Create(password).Value!;
             var result = valueOne.Equals(valueTwo);
 
             Assert.True(result);
@@ -70,8 +70,8 @@ namespace LifeManager.Domain.Test.Users
         public void GetHashCode_ShouldBeEqual_WhenValuesAreEquals()
         {
             const string password = "password";
-            var valueOne = PlainPassword.Create(password).Value;
-            var valueTwo = PlainPassword.Create(password).Value;
+            var valueOne = PlainPassword.Create(password).Value!;
+            var valueTwo = PlainPassword.Create(password).Value!;
 
             Assert.Equal(valueOne.GetHashCode(), valueTwo.GetHashCode());
         }

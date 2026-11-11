@@ -29,6 +29,9 @@ namespace LifeManager.Domain.Habits.Interfaces
         /// </summary>
         Task<IReadOnlyList<Habit>> GetActiveByUserIdAsync(UserId userId, HabitKind kind, CancellationToken cancellationToken);
 
+        /// <summary>Every active habit of the user, both kinds, by name: the Home's one read of the habits.</summary>
+        Task<IReadOnlyList<Habit>> GetActiveByUserIdAsync(UserId userId, CancellationToken cancellationToken);
+
         /// <summary>The user's active habits checked in by <paramref name="trigger"/>, by name.</summary>
         Task<IReadOnlyList<Habit>> GetAutoTriggeredAsync(UserId userId, HabitAutoTrigger trigger, CancellationToken cancellationToken);
 

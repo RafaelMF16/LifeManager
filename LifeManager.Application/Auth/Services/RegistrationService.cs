@@ -121,7 +121,7 @@ namespace LifeManager.Application.Auth.Services
                 return plainPasswordResult.Error;
 
             var hashedPassword = _authService.EncryptPassword(plainPasswordResult.Value.Value);
-            var userResult = User.Create(pendingRegistration.Name.Value, pendingRegistration.Email.Value, hashedPassword);
+            var userResult = User.Create(pendingRegistration.Name.Value, pendingRegistration.Email.Value, hashedPassword, _timeProvider.GetUtcNow());
             if (!userResult.IsSuccess)
                 return userResult.Error;
 

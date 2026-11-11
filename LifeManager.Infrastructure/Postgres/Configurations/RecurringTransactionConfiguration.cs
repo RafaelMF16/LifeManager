@@ -77,8 +77,9 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
                 .HasForeignKey(recurringTransaction => recurringTransaction.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // NO ACTION for the same reason as Transactions: deleting a user cascades to both its categories and its
-            // recurrences in one statement, and deleting a category still in use is blocked by CategoryService.
+            // NO ACTION for the same reason as Transactions (deferred by migration MakeUserDeletionForeignKeysDeferrable):
+            // deleting a user cascades to both its categories and its recurrences, and deleting a category still in use
+            // is blocked by CategoryService.
             builder.HasOne<Category>()
                 .WithMany()
                 .HasForeignKey(recurringTransaction => recurringTransaction.CategoryId)

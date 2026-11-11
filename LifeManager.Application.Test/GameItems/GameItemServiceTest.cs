@@ -312,7 +312,7 @@ namespace LifeManager.Application.Test.GameItems
         public async Task UndoAsync_ShouldRefundAndTakeTheHealBack_WhenUndoingAPotion()
         {
             SeedProfile(coins: 100, hp: 70);
-            var purchase = (await Buy("HpPotion")).Value.Purchase;
+            var purchase = (await Buy("HpPotion")).Value!.Purchase;
 
             var result = await Undo(purchase.Id);
 
@@ -337,7 +337,7 @@ namespace LifeManager.Application.Test.GameItems
         public async Task UndoAsync_ShouldStopAtOneHp_WhenTheHealWasAlreadySpent()
         {
             SeedProfile(coins: 100, hp: 70);
-            var purchase = (await Buy("HpPotion")).Value.Purchase;
+            var purchase = (await Buy("HpPotion")).Value!.Purchase;
             Profile().Apply(new GameDelta(0, 0, -85));
 
             var result = await Undo(purchase.Id);
@@ -352,7 +352,7 @@ namespace LifeManager.Application.Test.GameItems
         public async Task UndoAsync_ShouldRefundAndRemoveTheFreeze_WhenUndoingAStreakFreeze()
         {
             SeedProfile(coins: 200);
-            var purchase = (await Buy("StreakFreeze")).Value.Purchase;
+            var purchase = (await Buy("StreakFreeze")).Value!.Purchase;
 
             var result = await Undo(purchase.Id);
 
@@ -365,7 +365,7 @@ namespace LifeManager.Application.Test.GameItems
         public async Task UndoAsync_ShouldFreeTheLimitAgain()
         {
             SeedProfile(coins: 500);
-            var purchase = (await Buy("StreakFreeze")).Value.Purchase;
+            var purchase = (await Buy("StreakFreeze")).Value!.Purchase;
             Assert.Equal(GameItemErrors.WeeklyLimitReached, (await Buy("StreakFreeze")).Error);
 
             await Undo(purchase.Id);
@@ -385,7 +385,7 @@ namespace LifeManager.Application.Test.GameItems
                 currentStreak: 5, longestStreak: 5, evaluatedUntil: new DateOnly(2026, 10, 25));
             HabitSingleton.Instance.Add(habit);
             SeedProfile(coins: 200);
-            var purchase = (await Buy("StreakFreeze")).Value.Purchase;
+            var purchase = (await Buy("StreakFreeze")).Value!.Purchase;
 
             await ServiceProvider.GetRequiredService<HabitEvaluationService>().EvaluateUserAsync(UserId, CancellationToken.None);
 
@@ -417,7 +417,7 @@ namespace LifeManager.Application.Test.GameItems
         public async Task UndoAsync_ShouldReturnAlreadyUndone_WhenUndoneTwice()
         {
             SeedProfile(coins: 100, hp: 50);
-            var purchase = (await Buy("HpPotion")).Value.Purchase;
+            var purchase = (await Buy("HpPotion")).Value!.Purchase;
             await Undo(purchase.Id);
 
             var result = await Undo(purchase.Id);
@@ -448,7 +448,7 @@ namespace LifeManager.Application.Test.GameItems
             var rewardRedemptionService = ServiceProvider.GetRequiredService<RewardRedemptionService>();
             var before = await rewardRedemptionService.GetEarningPaceAsync(UserId, CancellationToken.None);
 
-            var potion = (await Buy("HpPotion")).Value.Purchase;
+            var potion = (await Buy("HpPotion")).Value!.Purchase;
             await Buy("StreakFreeze");
             await Undo(potion.Id);
             var after = await rewardRedemptionService.GetEarningPaceAsync(UserId, CancellationToken.None);
@@ -465,7 +465,7 @@ namespace LifeManager.Application.Test.GameItems
             var habitUndo = GameLedgerEntry.FromOutcome(UserId, GameLedgerEntryKind.Undo, Today, Today.ToDateTime(TimeOnly.MinValue), "Read", outcome, habitId: new HabitId(1))[0];
             habitUndo.AssignId(1);
             GameLedgerEntrySingleton.Instance.Add(habitUndo);
-            var potion = (await Buy("HpPotion")).Value.Purchase;
+            var potion = (await Buy("HpPotion")).Value!.Purchase;
             await Undo(potion.Id);
 
             var ledger = await ServiceProvider.GetRequiredService<GameLedgerService>()
