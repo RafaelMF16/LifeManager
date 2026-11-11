@@ -88,6 +88,22 @@ namespace LifeManager.Infrastructure.Transactions
             return page.Map(row => new TransactionListItem(row.Transaction, row.CategoryName.Value));
         }
 
+        public async Task<PagedList<TransactionListItem>> GetPagedBySavingsGoalAsync(
+            SavingsGoalId savingsGoalId, PageRequest pageRequest, CancellationToken cancellationToken)
+        {
+            var transactions = _dbContext.Transactions
+                .AsNoTracking()
+                .Where(transaction => transaction.SavingsGoalId == savingsGoalId);
+
+            var page = await WithCategory(transactions)
+                .OrderByDescending(row => row.Transaction.TransactionDate)
+                .ThenByDescending(row => row.Transaction.Id)
+                .Select(row => new { row.Transaction, CategoryName = row.Category.Name })
+                .ToPagedListAsync(pageRequest, cancellationToken);
+
+            return page.Map(row => new TransactionListItem(row.Transaction, row.CategoryName.Value));
+        }
+
         public async Task<TransactionCounts> CountByTypeAsync(MonthlySummaryId monthlySummaryId, CancellationToken cancellationToken)
         {
             var counts = await _dbContext.Transactions

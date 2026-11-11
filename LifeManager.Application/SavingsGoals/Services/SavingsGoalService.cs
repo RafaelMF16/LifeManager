@@ -9,6 +9,7 @@ using LifeManager.Domain.Shared.Paging;
 using LifeManager.Domain.Shared.Results;
 using LifeManager.Domain.Shared.Text;
 using LifeManager.Domain.Shared.ValueObjects;
+using LifeManager.Domain.Transactions.Interfaces;
 using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Application.SavingsGoals.Services
@@ -19,6 +20,7 @@ namespace LifeManager.Application.SavingsGoals.Services
     /// </remarks>
     public class SavingsGoalService(
         ISavingsGoalRepository savingsGoalRepository,
+        ITransactionRepository transactionRepository,
         SavingsGoalCompletion savingsGoalCompletion,
         AppClock appClock,
         TimeProvider timeProvider)
@@ -27,6 +29,7 @@ namespace LifeManager.Application.SavingsGoals.Services
         public const int ChartMonths = 12;
 
         private readonly ISavingsGoalRepository _savingsGoalRepository = savingsGoalRepository;
+        private readonly ITransactionRepository _transactionRepository = transactionRepository;
         private readonly SavingsGoalCompletion _savingsGoalCompletion = savingsGoalCompletion;
         private readonly AppClock _appClock = appClock;
         private readonly TimeProvider _timeProvider = timeProvider;
@@ -100,6 +103,30 @@ namespace LifeManager.Application.SavingsGoals.Services
             var sums = await _savingsGoalRepository.GetLinkedSumsAsync([.. goals.Items.Select(goal => goal.Id!)], RecentFrom(), cancellationToken);
 
             return PagedResponseDto<SavingsGoalResponseDto>.From(goals, goal => ToResponseDto(goal, sums.GetValueOrDefault(goal.Id!, SavingsGoalSums.Zero)));
+        }
+
+        /// <summary>The goal's transactions across every month, newest first; archived goals included.</summary>
+        public async Task<Result<PagedResponseDto<SavingsGoalTransactionDto>>> GetTransactionsAsync(
+            int id, SavingsGoalTransactionListQueryDto query, UserId userId, CancellationToken cancellationToken)
+        {
+            var pageRequestResult = PageRequest.Create(query.Page, query.PageSize);
+            if (!pageRequestResult.IsSuccess)
+                return pageRequestResult.Error;
+
+            var goal = await _savingsGoalRepository.GetByIdAsync(new SavingsGoalId(id), userId, cancellationToken);
+            if (goal is null)
+                return SavingsGoalErrors.NotFound;
+
+            var transactions = await _transactionRepository.GetPagedBySavingsGoalAsync(goal.Id!, pageRequestResult.Value!, cancellationToken);
+
+            return PagedResponseDto<SavingsGoalTransactionDto>.From(transactions, item => new SavingsGoalTransactionDto(
+                item.Transaction.Id!.Value,
+                item.Transaction.MonthlySummaryId.Value,
+                item.Transaction.CategoryId.Value,
+                item.CategoryName,
+                item.Transaction.Amount.Value,
+                item.Transaction.Description.Value,
+                item.Transaction.TransactionDate));
         }
 
         public async Task<Result<SavingsGoalResponseDto>> UpdateAsync(int id, SavingsGoalDto goalDto, UserId userId, CancellationToken cancellationToken)

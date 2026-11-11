@@ -446,5 +446,39 @@ namespace LifeManager.Application.Test.SavingsGoals
             Assert.Equal(new DateOnly(2026, 10, 1), dto.CompletedAt);
             Assert.Equal(SavingsGoalPace.NoDeadline, dto.Pace);
         }
+
+        [Fact]
+        public async Task GetTransactionsAsync_ShouldListTheGoalsTransactionsAcrossMonths_NewestFirst()
+        {
+            CategorySingleton.Instance.Clear();
+            var category = Domain.Categories.Category.Create(UserId.Value, "Investimentos").Value!;
+            category.AssignId(1);
+            CategorySingleton.Instance.Add(category);
+            var goal = SeedGoal("Viagem");
+            var other = SeedGoal("Reserva");
+            var older = SeedTransaction(goal, 100m, new DateOnly(2026, 9, 5));
+            var newer = SeedTransaction(goal, 200m, new DateOnly(2026, 11, 2));
+            SeedTransaction(other, 300m, new DateOnly(2026, 11, 3));
+
+            var result = await _service.GetTransactionsAsync(goal.Id!.Value, new SavingsGoalTransactionListQueryDto(), UserId, CancellationToken.None);
+            var secondPage = await _service.GetTransactionsAsync(goal.Id.Value, new SavingsGoalTransactionListQueryDto { Page = 2, PageSize = 1 }, UserId, CancellationToken.None);
+
+            Assert.Equal([newer.Id!.Value, older.Id!.Value], result.Value!.Items.Select(item => item.Id));
+            Assert.Equal(older.MonthlySummaryId.Value, result.Value.Items[1].MonthlySummaryId);
+            Assert.Equal("Investimentos", result.Value.Items[0].CategoryName);
+            Assert.Equal(older.Id.Value, Assert.Single(secondPage.Value!.Items).Id);
+        }
+
+        [Fact]
+        public async Task GetTransactionsAsync_ShouldReturnNotFound_ForAnotherUsersGoal_AndPagingErrors()
+        {
+            var goal = SeedGoal("Viagem", OtherUserId);
+
+            var notFound = await _service.GetTransactionsAsync(goal.Id!.Value, new SavingsGoalTransactionListQueryDto(), UserId, CancellationToken.None);
+            var invalid = await _service.GetTransactionsAsync(goal.Id.Value, new SavingsGoalTransactionListQueryDto { Page = 0 }, UserId, CancellationToken.None);
+
+            Assert.Equal(SavingsGoalErrors.NotFound, notFound.Error);
+            Assert.Equal(PagingErrors.InvalidPage, invalid.Error);
+        }
     }
 }

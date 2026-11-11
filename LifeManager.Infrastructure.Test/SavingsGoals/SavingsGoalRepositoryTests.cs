@@ -207,5 +207,27 @@ namespace LifeManager.Infrastructure.Test.SavingsGoals
 
             Assert.Equal(new DateOnly(2026, 11, 10), (await repository.GetByIdAsync(goal.Id!, user.Id!, default))!.CompletedAt);
         }
+
+        [Fact]
+        public async Task GetPagedBySavingsGoalAsync_ShouldListAcrossMonths_NewestFirst_WithTheCategory()
+        {
+            await using var context = Fixture.CreateContext();
+            var user = await context.AddUserAsync();
+            var category = await context.AddCategoryAsync(user, "Investimentos");
+            var october = await context.AddMonthAsync(user, 2026, 10);
+            var november = await context.AddMonthAsync(user, 2026, 11);
+            var goal = await context.AddSavingsGoalAsync(user);
+            var other = await context.AddSavingsGoalAsync(user, "Reserva");
+            var transactions = new TransactionRepository(context);
+            await LinkAsync(transactions, october, category, goal, 10m, 5);
+            await LinkAsync(transactions, november, category, goal, 20m, 2);
+            await LinkAsync(transactions, november, category, other, 30m, 3);
+
+            var page = await transactions.GetPagedBySavingsGoalAsync(goal.Id!, PageRequest.Create(1, 20).Unwrap(), default);
+
+            Assert.Equal([20m, 10m], page.Items.Select(item => item.Transaction.Amount.Value));
+            Assert.Equal([november.Id, october.Id], page.Items.Select(item => item.Transaction.MonthlySummaryId));
+            Assert.All(page.Items, item => Assert.Equal("Investimentos", item.CategoryName));
+        }
     }
 }

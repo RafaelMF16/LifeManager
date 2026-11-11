@@ -34,6 +34,12 @@ namespace LifeManager.Domain.Transactions.Interfaces
             SortDirection sortDirection,
             CancellationToken cancellationToken);
 
+        /// <summary>
+        /// The transactions linked to a savings goal, across every month, newest first (date, then id). The caller
+        /// checks the goal is the user's.
+        /// </summary>
+        Task<PagedList<TransactionListItem>> GetPagedBySavingsGoalAsync(SavingsGoalId savingsGoalId, PageRequest pageRequest, CancellationToken cancellationToken);
+
         Task<TransactionCounts> CountByTypeAsync(MonthlySummaryId monthlySummaryId, CancellationToken cancellationToken);
 
         /// <summary>Whether any of the user's transactions uses the category.</summary>

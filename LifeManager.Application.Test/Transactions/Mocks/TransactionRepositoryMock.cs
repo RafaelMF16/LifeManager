@@ -90,6 +90,19 @@ namespace LifeManager.Application.Test.Transactions.Mocks
             return Task.FromResult(new PagedList<TransactionListItem>(items, matching.Count, pageRequest.Page, pageRequest.PageSize));
         }
 
+        public Task<PagedList<TransactionListItem>> GetPagedBySavingsGoalAsync(
+            SavingsGoalId savingsGoalId, PageRequest pageRequest, CancellationToken cancellationToken)
+        {
+            var matching = _instance
+                .Where(transaction => transaction.SavingsGoalId == savingsGoalId)
+                .OrderByDescending(transaction => transaction.TransactionDate)
+                .ThenByDescending(transaction => transaction.Id!.Value)
+                .ToList();
+            IReadOnlyList<TransactionListItem> items = [.. matching.Skip(pageRequest.Skip).Take(pageRequest.PageSize).Select(ToListItem)];
+
+            return Task.FromResult(new PagedList<TransactionListItem>(items, matching.Count, pageRequest.Page, pageRequest.PageSize));
+        }
+
         public Task<TransactionCounts> CountByTypeAsync(MonthlySummaryId monthlySummaryId, CancellationToken cancellationToken)
         {
             var transactions = _instance.Where(transaction => transaction.MonthlySummaryId == monthlySummaryId).ToList();
