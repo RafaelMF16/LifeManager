@@ -4,6 +4,7 @@ using LifeManager.Domain.SavingsGoals.ValueObjects;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.Paging;
 using LifeManager.Domain.Transactions;
+using LifeManager.Domain.Transactions.Enums;
 using LifeManager.Infrastructure.SavingsGoals;
 using LifeManager.Infrastructure.Transactions;
 using LifeManager.Infrastructure.Test.Seed;
@@ -228,6 +229,32 @@ namespace LifeManager.Infrastructure.Test.SavingsGoals
             Assert.Equal([20m, 10m], page.Items.Select(item => item.Transaction.Amount.Value));
             Assert.Equal([november.Id, october.Id], page.Items.Select(item => item.Transaction.MonthlySummaryId));
             Assert.All(page.Items, item => Assert.Equal("Investimentos", item.CategoryName));
+        }
+
+        [Fact]
+        public async Task TransactionReads_ShouldCarryTheGoalsName_ArchivedIncluded()
+        {
+            await using var context = Fixture.CreateContext();
+            var user = await context.AddUserAsync();
+            var category = await context.AddCategoryAsync(user, "Investimentos");
+            var november = await context.AddMonthAsync(user, 2026, 11);
+            var goal = await context.AddSavingsGoalAsync(user, "Viagem");
+            var transactions = new TransactionRepository(context);
+            await LinkAsync(transactions, november, category, goal, 20m, 2);
+            await LinkAsync(transactions, november, category, null, 5m, 3);
+            goal.Archive(TestData.Now);
+            await new SavingsGoalRepository(context).UpdateAsync(goal, default);
+
+            await using var readContext = Fixture.CreateContext();
+            var reader = new TransactionRepository(readContext);
+            var page = await reader.GetPagedAsync(
+                november.Id!, PageRequest.Create(1, 20).Unwrap(), TransactionTypeFilter.All, null, null, null, null, TransactionSortBy.Date, SortDirection.Asc, default);
+            var linked = page.Items.Single(item => item.Transaction.SavingsGoalId is not null);
+            var byId = await reader.GetByIdAsync(linked.Transaction.Id!, november.Id!, default);
+
+            Assert.Equal("Viagem", linked.SavingsGoalName);
+            Assert.Null(page.Items.Single(item => item.Transaction.SavingsGoalId is null).SavingsGoalName);
+            Assert.Equal("Viagem", byId!.SavingsGoalName);
         }
     }
 }

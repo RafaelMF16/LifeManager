@@ -272,7 +272,7 @@ namespace LifeManager.Application.Transactions.Services
         }
 
         private static TransactionResponseDto ToResponseDto(TransactionListItem item)
-            => ToResponseDto(item.Transaction, item.CategoryName);
+            => ToResponseDto(item.Transaction, item.CategoryName) with { SavingsGoalName = item.SavingsGoalName };
 
         private static TransactionResponseDto ToResponseDto(Transaction transaction, string categoryName)
             => new(

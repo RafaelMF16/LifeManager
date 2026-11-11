@@ -283,7 +283,10 @@ namespace LifeManager.Application.Test.Transactions.Mocks
         private static TransactionListItem ToListItem(Transaction transaction)
             => new(
                 ToDetachedCopy(transaction),
-                CategorySingleton.Instance.Single(category => category.Id == transaction.CategoryId).Name.Value);
+                CategorySingleton.Instance.Single(category => category.Id == transaction.CategoryId).Name.Value,
+                transaction.SavingsGoalId is null
+                    ? null
+                    : SavingsGoalSingleton.Instance.SingleOrDefault(goal => goal.Id == transaction.SavingsGoalId)?.Name.Value);
 
         internal static Transaction ToDetachedCopy(Transaction transaction)
             => Transaction.FromPersistence(

@@ -595,6 +595,18 @@ namespace LifeManager.Application.Test.Transactions
         }
 
         [Fact]
+        public async Task GetByIdAsync_ShouldCarryTheGoalsName()
+        {
+            var goalId = SeedGoal(FirstUserId);
+            var created = await Create(Investment("Aporte", 100m, 3) with { SavingsGoalId = goalId });
+
+            var result = await _transactionService.GetByIdAsync(MonthId, created.Id, FirstUserId, CancellationToken.None);
+
+            Assert.Equal($"Objetivo {goalId}", result.Value!.SavingsGoalName);
+            Assert.Null(created.SavingsGoalName);
+        }
+
+        [Fact]
         public async Task CreateAsync_ShouldCompleteTheGoalOnce_WhenALinkedInvestmentReachesTheTarget()
         {
             var clock = (FakeTimeProvider)ServiceProvider.GetRequiredService<TimeProvider>();
