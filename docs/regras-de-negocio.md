@@ -15,6 +15,7 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
   - [Transações recorrentes](#transações-recorrentes)
   - [Importação de extrato](#importação-de-extrato)
   - [Orçamento do mês](#orçamento-do-mês)
+  - [Objetivos de economia](#objetivos-de-economia)
   - [Painel](#painel)
 - [Hábitos](#hábitos)
   - [Personagem](#personagem)
@@ -97,7 +98,7 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
 - **Nome:** pode ser trocado a qualquer momento, com as mesmas regras do cadastro (obrigatório, até 100 caracteres, espaços nas pontas removidos). O e-mail não muda.
 - **Trocar a senha:** pede a senha atual e a nova (8 a 50 caracteres). Senha atual errada não muda nada e é avisada antes de qualquer problema da nova. Ao salvar, **as outras sessões da conta são encerradas**, e a sessão de onde a troca foi feita continua aberta. O dono recebe um e-mail "Sua senha foi alterada" (no idioma da conta) com o link para escolher uma nova senha, caso não tenha sido ele; se o e-mail falhar, a troca vale do mesmo jeito.
 - **Sair de todos os aparelhos:** encerra todas as sessões da conta, inclusive a atual, e volta para o login. O acesso já emitido em cada aparelho continua válido até expirar (no máximo 15 minutos).
-- **Baixar meus dados:** um arquivo JSON (`lifemanager-aaaa-mm-dd.json`) com tudo o que é do usuário: conta (nome, e-mail, data de criação), preferências, categorias, meses, lançamentos, recorrências, orçamentos, titulares, o histórico das importações (sem as linhas de rascunhos em revisão), hábitos, check-ins, registros de meta, desafios, personagem, extrato do jogo, recompensas e resgates, itens comprados, conquistas e, dos grupos de ranking, só o nome de cada grupo e a data de entrada. **Nunca entram:** senha (nem cifrada), sessões, tentativas de login, a identificação das linhas do banco e qualquer dado de outros membros dos grupos. No máximo **3 downloads por hora**.
+- **Baixar meus dados:** um arquivo JSON (`lifemanager-aaaa-mm-dd.json`) com tudo o que é do usuário: conta (nome, e-mail, data de criação), preferências, categorias, meses, lançamentos, recorrências, orçamentos, objetivos de economia, titulares, o histórico das importações (sem as linhas de rascunhos em revisão), hábitos, check-ins, registros de meta, desafios, personagem, extrato do jogo, recompensas e resgates, itens comprados, conquistas e, dos grupos de ranking, só o nome de cada grupo e a data de entrada. **Nunca entram:** senha (nem cifrada), sessões, tentativas de login, a identificação das linhas do banco e qualquer dado de outros membros dos grupos. No máximo **3 downloads por hora**.
 - **Excluir a conta:** pede a senha. A conta não some na hora: a exclusão fica marcada para **7 dias** depois, todas as sessões são encerradas e um e-mail, no idioma da conta, avisa a data e que entrar de novo até lá cancela. Pedir de novo durante o prazo não muda a data nem manda outro e-mail. Se o e-mail falhar, a exclusão continua marcada.
   - **Exclusão definitiva:** de hora em hora, as contas com o prazo vencido são apagadas com **todos os dados** (finanças, hábitos, jogo, importações, preferências, sessões). Antes, a pessoa sai de cada grupo de ranking pela regra de saída: num grupo de que era dona, o membro mais antigo vira o dono; um grupo em que estava sozinha é apagado. Não há como desfazer.
   - Os resultados das semanas já fechadas do ranking perdem a linha da pessoa (os pódios dos outros membros continuam).
@@ -137,6 +138,7 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
 - **Categoria:** obrigatória e precisa ser do próprio usuário.
 - **Totais sempre corretos:** os totais do mês são recalculados a cada criação, edição ou exclusão. Edições simultâneas no mesmo mês são enfileiradas, então os totais não ficam desencontrados.
 - Lançamentos criados por uma recorrência ficam marcados como tal. Se a recorrência for excluída, eles continuam no mês.
+- **Objetivo de economia:** um **investimento** pode ser ligado a um [objetivo](#objetivos-de-economia) ativo do usuário. Gastos e receitas não (`Transaction.GoalRequiresInvestment`). Ao editar, deixar o objetivo de fora desliga o lançamento dele. Um lançamento que já estava ligado a um objetivo que foi arquivado depois pode ser editado mantendo esse objetivo; só não dá para ligar um lançamento novo a um objetivo arquivado.
 - **Lançamento rápido** ("Novo lançamento", sem escolher o mês antes): o lançamento cai no mês da sua data.
   - Se o usuário já tem esse mês, de qualquer ano, ele entra nele, como se fosse lançado dentro do mês.
   - Se o mês não existe, ele é **criado na hora**, mas só se for do ano corrente ou do anterior (a mesma regra da criação manual). Fora disso, o erro é o do ano (`MonthlySummary.YearNotCurrent`).
@@ -253,6 +255,31 @@ Cada mês tem **no máximo um orçamento**: um **total** (quanto se pretende gas
 - Meses passados e futuros podem ser editados.
 - **Situação de uma fatia de gasto** (exibida no app): dentro do limite; **perto do limite** a partir de 80% do valor; limite estourado acima de 100%. **Situação da fatia de investimentos:** abaixo do alvo ou alvo atingido.
 - **Metas antigas:** as metas em R$ que valiam "do mês escolhido em diante" foram convertidas em orçamentos, do primeiro mês com meta até o mês da conversão. Em cada mês: total = o maior entre o limite do total do mês e a soma dos limites por categoria, mais o alvo de investimento (ou a soma dos alvos por categoria). Cada limite por categoria virou uma fatia, e o investimento virou uma fatia só. Os valores podem ter mudado em centavos por causa do arredondamento dos %.
+
+### Objetivos de economia
+
+Um objetivo junta dinheiro para algo de médio prazo ("Viagem: R$ 5.000 até dez/2027", "Reserva de emergência: R$ 20.000"). Ele cresce com os **lançamentos de investimento ligados a ele**.
+
+- **Nome:** obrigatório, até 60 caracteres, único entre os objetivos **ativos** do usuário (ignorando acentos e maiúsculas). Arquivar libera o nome.
+- **Meta:** maior que zero, até 2 casas decimais (as regras de dinheiro dos lançamentos).
+- **Prazo (opcional):** um mês. **Não pode ser anterior ao mês corrente**, nem na criação nem na edição. O mês corrente vale.
+- **Já guardado:** o que existia antes do objetivo; zero ou mais, até 2 casas.
+- **Ícone (opcional):** um dos ícones que o app conhece.
+- **Guardado** = já guardado + a soma dos investimentos ligados. É calculado sempre a partir dos lançamentos, então editar ou excluir um lançamento muda o guardado na hora.
+- **Falta** = meta − guardado (nunca negativo). **Progresso** = guardado ÷ meta (pode passar de 100%).
+- **Meses restantes:** do mês corrente até o prazo, contando os dois.
+- **Guardar por mês** = falta ÷ meses restantes, **arredondado para cima no centavo**. Com o prazo neste mês, ou já vencido, é tudo o que falta.
+- **Ritmo:**
+  - **Concluído:** o guardado chegou à meta.
+  - **Sem prazo:** sem prazo, não há ritmo.
+  - **No ritmo:** a média guardada nos **últimos 3 meses** (o corrente e os 2 anteriores, sempre dividindo por 3) cobre o "guardar por mês".
+  - **Atrasado:** não cobre.
+- **Concluído em:** a data em que o guardado chegou à meta pela primeira vez. É gravada quando um lançamento ligado é criado ou editado, ou quando o objetivo é criado ou editado (uma meta menor ou um "já guardado" maior podem concluí-lo). **Nunca volta:** se depois um lançamento for excluído, o objetivo continua em "Concluídos", mas o ritmo deixa de ser "concluído".
+- **Listas:** "Ativos" (sem data de conclusão), "Concluídos" (com data de conclusão) e "Arquivados". Busca pelo nome; ordena por nome, prazo (sem prazo por último na ordem crescente) ou progresso.
+- **Detalhe:** o guardado em cada um dos **últimos 12 meses** (o corrente por último) e os lançamentos ligados, de todos os meses, do mais novo para o mais antigo.
+- **Excluir arquiva:** os lançamentos continuam ligados e o objetivo pode ser restaurado, se nenhum objetivo ativo tiver pegado o nome. Um objetivo arquivado não pode ser editado nem receber lançamentos novos.
+- Usar o dinheiro (pagar a viagem, por exemplo) **não desconta** do objetivo: ele mostra o quanto foi guardado. Para tirar, edite ou exclua o lançamento de investimento.
+- Objetivos não são ligados na importação de extrato.
 
 ### Painel
 
@@ -682,6 +709,7 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 | `Transaction.AmountNotPositive` | Validation | Valor zero ou negativo |
 | `Transaction.AmountTooManyDecimals` | Validation | Mais de 2 casas decimais |
 | `Transaction.AmountTooLarge` | Validation | Valor acima do máximo |
+| `Transaction.GoalRequiresInvestment` | Validation | Objetivo de economia num lançamento que não é investimento |
 | `Transaction.DateOutsideMonth` | Validation | Data fora do mês do lançamento (também ao filtrar a lista de um dia) |
 | `Transaction.NotFound` | NotFound | Lançamento não existe |
 | `RecurringTransaction.InvalidDay` | Validation | Dia fora de 1 a 31 |
@@ -719,6 +747,17 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 | `BudgetPlan.ExpenseSliceWithoutCategory` | Validation | Fatia de gasto sem categoria |
 | `BudgetPlan.InvalidInvestmentSlice` | Validation | Fatia de investimento com categoria, ou mais de uma |
 | `BudgetPlan.NotFound` | NotFound | O mês não tem orçamento para excluir |
+| `SavingsGoal.NameIsNullOrWhiteSpace` | Validation | Nome do objetivo vazio |
+| `SavingsGoal.NameTooLong` | Validation | Nome com mais de 60 caracteres |
+| `SavingsGoal.InvalidTargetAmount` | Validation | Meta zero, negativa, com mais de 2 casas ou acima do máximo |
+| `SavingsGoal.InvalidInitialAmount` | Validation | "Já guardado" negativo, com mais de 2 casas ou acima do máximo |
+| `SavingsGoal.InvalidTargetMonth` | Validation | Prazo em formato inválido (não é `aaaa-mm`) |
+| `SavingsGoal.TargetMonthInPast` | Validation | Prazo antes do mês corrente |
+| `SavingsGoal.IconTooLong` | Validation | Ícone inválido |
+| `SavingsGoal.NameAlreadyExists` | Conflict | Já existe objetivo **ativo** com esse nome (ao criar, renomear ou restaurar) |
+| `SavingsGoal.Archived` | Conflict | Edição de objetivo arquivado, ou lançamento ligado a um objetivo arquivado |
+| `SavingsGoal.AlreadyArchived` / `NotArchived` | Conflict | Arquivar um objetivo já arquivado, ou restaurar um que não está arquivado |
+| `SavingsGoal.NotFound` | NotFound | Objetivo não existe ou é de outro usuário (também ao ligar um lançamento) |
 | `FinanceDashboard.InvalidFrom` / `InvalidTo` | Validation | Mês do período (painel ou exportação de lançamentos) em formato inválido |
 | `FinanceDashboard.EndBeforeStart` | Validation | Fim do período antes do início (painel ou exportação de lançamentos) |
 | `FinanceDashboard.PeriodTooLong` | Validation | Período maior que 36 meses (painel ou exportação de lançamentos) |

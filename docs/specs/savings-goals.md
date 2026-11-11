@@ -76,3 +76,11 @@ Vincular objetivos na importação de extrato e conquistas de objetivos. Ficam p
 ## Decisões
 
 - **Retirada** (09/11/2026): usar o dinheiro, como pagar a viagem, **não** baixa o objetivo neste módulo. O objetivo mostra o quanto foi guardado e pode ser "concluído". A retirada pode virar um tipo de movimento depois.
+- **Plano aprovado** (11/11/2026), o que o spec não fixava:
+  - **Lançamentos do objetivo no detalhe:** `GET api/SavingsGoals/{id}/Transactions`, paginado, de todos os meses, do mais novo para o mais antigo, cada item com `monthlySummaryId`. O filtro `savingsGoalId=` da listagem do mês também existe.
+  - **Objetivo arquivado:** o 409 só vale quando o `savingsGoalId` do lançamento **muda**. Editar outro campo mantendo o objetivo arquivado passa.
+  - **Ritmo:** os "últimos 3 meses" são o corrente e os 2 anteriores, sempre divididos por 3.
+  - **`status=Completed`:** objetivo ativo com `CompletedAt`. Continua lá mesmo se o guardado cair depois; só o `pace` sai de `Done`.
+  - **`sortBy=TargetMonth`:** sem prazo por último na ordem crescente.
+  - **Códigos a mais:** `SavingsGoal.NameIsNullOrWhiteSpace`, `NameTooLong`, `InvalidTargetAmount`, `InvalidInitialAmount`, `InvalidTargetMonth`, `IconTooLong`, `AlreadyArchived`, `NotArchived` (todos em `docs/regras-de-negocio.md`).
+  - **Resposta** (listagem, detalhe, create/update/restore): os campos do objetivo + `saved`, `ratio`, `remaining`, `monthsLeft`, `monthlyNeeded`, `pace` e `completedAt`; `monthly` (`[{ month: "yyyy-MM", amount }]`, 12 itens) só no `GET {id}`.
