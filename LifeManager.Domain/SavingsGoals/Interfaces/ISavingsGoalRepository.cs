@@ -29,6 +29,16 @@ namespace LifeManager.Domain.SavingsGoals.Interfaces
         /// </summary>
         Task<bool> ExistsActiveByNameAsync(UserId userId, SavingsGoalName name, SavingsGoalId? ignoredSavingsGoalId, CancellationToken cancellationToken);
 
+        /// <summary>
+        /// The linked <c>Investment</c> transactions of each goal, summed (goals without any are left out of the
+        /// dictionary). <paramref name="recentFrom"/> starts the <see cref="SavingsGoalSums.Recent"/> sum.
+        /// </summary>
+        Task<IReadOnlyDictionary<SavingsGoalId, SavingsGoalSums>> GetLinkedSumsAsync(
+            IReadOnlyCollection<SavingsGoalId> savingsGoalIds, DateOnly recentFrom, CancellationToken cancellationToken);
+
+        /// <summary>The goal's linked investments summed per month, from <paramref name="from"/> on, oldest first.</summary>
+        Task<IReadOnlyList<SavingsGoalMonthAmount>> GetMonthlyAmountsAsync(SavingsGoalId savingsGoalId, DateOnly from, CancellationToken cancellationToken);
+
         /// <summary>Saves every field the user, archiving or restoring can change (not <see cref="SavingsGoal.CompletedAt"/>).</summary>
         Task UpdateAsync(SavingsGoal savingsGoal, CancellationToken cancellationToken);
     }

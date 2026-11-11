@@ -4,6 +4,7 @@ using LifeManager.Domain.SavingsGoals.Enums;
 using LifeManager.Domain.SavingsGoals.Interfaces;
 using LifeManager.Domain.SavingsGoals.ValueObjects;
 using LifeManager.Domain.Shared.Enums;
+using LifeManager.Domain.Shared.ValueObjects;
 using LifeManager.Domain.Shared.Paging;
 using LifeManager.Domain.Users.ValueObjects;
 
@@ -52,6 +53,9 @@ namespace LifeManager.Application.Test.SavingsGoals.Mocks
             var descending = sortDirection == SortDirection.Desc;
             var ordered = sortBy switch
             {
+                SavingsGoalSortBy.Progress => descending
+                    ? query.OrderByDescending(Ratio)
+                    : query.OrderBy(Ratio),
                 // PostgreSQL's NULL order: largest, so last ascending and first descending.
                 SavingsGoalSortBy.TargetMonth => descending
                     ? query.OrderByDescending(goal => goal.TargetMonthStart ?? DateOnly.MaxValue)
@@ -68,6 +72,32 @@ namespace LifeManager.Application.Test.SavingsGoals.Mocks
             IReadOnlyList<SavingsGoal> items = [.. matching.Skip(pageRequest.Skip).Take(pageRequest.PageSize).Select(ToDetachedCopy)];
 
             return Task.FromResult(new PagedList<SavingsGoal>(items, matching.Count, pageRequest.Page, pageRequest.PageSize));
+        }
+
+        public Task<IReadOnlyDictionary<SavingsGoalId, SavingsGoalSums>> GetLinkedSumsAsync(
+            IReadOnlyCollection<SavingsGoalId> savingsGoalIds, DateOnly recentFrom, CancellationToken cancellationToken)
+        {
+            IReadOnlyDictionary<SavingsGoalId, SavingsGoalSums> sums = LinkedInvestments()
+                .Where(transaction => savingsGoalIds.Contains(transaction.SavingsGoalId!))
+                .GroupBy(transaction => transaction.SavingsGoalId!)
+                .ToDictionary(
+                    group => group.Key,
+                    group => new SavingsGoalSums(
+                        group.Sum(transaction => -transaction.SignedAmount),
+                        group.Where(transaction => transaction.TransactionDate >= recentFrom).Sum(transaction => -transaction.SignedAmount)));
+
+            return Task.FromResult(sums);
+        }
+
+        public Task<IReadOnlyList<SavingsGoalMonthAmount>> GetMonthlyAmountsAsync(SavingsGoalId savingsGoalId, DateOnly from, CancellationToken cancellationToken)
+        {
+            IReadOnlyList<SavingsGoalMonthAmount> months = [.. LinkedInvestments()
+                .Where(transaction => transaction.SavingsGoalId == savingsGoalId && transaction.TransactionDate >= from)
+                .GroupBy(transaction => YearMonth.From(transaction.TransactionDate))
+                .Select(group => new SavingsGoalMonthAmount(group.Key, group.Sum(transaction => -transaction.SignedAmount)))
+                .OrderBy(month => month.Month.Ordinal)];
+
+            return Task.FromResult(months);
         }
 
         public Task<bool> ExistsActiveByNameAsync(UserId userId, SavingsGoalName name, SavingsGoalId? ignoredSavingsGoalId, CancellationToken cancellationToken)
@@ -95,6 +125,14 @@ namespace LifeManager.Application.Test.SavingsGoals.Mocks
 
             return Task.CompletedTask;
         }
+
+        private static IEnumerable<Domain.Transactions.Transaction> LinkedInvestments()
+            => TransactionSingleton.Instance.Where(transaction =>
+                transaction.SavingsGoalId is not null && transaction.Type == MoneyFlowType.Investment);
+
+        private static decimal Ratio(SavingsGoal goal)
+            => (goal.InitialAmount + LinkedInvestments().Where(transaction => transaction.SavingsGoalId == goal.Id).Sum(transaction => -transaction.SignedAmount))
+                / goal.TargetAmount;
 
         internal static SavingsGoal ToDetachedCopy(SavingsGoal goal)
             => SavingsGoal.FromPersistence(

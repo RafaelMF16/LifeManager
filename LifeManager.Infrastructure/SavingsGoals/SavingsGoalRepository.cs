@@ -3,6 +3,7 @@ using LifeManager.Domain.SavingsGoals.Enums;
 using LifeManager.Domain.SavingsGoals.Interfaces;
 using LifeManager.Domain.SavingsGoals.ValueObjects;
 using LifeManager.Domain.Shared.Enums;
+using LifeManager.Domain.Shared.ValueObjects;
 using LifeManager.Domain.Shared.Paging;
 using LifeManager.Domain.Users.ValueObjects;
 using LifeManager.Infrastructure.Postgres;
@@ -59,6 +60,46 @@ namespace LifeManager.Infrastructure.SavingsGoals
             return await Order(query, sortBy, sortDirection).ToPagedListAsync(pageRequest, cancellationToken);
         }
 
+        public async Task<IReadOnlyDictionary<SavingsGoalId, SavingsGoalSums>> GetLinkedSumsAsync(
+            IReadOnlyCollection<SavingsGoalId> savingsGoalIds, DateOnly recentFrom, CancellationToken cancellationToken)
+        {
+            if (savingsGoalIds.Count == 0)
+                return new Dictionary<SavingsGoalId, SavingsGoalSums>();
+
+            // An investment's SignedAmount is negative (money leaving the account); EF can't sum the Amount value object.
+            var rows = await _dbContext.Transactions
+                .AsNoTracking()
+                .Where(transaction => transaction.SavingsGoalId != null
+                    && savingsGoalIds.Contains(transaction.SavingsGoalId)
+                    && transaction.Type == MoneyFlowType.Investment)
+                .GroupBy(transaction => transaction.SavingsGoalId)
+                .Select(group => new
+                {
+                    SavingsGoalId = group.Key,
+                    Total = group.Sum(transaction => -transaction.SignedAmount),
+                    Recent = group.Where(transaction => transaction.TransactionDate >= recentFrom).Sum(transaction => -transaction.SignedAmount)
+                })
+                .ToListAsync(cancellationToken);
+
+            return rows.ToDictionary(row => row.SavingsGoalId!, row => new SavingsGoalSums(row.Total, row.Recent));
+        }
+
+        public async Task<IReadOnlyList<SavingsGoalMonthAmount>> GetMonthlyAmountsAsync(SavingsGoalId savingsGoalId, DateOnly from, CancellationToken cancellationToken)
+        {
+            var rows = await _dbContext.Transactions
+                .AsNoTracking()
+                .Where(transaction => transaction.SavingsGoalId == savingsGoalId
+                    && transaction.Type == MoneyFlowType.Investment
+                    && transaction.TransactionDate >= from)
+                .GroupBy(transaction => new { transaction.TransactionDate.Year, transaction.TransactionDate.Month })
+                .Select(group => new { group.Key.Year, group.Key.Month, Amount = group.Sum(transaction => -transaction.SignedAmount) })
+                .ToListAsync(cancellationToken);
+
+            return [.. rows
+                .Select(row => new SavingsGoalMonthAmount(YearMonth.From(new DateOnly(row.Year, row.Month, 1)), row.Amount))
+                .OrderBy(row => row.Month.Ordinal)];
+        }
+
         public async Task<bool> ExistsActiveByNameAsync(UserId userId, SavingsGoalName name, SavingsGoalId? ignoredSavingsGoalId, CancellationToken cancellationToken)
         {
             var normalizedName = name.NormalizedValue;
@@ -86,12 +127,22 @@ namespace LifeManager.Infrastructure.SavingsGoals
         }
 
         /// <summary>Sorts by the chosen column, then by name, ending with Id so pages are stable.</summary>
-        private static IOrderedQueryable<SavingsGoal> Order(IQueryable<SavingsGoal> query, SavingsGoalSortBy sortBy, SortDirection sortDirection)
+        private IOrderedQueryable<SavingsGoal> Order(IQueryable<SavingsGoal> query, SavingsGoalSortBy sortBy, SortDirection sortDirection)
         {
+            var transactions = _dbContext.Transactions;
+
             var descending = sortDirection == SortDirection.Desc;
 
             var ordered = sortBy switch
             {
+                // A correlated SUM per goal: (initial + linked investments) / target, the ratio SavingsGoalProgress reports.
+                SavingsGoalSortBy.Progress => descending
+                    ? query.OrderByDescending(goal => (goal.InitialAmount + transactions
+                        .Where(transaction => transaction.SavingsGoalId == goal.Id && transaction.Type == MoneyFlowType.Investment)
+                        .Sum(transaction => -transaction.SignedAmount)) / goal.TargetAmount)
+                    : query.OrderBy(goal => (goal.InitialAmount + transactions
+                        .Where(transaction => transaction.SavingsGoalId == goal.Id && transaction.Type == MoneyFlowType.Investment)
+                        .Sum(transaction => -transaction.SignedAmount)) / goal.TargetAmount),
                 SavingsGoalSortBy.TargetMonth => descending
                     ? query.OrderByDescending(goal => goal.TargetMonthStart)
                     : query.OrderBy(goal => goal.TargetMonthStart),

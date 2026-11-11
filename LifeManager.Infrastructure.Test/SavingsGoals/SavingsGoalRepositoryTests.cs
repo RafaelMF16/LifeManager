@@ -3,7 +3,9 @@ using LifeManager.Domain.SavingsGoals.Enums;
 using LifeManager.Domain.SavingsGoals.ValueObjects;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.Paging;
+using LifeManager.Domain.Transactions;
 using LifeManager.Infrastructure.SavingsGoals;
+using LifeManager.Infrastructure.Transactions;
 using LifeManager.Infrastructure.Test.Seed;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -118,6 +120,78 @@ namespace LifeManager.Infrastructure.Test.SavingsGoals
             Assert.Equal(50m, stored.InitialAmount);
             Assert.Equal("globe", stored.Icon);
             Assert.NotNull(stored.ArchivedAt);
+        }
+
+        private static async Task LinkAsync(TransactionRepository repository, Domain.MonthlySummaries.MonthlySummary month, Domain.Categories.Category category, SavingsGoal? goal, decimal amount, int day)
+        {
+            var date = new DateOnly(month.Year.Value, month.Month.Value, day);
+            await repository.AddAsync(Transaction.Create(MoneyFlowType.Investment, category.Id!.Value, amount, "Aporte", date, month, goal?.Id!.Value).Unwrap(), default);
+        }
+
+        [Fact]
+        public async Task GetLinkedSumsAsync_ShouldGroupTheInvestmentsByGoal_WithTheRecentPart()
+        {
+            await using var context = Fixture.CreateContext();
+            var user = await context.AddUserAsync();
+            var category = await context.AddCategoryAsync(user);
+            var august = await context.AddMonthAsync(user, 2026, 8);
+            var november = await context.AddMonthAsync(user, 2026, 11);
+            var travel = await context.AddSavingsGoalAsync(user, "Viagem");
+            var reserve = await context.AddSavingsGoalAsync(user, "Reserva");
+            var empty = await context.AddSavingsGoalAsync(user, "Vazio");
+            var transactions = new TransactionRepository(context);
+            await LinkAsync(transactions, august, category, travel, 100m, 5);
+            await LinkAsync(transactions, november, category, travel, 250.5m, 3);
+            await LinkAsync(transactions, november, category, reserve, 40m, 3);
+            await LinkAsync(transactions, november, category, null, 999m, 3);
+
+            var sums = await new SavingsGoalRepository(context).GetLinkedSumsAsync([travel.Id!, reserve.Id!, empty.Id!], new DateOnly(2026, 9, 1), default);
+
+            Assert.Equal(new SavingsGoalSums(350.5m, 250.5m), sums[travel.Id!]);
+            Assert.Equal(new SavingsGoalSums(40m, 40m), sums[reserve.Id!]);
+            Assert.False(sums.ContainsKey(empty.Id!));
+        }
+
+        [Fact]
+        public async Task GetMonthlyAmountsAsync_ShouldSumPerMonthFromTheGivenDay()
+        {
+            await using var context = Fixture.CreateContext();
+            var user = await context.AddUserAsync();
+            var category = await context.AddCategoryAsync(user);
+            var october = await context.AddMonthAsync(user, 2026, 10);
+            var november = await context.AddMonthAsync(user, 2026, 11);
+            var goal = await context.AddSavingsGoalAsync(user);
+            var transactions = new TransactionRepository(context);
+            await LinkAsync(transactions, october, category, goal, 10m, 1);
+            await LinkAsync(transactions, october, category, goal, 20m, 31);
+            await LinkAsync(transactions, november, category, goal, 5m, 2);
+
+            var months = await new SavingsGoalRepository(context).GetMonthlyAmountsAsync(goal.Id!, new DateOnly(2026, 10, 2), default);
+
+            Assert.Equal(
+                [new SavingsGoalMonthAmount(TestData.Month(2026, 10), 20m), new SavingsGoalMonthAmount(TestData.Month(2026, 11), 5m)],
+                months);
+        }
+
+        [Fact]
+        public async Task GetPagedByUserIdAsync_ShouldSortByProgressInSql()
+        {
+            await using var context = Fixture.CreateContext();
+            var user = await context.AddUserAsync();
+            var category = await context.AddCategoryAsync(user);
+            var month = await context.AddMonthAsync(user, 2026, 11);
+            var half = await context.AddSavingsGoalAsync(user, "Metade", 1000m);
+            var tenth = await context.AddSavingsGoalAsync(user, "Um décimo", 10000m);
+            await context.AddSavingsGoalAsync(user, "Nada", 50m);
+            var transactions = new TransactionRepository(context);
+            await LinkAsync(transactions, month, category, half, 500m, 1);
+            await LinkAsync(transactions, month, category, tenth, 1000m, 1);
+            var page = PageRequest.Create(1, 20).Unwrap();
+
+            var ascending = await new SavingsGoalRepository(context).GetPagedByUserIdAsync(
+                user.Id!, page, SavingsGoalStatusFilter.Active, null, SavingsGoalSortBy.Progress, SortDirection.Asc, default);
+
+            Assert.Equal(["Nada", "Um décimo", "Metade"], ascending.Items.Select(goal => goal.Name.Value));
         }
     }
 }

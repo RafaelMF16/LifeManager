@@ -19,6 +19,9 @@ namespace LifeManager.Application.SavingsGoals.Services
     /// </remarks>
     public class SavingsGoalService(ISavingsGoalRepository savingsGoalRepository, AppClock appClock, TimeProvider timeProvider)
     {
+        /// <summary>How many months, the current one last, the details' chart covers.</summary>
+        public const int ChartMonths = 12;
+
         private readonly ISavingsGoalRepository _savingsGoalRepository = savingsGoalRepository;
         private readonly AppClock _appClock = appClock;
         private readonly TimeProvider _timeProvider = timeProvider;
@@ -47,7 +50,7 @@ namespace LifeManager.Application.SavingsGoals.Services
 
             await _savingsGoalRepository.AddAsync(goal, cancellationToken);
 
-            return ToResponseDto(goal);
+            return ToResponseDto(goal, SavingsGoalSums.Zero);
         }
 
         public async Task<Result<SavingsGoalResponseDto>> GetByIdAsync(int id, UserId userId, CancellationToken cancellationToken)
@@ -56,7 +59,18 @@ namespace LifeManager.Application.SavingsGoals.Services
             if (goal is null)
                 return SavingsGoalErrors.NotFound;
 
-            return ToResponseDto(goal);
+            var currentMonth = CurrentMonth();
+            var firstChartMonth = currentMonth.AddMonths(-(ChartMonths - 1));
+            var sums = await GetSumsAsync(goal, cancellationToken);
+            var amounts = await _savingsGoalRepository.GetMonthlyAmountsAsync(goal.Id!, firstChartMonth.FirstDay, cancellationToken);
+
+            var monthly = Enumerable.Range(0, ChartMonths)
+                .Select(offset => firstChartMonth.AddMonths(offset))
+                .Select(month => new SavingsGoalMonthDto(
+                    month.ToString(), amounts.FirstOrDefault(amount => amount.Month == month)?.Amount ?? 0m))
+                .ToList();
+
+            return ToResponseDto(goal, sums) with { Monthly = monthly };
         }
 
         public async Task<Result<PagedResponseDto<SavingsGoalResponseDto>>> GetPagedAsync(
@@ -75,7 +89,9 @@ namespace LifeManager.Application.SavingsGoals.Services
             var goals = await _savingsGoalRepository.GetPagedByUserIdAsync(
                 userId, pageRequest, query.Status, normalizedSearch, query.SortBy, query.SortDirection, cancellationToken);
 
-            return PagedResponseDto<SavingsGoalResponseDto>.From(goals, ToResponseDto);
+            var sums = await _savingsGoalRepository.GetLinkedSumsAsync([.. goals.Items.Select(goal => goal.Id!)], RecentFrom(), cancellationToken);
+
+            return PagedResponseDto<SavingsGoalResponseDto>.From(goals, goal => ToResponseDto(goal, sums.GetValueOrDefault(goal.Id!, SavingsGoalSums.Zero)));
         }
 
         public async Task<Result<SavingsGoalResponseDto>> UpdateAsync(int id, SavingsGoalDto goalDto, UserId userId, CancellationToken cancellationToken)
@@ -99,7 +115,7 @@ namespace LifeManager.Application.SavingsGoals.Services
 
             await _savingsGoalRepository.UpdateAsync(goal, cancellationToken);
 
-            return ToResponseDto(goal);
+            return ToResponseDto(goal, await GetSumsAsync(goal, cancellationToken));
         }
 
         /// <summary>Archives the goal; its investments keep pointing at it.</summary>
@@ -133,10 +149,20 @@ namespace LifeManager.Application.SavingsGoals.Services
 
             await _savingsGoalRepository.UpdateAsync(goal, cancellationToken);
 
-            return ToResponseDto(goal);
+            return ToResponseDto(goal, await GetSumsAsync(goal, cancellationToken));
         }
 
         private YearMonth CurrentMonth() => YearMonth.From(_appClock.Today());
+
+        /// <summary>The first day of the pace window: the current month and the ones before it.</summary>
+        private DateOnly RecentFrom() => CurrentMonth().AddMonths(-(SavingsGoalProgress.PaceWindowMonths - 1)).FirstDay;
+
+        private async Task<SavingsGoalSums> GetSumsAsync(SavingsGoal goal, CancellationToken cancellationToken)
+        {
+            var sums = await _savingsGoalRepository.GetLinkedSumsAsync([goal.Id!], RecentFrom(), cancellationToken);
+
+            return sums.GetValueOrDefault(goal.Id!, SavingsGoalSums.Zero);
+        }
 
         /// <summary>Null or blank means no deadline; anything else must be "yyyy-MM".</summary>
         private static bool TryParseTargetMonth(string? value, out YearMonth? targetMonth)
@@ -152,8 +178,12 @@ namespace LifeManager.Application.SavingsGoals.Services
             return true;
         }
 
-        private static SavingsGoalResponseDto ToResponseDto(SavingsGoal goal)
-            => new(
+        private SavingsGoalResponseDto ToResponseDto(SavingsGoal goal, SavingsGoalSums sums)
+        {
+            var progress = SavingsGoalProgress.Calculate(
+                goal.TargetAmount, goal.InitialAmount, sums.Total, goal.TargetMonth, CurrentMonth(), sums.Recent);
+
+            return new(
                 goal.Id!.Value,
                 goal.Name.Value,
                 goal.TargetAmount,
@@ -162,6 +192,13 @@ namespace LifeManager.Application.SavingsGoals.Services
                 goal.Icon,
                 goal.CreatedAt,
                 goal.ArchivedAt,
-                goal.CompletedAt);
+                goal.CompletedAt,
+                progress.Saved,
+                progress.Ratio,
+                progress.Remaining,
+                progress.MonthsLeft,
+                progress.MonthlyNeeded,
+                progress.Pace);
+        }
     }
 }

@@ -5,8 +5,11 @@ using LifeManager.Application.Test.Configurations.SingletonLists;
 using LifeManager.Domain.SavingsGoals;
 using LifeManager.Domain.SavingsGoals.Enums;
 using LifeManager.Domain.SavingsGoals.Errors;
+using LifeManager.Domain.MonthlySummaries;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.Paging;
+using LifeManager.Domain.Transactions;
+using LifeManager.Domain.Transactions.Interfaces;
 using LifeManager.Domain.Users.ValueObjects;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -27,6 +30,22 @@ namespace LifeManager.Application.Test.SavingsGoals
             ((FakeTimeProvider)ServiceProvider.GetRequiredService<TimeProvider>()).SetToday(Today);
 
             SavingsGoalSingleton.Instance.Clear();
+            TransactionSingleton.Instance.Clear();
+            MonthlySummarySingleton.Instance.Clear();
+        }
+
+        /// <summary>A stored transaction (its month is seeded too), linked to <paramref name="goal"/> when given.</summary>
+        private static Transaction SeedTransaction(SavingsGoal? goal, decimal amount, DateOnly date, MoneyFlowType type = MoneyFlowType.Investment)
+        {
+            var monthId = date.Year * 100 + date.Month;
+            if (!MonthlySummarySingleton.Instance.Any(month => month.Id!.Value == monthId))
+                MonthlySummarySingleton.Instance.Add(MonthlySummary.FromPersistence(monthId, UserId.Value, date.Month, date.Year, 0, 0, 0));
+
+            var transaction = Transaction.FromPersistence(
+                TransactionSingleton.Instance.Count + 1, monthId, type, 1, amount, "Aporte", date, idSavingsGoal: goal?.Id!.Value);
+            TransactionSingleton.Instance.Add(transaction);
+
+            return transaction;
         }
 
         private static SavingsGoal SeedGoal(
@@ -302,6 +321,93 @@ namespace LifeManager.Application.Test.SavingsGoals
 
             Assert.Null(result.Value!.ArchivedAt);
             Assert.Equal(SavingsGoalErrors.NotArchived, again.Error);
+        }
+
+        [Fact]
+        public async Task GetByIdAsync_ShouldSumOnlyTheGoalsLinkedInvestments()
+        {
+            var goal = SeedGoal("Viagem", target: 5000m, targetMonthStart: new DateOnly(2027, 12, 1));
+            var other = SeedGoal("Reserva");
+            SeedTransaction(goal, 300m, new DateOnly(2026, 11, 2));
+            SeedTransaction(goal, 200m, new DateOnly(2025, 1, 10));
+            SeedTransaction(other, 999m, new DateOnly(2026, 11, 2));
+            SeedTransaction(null, 888m, new DateOnly(2026, 11, 2));
+            SeedTransaction(goal, 777m, new DateOnly(2026, 11, 2), MoneyFlowType.Expense);
+
+            var result = await _service.GetByIdAsync(goal.Id!.Value, UserId, CancellationToken.None);
+
+            var dto = result.Value!;
+            Assert.Equal(500m, dto.Saved);
+            Assert.Equal(0.1m, dto.Ratio);
+            Assert.Equal(4500m, dto.Remaining);
+            Assert.Equal(14, dto.MonthsLeft);
+            Assert.Equal(321.43m, dto.MonthlyNeeded);
+            Assert.Equal(SavingsGoalPace.Behind, dto.Pace);
+        }
+
+        [Fact]
+        public async Task GetByIdAsync_ShouldReturnTwelveMonthsEndingInTheCurrentOne()
+        {
+            var goal = SeedGoal("Viagem");
+            SeedTransaction(goal, 100m, new DateOnly(2026, 11, 2));
+            SeedTransaction(goal, 50m, new DateOnly(2026, 11, 20));
+            SeedTransaction(goal, 70m, new DateOnly(2025, 12, 1));
+            SeedTransaction(goal, 40m, new DateOnly(2025, 11, 30));
+
+            var monthly = (await _service.GetByIdAsync(goal.Id!.Value, UserId, CancellationToken.None)).Value!.Monthly!;
+
+            Assert.Equal(12, monthly.Count);
+            Assert.Equal(new SavingsGoalMonthDto("2025-12", 70m), monthly[0]);
+            Assert.Equal(new SavingsGoalMonthDto("2026-11", 150m), monthly[^1]);
+            Assert.Equal(220m, monthly.Sum(month => month.Amount));
+        }
+
+        [Fact]
+        public async Task GetByIdAsync_ShouldBeOnTrack_WhenTheLastThreeMonthsCoverTheMonthlyNeeded()
+        {
+            // 1.200 left over Nov/2026..Oct/2027 (12 months) = 100/month; Sep..Nov saved 300.
+            var goal = SeedGoal("Viagem", target: 1500m, targetMonthStart: new DateOnly(2027, 10, 1));
+            SeedTransaction(goal, 100m, new DateOnly(2026, 9, 1));
+            SeedTransaction(goal, 100m, new DateOnly(2026, 10, 1));
+            SeedTransaction(goal, 100m, new DateOnly(2026, 11, 1));
+
+            var dto = (await _service.GetByIdAsync(goal.Id!.Value, UserId, CancellationToken.None)).Value!;
+
+            Assert.Equal(100m, dto.MonthlyNeeded);
+            Assert.Equal(SavingsGoalPace.OnTrack, dto.Pace);
+        }
+
+        [Fact]
+        public async Task GetByIdAsync_ShouldDropTheProgress_WhenALinkedTransactionIsDeleted()
+        {
+            var goal = SeedGoal("Viagem");
+            var transaction = SeedTransaction(goal, 400m, new DateOnly(2026, 11, 2));
+            var before = (await _service.GetByIdAsync(goal.Id!.Value, UserId, CancellationToken.None)).Value!;
+
+            await ServiceProvider.GetRequiredService<ITransactionRepository>().DeleteAsync(transaction.Id!, transaction.MonthlySummaryId, CancellationToken.None);
+
+            var after = (await _service.GetByIdAsync(goal.Id.Value, UserId, CancellationToken.None)).Value!;
+            Assert.Equal(400m, before.Saved);
+            Assert.Equal(0m, after.Saved);
+        }
+
+        [Fact]
+        public async Task GetPagedAsync_ShouldReportEachGoalsProgress_AndSortByIt()
+        {
+            var half = SeedGoal("Metade", target: 1000m);
+            var quarter = SeedGoal("Um quarto", target: 1000m);
+            SeedGoal("Nada", target: 1000m);
+            SeedTransaction(half, 500m, new DateOnly(2026, 11, 2));
+            SeedTransaction(quarter, 250m, new DateOnly(2026, 11, 2));
+
+            var ascending = await _service.GetPagedAsync(new SavingsGoalListQueryDto { SortBy = SavingsGoalSortBy.Progress }, UserId, CancellationToken.None);
+            var descending = await _service.GetPagedAsync(
+                new SavingsGoalListQueryDto { SortBy = SavingsGoalSortBy.Progress, SortDirection = SortDirection.Desc }, UserId, CancellationToken.None);
+
+            Assert.Equal(["Nada", "Um quarto", "Metade"], ascending.Value!.Items.Select(goal => goal.Name));
+            Assert.Equal([0m, 250m, 500m], ascending.Value.Items.Select(goal => goal.Saved));
+            Assert.Equal(["Metade", "Um quarto", "Nada"], descending.Value!.Items.Select(goal => goal.Name));
+            Assert.All(ascending.Value.Items, goal => Assert.Null(goal.Monthly));
         }
     }
 }
