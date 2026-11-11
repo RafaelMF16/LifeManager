@@ -101,16 +101,15 @@ namespace LifeManager.Infrastructure.Test.SavingsGoals
         }
 
         [Fact]
-        public async Task UpdateAsync_ShouldSaveTheFieldsAndArchiving()
+        public async Task UpdateAsync_ShouldSaveTheEditedFields()
         {
             await using var context = Fixture.CreateContext();
             var user = await context.AddUserAsync();
             var goal = await context.AddSavingsGoalAsync(user);
             goal.Update("Japão", 8000m, TestData.Month(2027, 6), 50m, "globe", TestData.Month(2026, 11)).Unwrap();
-            goal.Archive(TestData.Now).Unwrap();
 
             await using (var writeContext = Fixture.CreateContext())
-                await new SavingsGoalRepository(writeContext).UpdateAsync(goal, default);
+                Assert.Equal(SavingsGoalWriteOutcome.Saved, await new SavingsGoalRepository(writeContext).UpdateAsync(goal, default));
 
             await using var readContext = Fixture.CreateContext();
             var stored = await new SavingsGoalRepository(readContext).GetByIdAsync(goal.Id!, user.Id!, default);
@@ -120,7 +119,77 @@ namespace LifeManager.Infrastructure.Test.SavingsGoals
             Assert.Equal(TestData.Month(2027, 6), stored.TargetMonth);
             Assert.Equal(50m, stored.InitialAmount);
             Assert.Equal("globe", stored.Icon);
+            Assert.Null(stored.ArchivedAt);
+        }
+
+        [Fact]
+        public async Task UpdateAsync_ShouldNotTouchAGoalArchivedMeanwhile()
+        {
+            await using var context = Fixture.CreateContext();
+            var user = await context.AddUserAsync();
+            var goal = await context.AddSavingsGoalAsync(user, "Viagem");
+            var repository = new SavingsGoalRepository(context);
+            Assert.True(await repository.ArchiveAsync(goal.Id!, user.Id!, TestData.Now, default));
+            goal.Update("Japão", 8000m, null, 0m, null, TestData.Month(2026, 11)).Unwrap();
+
+            var outcome = await repository.UpdateAsync(goal, default);
+
+            Assert.Equal(SavingsGoalWriteOutcome.StateChanged, outcome);
+            var stored = await repository.GetByIdAsync(goal.Id!, user.Id!, default);
+            Assert.NotNull(stored);
             Assert.NotNull(stored.ArchivedAt);
+            Assert.Equal("Viagem", stored.Name.Value);
+        }
+
+        [Fact]
+        public async Task ArchiveAndRestore_ShouldWriteOnlyFromTheExpectedState()
+        {
+            await using var context = Fixture.CreateContext();
+            var user = await context.AddUserAsync();
+            var other = await context.AddUserAsync("Bia");
+            var goal = await context.AddSavingsGoalAsync(user);
+            var repository = new SavingsGoalRepository(context);
+
+            Assert.False(await repository.ArchiveAsync(goal.Id!, other.Id!, TestData.Now, default));
+            Assert.True(await repository.ArchiveAsync(goal.Id!, user.Id!, TestData.Now, default));
+            Assert.False(await repository.ArchiveAsync(goal.Id!, user.Id!, TestData.Now, default));
+            Assert.Equal(SavingsGoalWriteOutcome.Saved, await repository.RestoreAsync(goal.Id!, user.Id!, default));
+            Assert.Equal(SavingsGoalWriteOutcome.StateChanged, await repository.RestoreAsync(goal.Id!, user.Id!, default));
+            Assert.Null((await repository.GetByIdAsync(goal.Id!, user.Id!, default))!.ArchivedAt);
+        }
+
+        [Fact]
+        public async Task Writes_ShouldReturnNameTaken_WhenTheUniqueIndexRefusesTheName()
+        {
+            await using var context = Fixture.CreateContext();
+            var user = await context.AddUserAsync();
+            var repository = new SavingsGoalRepository(context);
+            var archived = await context.AddSavingsGoalAsync(user, "VIAGEM ");
+            Assert.True(await repository.ArchiveAsync(archived.Id!, user.Id!, TestData.Now, default));
+            await context.AddSavingsGoalAsync(user, "Viagem");
+            var editable = await context.AddSavingsGoalAsync(user, "Reserva");
+            editable.Update("viagem", 1000m, null, 0m, null, TestData.Month(2026, 11)).Unwrap();
+            var duplicate = SavingsGoal.Create(user.Id!.Value, "Viagem", 1000m, null, 0m, null, TestData.Month(2026, 11), TestData.Now).Unwrap();
+
+            Assert.Equal(SavingsGoalWriteOutcome.NameTaken, await repository.AddAsync(duplicate, default));
+            Assert.Equal(SavingsGoalWriteOutcome.NameTaken, await repository.UpdateAsync(editable, default));
+            Assert.Equal(SavingsGoalWriteOutcome.NameTaken, await repository.RestoreAsync(archived.Id!, user.Id!, default));
+            // The refused insert left the context usable.
+            Assert.True(await repository.ArchiveAsync(editable.Id!, user.Id!, TestData.Now, default));
+        }
+
+        [Fact]
+        public async Task MarkCompletedAsync_ShouldSkipAnArchivedGoal()
+        {
+            await using var context = Fixture.CreateContext();
+            var user = await context.AddUserAsync();
+            var goal = await context.AddSavingsGoalAsync(user);
+            var repository = new SavingsGoalRepository(context);
+            await repository.ArchiveAsync(goal.Id!, user.Id!, TestData.Now, default);
+
+            await repository.MarkCompletedAsync(goal.Id!, new DateOnly(2026, 11, 10), default);
+
+            Assert.Null((await repository.GetByIdAsync(goal.Id!, user.Id!, default))!.CompletedAt);
         }
 
         private static async Task LinkAsync(TransactionRepository repository, Domain.MonthlySummaries.MonthlySummary month, Domain.Categories.Category category, SavingsGoal? goal, decimal amount, int day)
@@ -242,8 +311,7 @@ namespace LifeManager.Infrastructure.Test.SavingsGoals
             var transactions = new TransactionRepository(context);
             await LinkAsync(transactions, november, category, goal, 20m, 2);
             await LinkAsync(transactions, november, category, null, 5m, 3);
-            goal.Archive(TestData.Now);
-            await new SavingsGoalRepository(context).UpdateAsync(goal, default);
+            await new SavingsGoalRepository(context).ArchiveAsync(goal.Id!, user.Id!, TestData.Now, default);
 
             await using var readContext = Fixture.CreateContext();
             var reader = new TransactionRepository(readContext);

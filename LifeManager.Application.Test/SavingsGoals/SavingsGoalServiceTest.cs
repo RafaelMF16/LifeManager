@@ -2,9 +2,11 @@ using LifeManager.Application.SavingsGoals.DTOs;
 using LifeManager.Application.SavingsGoals.Services;
 using LifeManager.Application.Test.Configurations;
 using LifeManager.Application.Test.Configurations.SingletonLists;
+using LifeManager.Application.Test.SavingsGoals.Mocks;
 using LifeManager.Domain.SavingsGoals;
 using LifeManager.Domain.SavingsGoals.Enums;
 using LifeManager.Domain.SavingsGoals.Errors;
+using LifeManager.Domain.SavingsGoals.Interfaces;
 using LifeManager.Domain.MonthlySummaries;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.Paging;
@@ -321,6 +323,57 @@ namespace LifeManager.Application.Test.SavingsGoals
 
             Assert.Null(result.Value!.ArchivedAt);
             Assert.Equal(SavingsGoalErrors.NotArchived, again.Error);
+        }
+
+        private SavingsGoalRepositoryMock Repository => (SavingsGoalRepositoryMock)ServiceProvider.GetRequiredService<ISavingsGoalRepository>();
+
+        [Fact]
+        public async Task UpdateAsync_ShouldReturnArchived_AndKeepItArchived_WhenArchivedMeanwhile()
+        {
+            var goal = SeedGoal("Viagem");
+            Repository.BeforeNextWrite = () => SavingsGoalSingleton.Instance[0] = SavingsGoal.FromPersistence(
+                goal.Id!.Value, UserId.Value, "Viagem", 1000m, null, 0m, null, goal.CreatedAt, new DateTimeOffset(2026, 11, 11, 12, 0, 0, TimeSpan.Zero), null);
+
+            var result = await _service.UpdateAsync(goal.Id!.Value, new SavingsGoalDto("Japão", 2000m), UserId, CancellationToken.None);
+
+            Assert.Equal(SavingsGoalErrors.Archived, result.Error);
+            var stored = Assert.Single(SavingsGoalSingleton.Instance);
+            Assert.True(stored.IsArchived);
+            Assert.Equal("Viagem", stored.Name.Value);
+        }
+
+        [Fact]
+        public async Task CreateUpdateAndRestore_ShouldReturnNameAlreadyExists_WhenTheNameIsTakenMeanwhile()
+        {
+            var editable = SeedGoal("Reserva");
+            var archived = SeedGoal("Carro", archived: true);
+            void TakeName(string name) => Repository.BeforeNextWrite = () => SeedGoal(name);
+
+            TakeName("Viagem");
+            var created = await _service.CreateAsync(new SavingsGoalDto("viagem", 500m), UserId, CancellationToken.None);
+            TakeName("Casa");
+            var updated = await _service.UpdateAsync(editable.Id!.Value, new SavingsGoalDto("CASA", 500m), UserId, CancellationToken.None);
+            TakeName("Carro");
+            var restored = await _service.RestoreAsync(archived.Id!.Value, UserId, CancellationToken.None);
+
+            Assert.Equal(SavingsGoalErrors.NameAlreadyExists, created.Error);
+            Assert.Equal(SavingsGoalErrors.NameAlreadyExists, updated.Error);
+            Assert.Equal(SavingsGoalErrors.NameAlreadyExists, restored.Error);
+            Assert.Equal("Reserva", SavingsGoalSingleton.Instance.Single(goal => goal.Id == editable.Id).Name.Value);
+            Assert.True(SavingsGoalSingleton.Instance.Single(goal => goal.Id == archived.Id).IsArchived);
+        }
+
+        [Fact]
+        public async Task ArchiveAsync_ShouldReturnAlreadyArchived_WhenArchivedMeanwhile()
+        {
+            var goal = SeedGoal("Viagem");
+            Repository.BeforeNextWrite = () => SavingsGoalSingleton.Instance[0] = SavingsGoal.FromPersistence(
+                goal.Id!.Value, UserId.Value, "Viagem", 1000m, null, 0m, null, goal.CreatedAt, goal.CreatedAt, null);
+
+            var result = await _service.ArchiveAsync(goal.Id!.Value, UserId, CancellationToken.None);
+
+            Assert.Equal(SavingsGoalErrors.AlreadyArchived, result.Error);
+            Assert.Equal(goal.CreatedAt, Assert.Single(SavingsGoalSingleton.Instance).ArchivedAt);
         }
 
         [Fact]

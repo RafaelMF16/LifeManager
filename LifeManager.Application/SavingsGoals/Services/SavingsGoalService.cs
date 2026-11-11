@@ -2,6 +2,7 @@ using LifeManager.Application.SavingsGoals.DTOs;
 using LifeManager.Application.Shared.DTOs;
 using LifeManager.Application.Shared.Time;
 using LifeManager.Domain.SavingsGoals;
+using LifeManager.Domain.SavingsGoals.Enums;
 using LifeManager.Domain.SavingsGoals.Errors;
 using LifeManager.Domain.SavingsGoals.Interfaces;
 using LifeManager.Domain.SavingsGoals.ValueObjects;
@@ -56,7 +57,8 @@ namespace LifeManager.Application.SavingsGoals.Services
             if (await _savingsGoalRepository.ExistsActiveByNameAsync(userId, goal.Name, null, cancellationToken))
                 return SavingsGoalErrors.NameAlreadyExists;
 
-            await _savingsGoalRepository.AddAsync(goal, cancellationToken);
+            if (await _savingsGoalRepository.AddAsync(goal, cancellationToken) == SavingsGoalWriteOutcome.NameTaken)
+                return SavingsGoalErrors.NameAlreadyExists;
 
             // What was already saved may reach the target on its own.
             await _savingsGoalCompletion.RecordIfReachedAsync(goal, SavingsGoalSums.Zero, cancellationToken);
@@ -148,7 +150,14 @@ namespace LifeManager.Application.SavingsGoals.Services
                 && await _savingsGoalRepository.ExistsActiveByNameAsync(userId, goal.Name, goal.Id, cancellationToken))
                 return SavingsGoalErrors.NameAlreadyExists;
 
-            await _savingsGoalRepository.UpdateAsync(goal, cancellationToken);
+            switch (await _savingsGoalRepository.UpdateAsync(goal, cancellationToken))
+            {
+                case SavingsGoalWriteOutcome.NameTaken:
+                    return SavingsGoalErrors.NameAlreadyExists;
+                case SavingsGoalWriteOutcome.StateChanged:
+                    // Archived (or gone) since it was read: the edit never brings it back.
+                    return SavingsGoalErrors.Archived;
+            }
 
             // A lower target or a higher initial amount may reach it.
             var sums = await GetSumsAsync(goal, cancellationToken);
@@ -168,7 +177,9 @@ namespace LifeManager.Application.SavingsGoals.Services
             if (!archiveResult.IsSuccess)
                 return archiveResult.Error;
 
-            await _savingsGoalRepository.UpdateAsync(goal, cancellationToken);
+            // Conditional: a concurrent archive wins once.
+            if (!await _savingsGoalRepository.ArchiveAsync(goal.Id!, userId, goal.ArchivedAt!.Value, cancellationToken))
+                return SavingsGoalErrors.AlreadyArchived;
 
             return Result.Success();
         }
@@ -186,7 +197,13 @@ namespace LifeManager.Application.SavingsGoals.Services
             if (await _savingsGoalRepository.ExistsActiveByNameAsync(userId, goal.Name, goal.Id, cancellationToken))
                 return SavingsGoalErrors.NameAlreadyExists;
 
-            await _savingsGoalRepository.UpdateAsync(goal, cancellationToken);
+            switch (await _savingsGoalRepository.RestoreAsync(goal.Id!, userId, cancellationToken))
+            {
+                case SavingsGoalWriteOutcome.NameTaken:
+                    return SavingsGoalErrors.NameAlreadyExists;
+                case SavingsGoalWriteOutcome.StateChanged:
+                    return SavingsGoalErrors.NotArchived;
+            }
 
             return ToResponseDto(goal, await GetSumsAsync(goal, cancellationToken));
         }

@@ -274,7 +274,7 @@ Um objetivo junta dinheiro para algo de médio prazo ("Viagem: R$ 5.000 até dez
   - **Sem prazo:** sem prazo, não há ritmo.
   - **No ritmo:** a média guardada nos **últimos 3 meses** (o corrente e os 2 anteriores, sempre dividindo por 3) cobre o "guardar por mês".
   - **Atrasado:** não cobre.
-- **Concluído em:** a data em que o guardado chegou à meta pela primeira vez. É gravada quando um lançamento ligado é criado ou editado, ou quando o objetivo é criado ou editado (uma meta menor ou um "já guardado" maior podem concluí-lo). **Nunca volta:** se depois um lançamento for excluído, o objetivo continua em "Concluídos", mas o ritmo deixa de ser "concluído".
+- **Concluído em:** a data em que o guardado chegou à meta pela primeira vez. É gravada quando um lançamento ligado é criado ou editado, ou quando o objetivo é criado ou editado (uma meta menor ou um "já guardado" maior podem concluí-lo). **Nunca volta:** se depois um lançamento for excluído, o objetivo continua em "Concluídos", mas o ritmo deixa de ser "concluído". Um objetivo **arquivado** nunca é concluído, nem pela edição de um lançamento que ainda aponta para ele.
 - **Listas:** "Ativos" (sem data de conclusão), "Concluídos" (com data de conclusão) e "Arquivados". Busca pelo nome; ordena por nome, prazo (sem prazo por último na ordem crescente) ou progresso.
 - **Detalhe:** o guardado em cada um dos **últimos 12 meses** (o corrente por último) e os lançamentos ligados, de todos os meses, do mais novo para o mais antigo.
 - **Excluir arquiva:** os lançamentos continuam ligados e o objetivo pode ser restaurado, se nenhum objetivo ativo tiver pegado o nome. Um objetivo arquivado não pode ser editado nem receber lançamentos novos.

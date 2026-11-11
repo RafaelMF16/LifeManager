@@ -9,6 +9,8 @@ using LifeManager.Domain.Users.ValueObjects;
 using LifeManager.Infrastructure.Postgres;
 using LifeManager.Infrastructure.Postgres.Extensions;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
+using System.Linq.Expressions;
 
 namespace LifeManager.Infrastructure.SavingsGoals
 {
@@ -16,12 +18,21 @@ namespace LifeManager.Infrastructure.SavingsGoals
     {
         private readonly LifeManagerDbContext _dbContext = dbContext;
 
-        public async Task<SavingsGoal> AddAsync(SavingsGoal savingsGoal, CancellationToken cancellationToken)
+        public async Task<SavingsGoalWriteOutcome> AddAsync(SavingsGoal savingsGoal, CancellationToken cancellationToken)
         {
             _dbContext.Add(savingsGoal);
-            await _dbContext.SaveChangesAsync(cancellationToken);
+            try
+            {
+                await _dbContext.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException exception) when (IsUniqueViolation(exception))
+            {
+                // The service checked the name first; another write took it in between.
+                _dbContext.Entry(savingsGoal).State = EntityState.Detached;
+                return SavingsGoalWriteOutcome.NameTaken;
+            }
 
-            return savingsGoal;
+            return SavingsGoalWriteOutcome.Saved;
         }
 
         public async Task<SavingsGoal?> GetByIdAsync(SavingsGoalId savingsGoalId, UserId userId, CancellationToken cancellationToken)
@@ -116,41 +127,65 @@ namespace LifeManager.Infrastructure.SavingsGoals
         {
             // Conditional, so two writes reaching the target at once keep the first date.
             await _dbContext.SavingsGoals
-                .Where(goal => goal.Id == savingsGoalId && goal.CompletedAt == null)
+                .Where(goal => goal.Id == savingsGoalId && goal.CompletedAt == null && goal.ArchivedAt == null)
                 .ExecuteUpdateAsync(setters => setters.SetProperty(goal => goal.CompletedAt, date), cancellationToken);
         }
 
-        public async Task UpdateAsync(SavingsGoal savingsGoal, CancellationToken cancellationToken)
+        public async Task<SavingsGoalWriteOutcome> UpdateAsync(SavingsGoal savingsGoal, CancellationToken cancellationToken)
         {
-            await _dbContext.SavingsGoals
-                .Where(storedGoal => storedGoal.Id == savingsGoal.Id && storedGoal.UserId == savingsGoal.UserId)
+            // Only the edited fields, and only while active: archiving and restoring write their own column.
+            return await WriteAsync(_dbContext.SavingsGoals
+                .Where(storedGoal => storedGoal.Id == savingsGoal.Id && storedGoal.UserId == savingsGoal.UserId && storedGoal.ArchivedAt == null)
                 .ExecuteUpdateAsync(setters => setters
                     .SetProperty(storedGoal => storedGoal.Name, savingsGoal.Name)
                     .SetProperty(storedGoal => storedGoal.NormalizedName, savingsGoal.NormalizedName)
                     .SetProperty(storedGoal => storedGoal.TargetAmount, savingsGoal.TargetAmount)
                     .SetProperty(storedGoal => storedGoal.TargetMonthStart, savingsGoal.TargetMonthStart)
                     .SetProperty(storedGoal => storedGoal.InitialAmount, savingsGoal.InitialAmount)
-                    .SetProperty(storedGoal => storedGoal.Icon, savingsGoal.Icon)
-                    .SetProperty(storedGoal => storedGoal.ArchivedAt, savingsGoal.ArchivedAt), cancellationToken);
+                    .SetProperty(storedGoal => storedGoal.Icon, savingsGoal.Icon), cancellationToken));
         }
+
+        public async Task<bool> ArchiveAsync(SavingsGoalId savingsGoalId, UserId userId, DateTimeOffset archivedAt, CancellationToken cancellationToken)
+        {
+            var rows = await _dbContext.SavingsGoals
+                .Where(goal => goal.Id == savingsGoalId && goal.UserId == userId && goal.ArchivedAt == null)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(goal => goal.ArchivedAt, archivedAt), cancellationToken);
+
+            return rows > 0;
+        }
+
+        public async Task<SavingsGoalWriteOutcome> RestoreAsync(SavingsGoalId savingsGoalId, UserId userId, CancellationToken cancellationToken)
+        {
+            return await WriteAsync(_dbContext.SavingsGoals
+                .Where(goal => goal.Id == savingsGoalId && goal.UserId == userId && goal.ArchivedAt != null)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(goal => goal.ArchivedAt, (DateTimeOffset?)null), cancellationToken));
+        }
+
+        /// <summary>A conditional write: no row means the goal's state changed; the name index refusing it, the name was taken.</summary>
+        private static async Task<SavingsGoalWriteOutcome> WriteAsync(Task<int> write)
+        {
+            try
+            {
+                return await write > 0 ? SavingsGoalWriteOutcome.Saved : SavingsGoalWriteOutcome.StateChanged;
+            }
+            catch (Exception exception) when (IsUniqueViolation(exception))
+            {
+                return SavingsGoalWriteOutcome.NameTaken;
+            }
+        }
+
+        /// <summary>The only unique index on the table besides the key is the active goals' name.</summary>
+        private static bool IsUniqueViolation(Exception exception)
+            => (exception as PostgresException ?? exception.InnerException as PostgresException)?.SqlState == PostgresErrorCodes.UniqueViolation;
 
         /// <summary>Sorts by the chosen column, then by name, ending with Id so pages are stable.</summary>
         private IOrderedQueryable<SavingsGoal> Order(IQueryable<SavingsGoal> query, SavingsGoalSortBy sortBy, SortDirection sortDirection)
         {
-            var transactions = _dbContext.Transactions;
-
             var descending = sortDirection == SortDirection.Desc;
 
             var ordered = sortBy switch
             {
-                // A correlated SUM per goal: (initial + linked investments) / target, the ratio SavingsGoalProgress reports.
-                SavingsGoalSortBy.Progress => descending
-                    ? query.OrderByDescending(goal => (goal.InitialAmount + transactions
-                        .Where(transaction => transaction.SavingsGoalId == goal.Id && transaction.Type == MoneyFlowType.Investment)
-                        .Sum(transaction => -transaction.SignedAmount)) / goal.TargetAmount)
-                    : query.OrderBy(goal => (goal.InitialAmount + transactions
-                        .Where(transaction => transaction.SavingsGoalId == goal.Id && transaction.Type == MoneyFlowType.Investment)
-                        .Sum(transaction => -transaction.SignedAmount)) / goal.TargetAmount),
+                SavingsGoalSortBy.Progress => descending ? query.OrderByDescending(ProgressRatio()) : query.OrderBy(ProgressRatio()),
                 SavingsGoalSortBy.TargetMonth => descending
                     ? query.OrderByDescending(goal => goal.TargetMonthStart)
                     : query.OrderBy(goal => goal.TargetMonthStart),
@@ -162,6 +197,16 @@ namespace LifeManager.Infrastructure.SavingsGoals
             return descending
                 ? ordered.ThenByDescending(goal => goal.NormalizedName).ThenByDescending(goal => goal.Id)
                 : ordered.ThenBy(goal => goal.NormalizedName).ThenBy(goal => goal.Id);
+        }
+
+        /// <summary>A correlated SUM per goal: (initial + linked investments) / target, the ratio SavingsGoalProgress reports.</summary>
+        private Expression<Func<SavingsGoal, decimal>> ProgressRatio()
+        {
+            var transactions = _dbContext.Transactions;
+
+            return goal => (goal.InitialAmount + transactions
+                .Where(transaction => transaction.SavingsGoalId == goal.Id && transaction.Type == MoneyFlowType.Investment)
+                .Sum(transaction => -transaction.SignedAmount)) / goal.TargetAmount;
         }
     }
 }

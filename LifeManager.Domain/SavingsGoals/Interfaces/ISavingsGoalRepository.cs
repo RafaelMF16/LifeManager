@@ -8,7 +8,8 @@ namespace LifeManager.Domain.SavingsGoals.Interfaces
 {
     public interface ISavingsGoalRepository
     {
-        Task<SavingsGoal> AddAsync(SavingsGoal savingsGoal, CancellationToken cancellationToken);
+        /// <summary>Stores a new goal and assigns its id; <see cref="SavingsGoalWriteOutcome.NameTaken"/> when an active goal has the name.</summary>
+        Task<SavingsGoalWriteOutcome> AddAsync(SavingsGoal savingsGoal, CancellationToken cancellationToken);
 
         /// <summary>Archived goals included.</summary>
         Task<SavingsGoal?> GetByIdAsync(SavingsGoalId savingsGoalId, UserId userId, CancellationToken cancellationToken);
@@ -39,10 +40,19 @@ namespace LifeManager.Domain.SavingsGoals.Interfaces
         /// <summary>The goal's linked investments summed per month, from <paramref name="from"/> on, oldest first.</summary>
         Task<IReadOnlyList<SavingsGoalMonthAmount>> GetMonthlyAmountsAsync(SavingsGoalId savingsGoalId, DateOnly from, CancellationToken cancellationToken);
 
-        /// <summary>Stores the day the target was first reached; nothing changes when one is already stored.</summary>
+        /// <summary>Stores the day the target was first reached; nothing changes when one is already stored or the goal is archived.</summary>
         Task MarkCompletedAsync(SavingsGoalId savingsGoalId, DateOnly date, CancellationToken cancellationToken);
 
-        /// <summary>Saves every field the user, archiving or restoring can change (not <see cref="SavingsGoal.CompletedAt"/>).</summary>
-        Task UpdateAsync(SavingsGoal savingsGoal, CancellationToken cancellationToken);
+        /// <summary>
+        /// Saves the fields the user edits, only while the goal is active (never <see cref="SavingsGoal.ArchivedAt"/> or
+        /// <see cref="SavingsGoal.CompletedAt"/>), so an edit can't bring back a goal archived meanwhile.
+        /// </summary>
+        Task<SavingsGoalWriteOutcome> UpdateAsync(SavingsGoal savingsGoal, CancellationToken cancellationToken);
+
+        /// <summary>Archives an active goal; false when it was already archived (or isn't the user's).</summary>
+        Task<bool> ArchiveAsync(SavingsGoalId savingsGoalId, UserId userId, DateTimeOffset archivedAt, CancellationToken cancellationToken);
+
+        /// <summary>Restores an archived goal; <see cref="SavingsGoalWriteOutcome.StateChanged"/> when it isn't archived anymore.</summary>
+        Task<SavingsGoalWriteOutcome> RestoreAsync(SavingsGoalId savingsGoalId, UserId userId, CancellationToken cancellationToken);
     }
 }

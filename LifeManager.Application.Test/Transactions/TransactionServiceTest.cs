@@ -558,13 +558,15 @@ namespace LifeManager.Application.Test.Transactions
             SavingsGoalSingleton.Instance[0] = SavingsGoal.FromPersistence(
                 goalId, FirstUserId.Value, stored.Name.Value, 1000m, null, 0m, null, DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch, null);
 
-            var kept = await _transactionService.UpdateAsync(MonthId, created.Id, Investment("Aporte maior", 600m, 3) with { SavingsGoalId = goalId }, FirstUserId, CancellationToken.None);
+            // Enough to reach the target: an archived goal is still never marked completed.
+            var kept = await _transactionService.UpdateAsync(MonthId, created.Id, Investment("Aporte maior", 1200m, 3) with { SavingsGoalId = goalId }, FirstUserId, CancellationToken.None);
             var moved = await _transactionService.UpdateAsync(MonthId, created.Id, Investment("Aporte", 600m, 3) with { SavingsGoalId = anotherArchived }, FirstUserId, CancellationToken.None);
 
             Assert.True(kept.IsSuccess);
             Assert.Equal(goalId, kept.Value!.SavingsGoalId);
             Assert.Equal(SavingsGoalErrors.Archived, moved.Error);
             Assert.Equal(goalId, Assert.Single(TransactionSingleton.Instance).SavingsGoalId!.Value);
+            Assert.Null(SavingsGoalSingleton.Instance[0].CompletedAt);
         }
 
         [Fact]
