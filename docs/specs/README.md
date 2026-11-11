@@ -11,7 +11,7 @@ O mapa completo (diagnóstico, ordem, decisões e as specs dos dois repos) fica 
 | `account-settings` (Minha conta: renomear, trocar senha, sair de todos, exportar em JSON e exclusão com 7 dias de prazo e o job `AccountDeletionRunner`; o spec já saiu) | `feature/account-settings` | **mergeado na `dev`** em 10/11/2026 (PR #50) |
 | `transactions-export` (`GET /api/Transactions/Export`: CSV de um período em streaming, PtBr/EnUs, origem de cada lançamento e rate limit `TransactionsExport`; o spec já saiu) | `feature/transactions-export` | **mergeado na `dev`** em 11/11/2026 (PR #53) |
 | [`habit-reminders`](habit-reminders.md) | `feature/habit-reminders` | aprovado · dependência em discussão |
-| [`savings-goals`](savings-goals.md) | `feature/savings-goals` | implementado na branch (back), falta o PR e o front |
+| [`savings-goals`](savings-goals.md) | `feature/savings-goals` | implementado nas branches (back + front), falta o PR |
 
 ## Regras
 
