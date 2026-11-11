@@ -1,5 +1,8 @@
 using LifeManager.Domain.SavingsGoals;
+using LifeManager.Domain.SavingsGoals.Enums;
 using LifeManager.Domain.SavingsGoals.ValueObjects;
+using LifeManager.Domain.Shared.Enums;
+using LifeManager.Domain.Shared.Paging;
 using LifeManager.Infrastructure.SavingsGoals;
 using LifeManager.Infrastructure.Test.Seed;
 using Microsoft.EntityFrameworkCore;
@@ -71,6 +74,50 @@ namespace LifeManager.Infrastructure.Test.SavingsGoals
             var exception = await Assert.ThrowsAsync<DbUpdateException>(() => context.AddSavingsGoalAsync(user, "viagem"));
 
             Assert.Equal(PostgresErrorCodes.UniqueViolation, Assert.IsType<PostgresException>(exception.InnerException).SqlState);
+        }
+
+        [Fact]
+        public async Task GetPagedByUserIdAsync_ShouldSearchWithAnEscapedLike_AndSortTargetMonthWithNullsLast()
+        {
+            await using var context = Fixture.CreateContext();
+            var user = await context.AddUserAsync();
+            var current = TestData.Month(2026, 11);
+            foreach (var (name, month) in new[] { ("Viagem 100%", (LifeManager.Domain.Shared.ValueObjects.YearMonth?)TestData.Month(2028, 1)), ("Viagem 100x", TestData.Month(2027, 1)), ("Sem prazo", null) })
+                context.Add(SavingsGoal.Create(user.Id!.Value, name, 1000m, month, 0m, null, current, TestData.Now).Unwrap());
+            await context.SaveChangesAsync();
+            var repository = new SavingsGoalRepository(context);
+            var page = PageRequest.Create(1, 20).Unwrap();
+
+            var searched = await repository.GetPagedByUserIdAsync(user.Id!, page, SavingsGoalStatusFilter.Active, "100%", SavingsGoalSortBy.Name, SortDirection.Asc, default);
+            var ascending = await repository.GetPagedByUserIdAsync(user.Id!, page, SavingsGoalStatusFilter.Active, null, SavingsGoalSortBy.TargetMonth, SortDirection.Asc, default);
+            var descending = await repository.GetPagedByUserIdAsync(user.Id!, page, SavingsGoalStatusFilter.Active, null, SavingsGoalSortBy.TargetMonth, SortDirection.Desc, default);
+
+            Assert.Equal("Viagem 100%", Assert.Single(searched.Items).Name.Value);
+            Assert.Equal(["Viagem 100x", "Viagem 100%", "Sem prazo"], ascending.Items.Select(goal => goal.Name.Value));
+            Assert.Equal(["Sem prazo", "Viagem 100%", "Viagem 100x"], descending.Items.Select(goal => goal.Name.Value));
+        }
+
+        [Fact]
+        public async Task UpdateAsync_ShouldSaveTheFieldsAndArchiving()
+        {
+            await using var context = Fixture.CreateContext();
+            var user = await context.AddUserAsync();
+            var goal = await context.AddSavingsGoalAsync(user);
+            goal.Update("Japão", 8000m, TestData.Month(2027, 6), 50m, "globe", TestData.Month(2026, 11)).Unwrap();
+            goal.Archive(TestData.Now).Unwrap();
+
+            await using (var writeContext = Fixture.CreateContext())
+                await new SavingsGoalRepository(writeContext).UpdateAsync(goal, default);
+
+            await using var readContext = Fixture.CreateContext();
+            var stored = await new SavingsGoalRepository(readContext).GetByIdAsync(goal.Id!, user.Id!, default);
+            Assert.NotNull(stored);
+            Assert.Equal("japao", stored.NormalizedName);
+            Assert.Equal(8000m, stored.TargetAmount);
+            Assert.Equal(TestData.Month(2027, 6), stored.TargetMonth);
+            Assert.Equal(50m, stored.InitialAmount);
+            Assert.Equal("globe", stored.Icon);
+            Assert.NotNull(stored.ArchivedAt);
         }
     }
 }

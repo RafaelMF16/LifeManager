@@ -1,10 +1,13 @@
 using LifeManager.Application.SavingsGoals.DTOs;
+using LifeManager.Application.Shared.DTOs;
 using LifeManager.Application.Shared.Time;
 using LifeManager.Domain.SavingsGoals;
 using LifeManager.Domain.SavingsGoals.Errors;
 using LifeManager.Domain.SavingsGoals.Interfaces;
 using LifeManager.Domain.SavingsGoals.ValueObjects;
+using LifeManager.Domain.Shared.Paging;
 using LifeManager.Domain.Shared.Results;
+using LifeManager.Domain.Shared.Text;
 using LifeManager.Domain.Shared.ValueObjects;
 using LifeManager.Domain.Users.ValueObjects;
 
@@ -52,6 +55,83 @@ namespace LifeManager.Application.SavingsGoals.Services
             var goal = await _savingsGoalRepository.GetByIdAsync(new SavingsGoalId(id), userId, cancellationToken);
             if (goal is null)
                 return SavingsGoalErrors.NotFound;
+
+            return ToResponseDto(goal);
+        }
+
+        public async Task<Result<PagedResponseDto<SavingsGoalResponseDto>>> GetPagedAsync(
+            SavingsGoalListQueryDto query, UserId userId, CancellationToken cancellationToken)
+        {
+            var pageRequestResult = PageRequest.Create(query.Page, query.PageSize);
+            if (!pageRequestResult.IsSuccess)
+                return pageRequestResult.Error;
+
+            var pageRequest = pageRequestResult.Value!;
+            var normalizedSearch = SearchText.Normalize(query.Search);
+
+            if (normalizedSearch.Length > SavingsGoalName.MaxLength)
+                return new PagedResponseDto<SavingsGoalResponseDto>([], 0, pageRequest.Page, pageRequest.PageSize, 0);
+
+            var goals = await _savingsGoalRepository.GetPagedByUserIdAsync(
+                userId, pageRequest, query.Status, normalizedSearch, query.SortBy, query.SortDirection, cancellationToken);
+
+            return PagedResponseDto<SavingsGoalResponseDto>.From(goals, ToResponseDto);
+        }
+
+        public async Task<Result<SavingsGoalResponseDto>> UpdateAsync(int id, SavingsGoalDto goalDto, UserId userId, CancellationToken cancellationToken)
+        {
+            var goal = await _savingsGoalRepository.GetByIdAsync(new SavingsGoalId(id), userId, cancellationToken);
+            if (goal is null)
+                return SavingsGoalErrors.NotFound;
+
+            if (!TryParseTargetMonth(goalDto.TargetMonth, out var targetMonth))
+                return SavingsGoalErrors.InvalidTargetMonth;
+
+            var currentNormalizedName = goal.NormalizedName;
+
+            var updateResult = goal.Update(goalDto.Name, goalDto.TargetAmount, targetMonth, goalDto.InitialAmount, goalDto.Icon, CurrentMonth());
+            if (!updateResult.IsSuccess)
+                return updateResult.Error;
+
+            if (goal.NormalizedName != currentNormalizedName
+                && await _savingsGoalRepository.ExistsActiveByNameAsync(userId, goal.Name, goal.Id, cancellationToken))
+                return SavingsGoalErrors.NameAlreadyExists;
+
+            await _savingsGoalRepository.UpdateAsync(goal, cancellationToken);
+
+            return ToResponseDto(goal);
+        }
+
+        /// <summary>Archives the goal; its investments keep pointing at it.</summary>
+        public async Task<Result> ArchiveAsync(int id, UserId userId, CancellationToken cancellationToken)
+        {
+            var goal = await _savingsGoalRepository.GetByIdAsync(new SavingsGoalId(id), userId, cancellationToken);
+            if (goal is null)
+                return SavingsGoalErrors.NotFound;
+
+            var archiveResult = goal.Archive(_timeProvider.GetUtcNow());
+            if (!archiveResult.IsSuccess)
+                return archiveResult.Error;
+
+            await _savingsGoalRepository.UpdateAsync(goal, cancellationToken);
+
+            return Result.Success();
+        }
+
+        public async Task<Result<SavingsGoalResponseDto>> RestoreAsync(int id, UserId userId, CancellationToken cancellationToken)
+        {
+            var goal = await _savingsGoalRepository.GetByIdAsync(new SavingsGoalId(id), userId, cancellationToken);
+            if (goal is null)
+                return SavingsGoalErrors.NotFound;
+
+            var restoreResult = goal.Restore();
+            if (!restoreResult.IsSuccess)
+                return restoreResult.Error;
+
+            if (await _savingsGoalRepository.ExistsActiveByNameAsync(userId, goal.Name, goal.Id, cancellationToken))
+                return SavingsGoalErrors.NameAlreadyExists;
+
+            await _savingsGoalRepository.UpdateAsync(goal, cancellationToken);
 
             return ToResponseDto(goal);
         }
