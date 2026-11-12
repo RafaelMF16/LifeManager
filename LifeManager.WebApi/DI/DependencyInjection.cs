@@ -110,7 +110,9 @@ namespace LifeManager.WebApi.DI
                 RequiredSetting(builder, VAPID_PRIVATE_KEY),
                 RequiredSetting(builder, VAPID_SUBJECT_KEY)));
 
-            builder.Services.AddHttpClient<IPushSender, WebPushSender>(client => client.Timeout = TimeSpan.FromSeconds(10));
+            // No HttpClient request logs: they would write each device's endpoint URL (WebPushSender logs only the host).
+            builder.Services.AddHttpClient<IPushSender, WebPushSender>(client => client.Timeout = TimeSpan.FromSeconds(10))
+                .RemoveAllLoggers();
         }
 
         private static string RequiredSetting(WebApplicationBuilder builder, string key)
@@ -125,6 +127,7 @@ namespace LifeManager.WebApi.DI
         /// </summary>
         private static void ConfigureJobs(WebApplicationBuilder builder)
         {
+            builder.Services.AddSingleton<HabitRemindersRunner>();
             builder.Services.AddSingleton<RecurringTransactionsRunner>();
             builder.Services.AddSingleton<HabitsDayCloseRunner>();
             builder.Services.AddSingleton<RankingWeekCloseRunner>();
@@ -135,6 +138,7 @@ namespace LifeManager.WebApi.DI
             if (!builder.Configuration.GetValue(BACKGROUND_JOBS_ENABLED_KEY, defaultValue: true))
                 return;
 
+            builder.Services.AddHostedService<HabitRemindersJob>();
             builder.Services.AddHostedService<RecurringTransactionsJob>();
             builder.Services.AddHostedService<HabitsDayCloseJob>();
             builder.Services.AddHostedService<RankingWeekCloseJob>();
