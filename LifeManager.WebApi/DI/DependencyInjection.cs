@@ -2,7 +2,9 @@ using LifeManager.WebApi.Transactions.Controllers;
 ﻿using LifeManager.Application.Auth.Emails;
 using LifeManager.Application.Auth.Services;
 using LifeManager.Domain.Auth.Interfaces;
+using LifeManager.Domain.Push.Interfaces;
 using LifeManager.Infrastructure.Emails;
+using LifeManager.Infrastructure.Push;
 using LifeManager.WebApi.Auth;
 using LifeManager.WebApi.Auth.Jobs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -26,6 +28,9 @@ namespace LifeManager.WebApi.DI
         private const string EMAIL_SENDER_ADDRESS_KEY = "emailSenderAddress";
         private const string EMAIL_SENDER_NAME_KEY = "emailSenderName";
         private const string DEFAULT_EMAIL_SENDER_NAME = "LifeManager";
+        private const string VAPID_PUBLIC_KEY = "vapidPublicKey";
+        private const string VAPID_PRIVATE_KEY = "vapidPrivateKey";
+        private const string VAPID_SUBJECT_KEY = "vapidSubject";
 
         public static IServiceCollection AddApiServices(this WebApplicationBuilder builder)
         {
@@ -38,6 +43,8 @@ namespace LifeManager.WebApi.DI
             ConfigureJobs(builder);
 
             ConfigureEmail(builder);
+
+            ConfigurePush(builder);
 
             AuthRateLimits.Configure(builder.Services);
 
@@ -74,6 +81,36 @@ namespace LifeManager.WebApi.DI
                 client.BaseAddress = BrevoEmailSender.BaseAddress;
                 client.Timeout = TimeSpan.FromSeconds(10);
             });
+        }
+
+        /// <summary>
+        /// With the three VAPID keys, notifications go through <see cref="WebPushSender"/>. Without them, only Development
+        /// runs, with push off (<see cref="DisabledPushSender"/> and a warning); any other environment fails at startup, like
+        /// <c>brevoApiKey</c>.
+        /// </summary>
+        private static void ConfigurePush(WebApplicationBuilder builder)
+        {
+            var publicKey = builder.Configuration[VAPID_PUBLIC_KEY];
+            if (string.IsNullOrWhiteSpace(publicKey))
+            {
+                if (!builder.Environment.IsDevelopment())
+                    throw new InvalidOperationException($"Environment variable [{VAPID_PUBLIC_KEY}] not found");
+
+                builder.Services.AddSingleton<IPushSender>(services =>
+                {
+                    services.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(DisabledPushSender).FullName!)
+                        .LogWarning("Push notifications are off: [{Key}] is not set", VAPID_PUBLIC_KEY);
+                    return new DisabledPushSender();
+                });
+                return;
+            }
+
+            builder.Services.AddSingleton(new VapidSettings(
+                publicKey,
+                RequiredSetting(builder, VAPID_PRIVATE_KEY),
+                RequiredSetting(builder, VAPID_SUBJECT_KEY)));
+
+            builder.Services.AddHttpClient<IPushSender, WebPushSender>(client => client.Timeout = TimeSpan.FromSeconds(10));
         }
 
         private static string RequiredSetting(WebApplicationBuilder builder, string key)
