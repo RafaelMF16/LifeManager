@@ -566,6 +566,9 @@ namespace LifeManager.Infrastructure.Migrations
                         .HasPrecision(14, 2)
                         .HasColumnType("numeric(14,2)");
 
+                    b.Property<int?>("ReminderHour")
+                        .HasColumnType("integer");
+
                     b.Property<DateOnly>("StartDate")
                         .HasColumnType("date");
 
@@ -601,6 +604,9 @@ namespace LifeManager.Infrastructure.Migrations
 
                     NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("NormalizedName"), "gin");
                     NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("NormalizedName"), new[] { "gin_trgm_ops" });
+
+                    b.HasIndex("ReminderHour")
+                        .HasFilter("\"ReminderHour\" IS NOT NULL AND \"ArchivedAt\" IS NULL");
 
                     b.HasIndex("UserId", "ArchivedAt");
 
@@ -691,6 +697,21 @@ namespace LifeManager.Infrastructure.Migrations
                     b.ToTable("HabitProgressEntries");
                 });
 
+            modelBuilder.Entity("LifeManager.Domain.Habits.HabitReminderLog", b =>
+                {
+                    b.Property<int>("HabitId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.HasKey("HabitId", "Date");
+
+                    b.HasIndex("Date");
+
+                    b.ToTable("HabitReminderLogs");
+                });
+
             modelBuilder.Entity("LifeManager.Domain.Habits.PlayerProfile", b =>
                 {
                     b.Property<int>("Id")
@@ -778,6 +799,52 @@ namespace LifeManager.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("MonthlySummaries");
+                });
+
+            modelBuilder.Entity("LifeManager.Domain.Push.PushSubscription", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Auth")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Endpoint")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("Label")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<DateTimeOffset?>("LastSuccessAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("P256dh")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Endpoint")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("PushSubscriptions");
                 });
 
             modelBuilder.Entity("LifeManager.Domain.Ranking.RankingReaction", b =>
@@ -1652,6 +1719,15 @@ namespace LifeManager.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("LifeManager.Domain.Habits.HabitReminderLog", b =>
+                {
+                    b.HasOne("LifeManager.Domain.Habits.Habit", null)
+                        .WithMany()
+                        .HasForeignKey("HabitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("LifeManager.Domain.Habits.PlayerProfile", b =>
                 {
                     b.HasOne("LifeManager.Domain.Users.User", null)
@@ -1662,6 +1738,15 @@ namespace LifeManager.Infrastructure.Migrations
                 });
 
             modelBuilder.Entity("LifeManager.Domain.MonthlySummaries.MonthlySummary", b =>
+                {
+                    b.HasOne("LifeManager.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LifeManager.Domain.Push.PushSubscription", b =>
                 {
                     b.HasOne("LifeManager.Domain.Users.User", null)
                         .WithMany()

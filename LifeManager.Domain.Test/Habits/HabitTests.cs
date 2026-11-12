@@ -383,6 +383,81 @@ namespace LifeManager.Domain.Test.Habits
         }
 
         [Fact]
+        public void Create_ShouldHaveNoReminder_ByDefault()
+        {
+            var habit = Habit.Create(1, "Read", null, null, HabitKind.Positive, HabitDifficulty.Medium, HabitFrequencyType.Daily,
+                HabitWeekDays.None, null, Today, Now).Value!;
+
+            Assert.Null(habit.ReminderHour);
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(20)]
+        [InlineData(23)]
+        public void Create_ShouldKeepTheReminderHour_WhenHabitIsToBuild(int hour)
+        {
+            var result = Habit.Create(1, "Read", null, null, HabitKind.Positive, HabitDifficulty.Medium, HabitFrequencyType.Daily,
+                HabitWeekDays.None, null, Today, Now, reminderHour: hour);
+
+            Assert.Equal(hour, result.Value!.ReminderHour);
+        }
+
+        [Fact]
+        public void Create_ShouldKeepTheReminderHour_WhenHabitHasATarget()
+        {
+            var result = Habit.Create(1, "Drink water", null, null, HabitKind.Positive, HabitDifficulty.Easy, HabitFrequencyType.Daily,
+                HabitWeekDays.None, null, Today, Now, targetValue: 2000, targetUnit: "ml", reminderHour: 15);
+
+            Assert.Equal(15, result.Value!.ReminderHour);
+        }
+
+        [Theory]
+        [InlineData(-1)]
+        [InlineData(24)]
+        public void Create_ShouldReturnInvalidReminderHour_WhenTheHourIsOutOfRange(int hour)
+        {
+            var result = Habit.Create(1, "Read", null, null, HabitKind.Positive, HabitDifficulty.Medium, HabitFrequencyType.Daily,
+                HabitWeekDays.None, null, Today, Now, reminderHour: hour);
+
+            Assert.Equal(HabitErrors.InvalidReminderHour, result.Error);
+        }
+
+        [Fact]
+        public void Create_ShouldReturnReminderNotAllowed_WhenHabitIsToAvoid()
+        {
+            var result = Habit.Create(1, "Delivery", null, null, HabitKind.Negative, HabitDifficulty.Medium, HabitFrequencyType.Daily,
+                HabitWeekDays.None, null, Today, Now, reminderHour: 20);
+
+            Assert.Equal(HabitErrors.ReminderNotAllowed, result.Error);
+        }
+
+        [Fact]
+        public void Update_ShouldChangeAndRemoveTheReminderHour()
+        {
+            var habit = Habit.Create(1, "Read", null, null, HabitKind.Positive, HabitDifficulty.Medium, HabitFrequencyType.Daily,
+                HabitWeekDays.None, null, Today, Now, reminderHour: 8).Value!;
+
+            habit.Update("Read", null, null, HabitDifficulty.Medium, HabitFrequencyType.Daily, HabitWeekDays.None, null, reminderHour: 21);
+            Assert.Equal(21, habit.ReminderHour);
+
+            habit.Update("Read", null, null, HabitDifficulty.Medium, HabitFrequencyType.Daily, HabitWeekDays.None, null);
+            Assert.Null(habit.ReminderHour);
+        }
+
+        [Fact]
+        public void Update_ShouldReturnInvalidReminderHour_AndKeepTheStoredOne()
+        {
+            var habit = Habit.Create(1, "Read", null, null, HabitKind.Positive, HabitDifficulty.Medium, HabitFrequencyType.Daily,
+                HabitWeekDays.None, null, Today, Now, reminderHour: 8).Value!;
+
+            var result = habit.Update("Read", null, null, HabitDifficulty.Medium, HabitFrequencyType.Daily, HabitWeekDays.None, null, reminderHour: 24);
+
+            Assert.Equal(HabitErrors.InvalidReminderHour, result.Error);
+            Assert.Equal(8, habit.ReminderHour);
+        }
+
+        [Fact]
         public void Create_ShouldHaveNoAutoTrigger_ByDefault()
         {
             var habit = Habit.Create(1, "Read", null, null, HabitKind.Positive, HabitDifficulty.Medium, HabitFrequencyType.Daily,

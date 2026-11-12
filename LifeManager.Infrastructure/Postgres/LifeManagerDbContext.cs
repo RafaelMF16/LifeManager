@@ -1,3 +1,4 @@
+using LifeManager.Domain.Push;
 using LifeManager.Domain.Achievements;
 using LifeManager.Domain.AccountHolders;
 using LifeManager.Domain.Auth;
@@ -54,6 +55,8 @@ namespace LifeManager.Infrastructure.Postgres
         public DbSet<CategorizationRule> CategorizationRules { get; set; }
         public DbSet<AccountHolder> AccountHolders { get; set; }
         public DbSet<SavingsGoal> SavingsGoals { get; set; }
+        public DbSet<PushSubscription> PushSubscriptions { get; set; }
+        public DbSet<HabitReminderLog> HabitReminderLogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

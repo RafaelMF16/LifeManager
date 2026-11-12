@@ -58,6 +58,12 @@ namespace LifeManager.Domain.Habits
         /// </summary>
         public HabitAutoTrigger AutoTrigger { get; private set; }
 
+        /// <summary>
+        /// The hour (0–23, business time zone) a reminder goes out while the habit is still due and not done today
+        /// (<see cref="HabitReminderHour"/>); only a habit to build takes one. Null without a reminder.
+        /// </summary>
+        public int? ReminderHour { get; private set; }
+
         /// <summary>First day the habit counts on.</summary>
         public DateOnly StartDate { get; }
 
@@ -93,7 +99,8 @@ namespace LifeManager.Domain.Habits
             string? targetUnit,
             int? targetStep,
             decimal? relapseCost,
-            HabitAutoTrigger autoTrigger)
+            HabitAutoTrigger autoTrigger,
+            int? reminderHour)
         {
             UserId = userId;
             Name = name;
@@ -116,12 +123,14 @@ namespace LifeManager.Domain.Habits
             TargetStep = targetStep;
             RelapseCost = relapseCost;
             AutoTrigger = autoTrigger;
+            ReminderHour = reminderHour;
         }
 
         /// <param name="today">The user's current date: the habit starts counting on it.</param>
         /// <param name="targetValue">The daily target; null (with no unit or step) for a habit checked in with one tap.</param>
         /// <param name="relapseCost">What one relapse costs; only a habit to avoid takes one.</param>
         /// <param name="autoTrigger">The finance action that checks it in by itself; only a one-tap habit to build takes one.</param>
+        /// <param name="reminderHour">The hour of its reminder; only a habit to build takes one.</param>
         public static Result<Habit> Create(
             int idUser,
             string? name,
@@ -138,12 +147,13 @@ namespace LifeManager.Domain.Habits
             string? targetUnit = null,
             int? targetStep = null,
             decimal? relapseCost = null,
-            HabitAutoTrigger autoTrigger = HabitAutoTrigger.None)
+            HabitAutoTrigger autoTrigger = HabitAutoTrigger.None,
+            int? reminderHour = null)
         {
             if (!Enum.IsDefined(kind))
                 return HabitErrors.InvalidKind;
 
-            var valuesResult = Validate(kind, name, description, trigger, difficulty, frequencyType, weekDays, timesPerWeek, targetValue, targetUnit, targetStep, relapseCost, autoTrigger);
+            var valuesResult = Validate(kind, name, description, trigger, difficulty, frequencyType, weekDays, timesPerWeek, targetValue, targetUnit, targetStep, relapseCost, autoTrigger, reminderHour);
             if (!valuesResult.IsSuccess)
                 return valuesResult.Error;
 
@@ -169,7 +179,8 @@ namespace LifeManager.Domain.Habits
                 values.Target?.Unit,
                 values.Target?.Step,
                 values.RelapseCost?.Value,
-                autoTrigger);
+                autoTrigger,
+                values.ReminderHour?.Value);
         }
 
         /// <summary>
@@ -189,12 +200,13 @@ namespace LifeManager.Domain.Habits
             string? targetUnit = null,
             int? targetStep = null,
             decimal? relapseCost = null,
-            HabitAutoTrigger autoTrigger = HabitAutoTrigger.None)
+            HabitAutoTrigger autoTrigger = HabitAutoTrigger.None,
+            int? reminderHour = null)
         {
             if (IsArchived)
                 return HabitErrors.Archived;
 
-            var valuesResult = Validate(Kind, name, description, trigger, difficulty, frequencyType, weekDays, timesPerWeek, targetValue, targetUnit, targetStep, relapseCost, autoTrigger);
+            var valuesResult = Validate(Kind, name, description, trigger, difficulty, frequencyType, weekDays, timesPerWeek, targetValue, targetUnit, targetStep, relapseCost, autoTrigger, reminderHour);
             if (!valuesResult.IsSuccess)
                 return valuesResult.Error;
 
@@ -213,6 +225,7 @@ namespace LifeManager.Domain.Habits
             TargetStep = values.Target?.Step;
             RelapseCost = values.RelapseCost?.Value;
             AutoTrigger = autoTrigger;
+            ReminderHour = values.ReminderHour?.Value;
 
             return this;
         }
@@ -337,7 +350,8 @@ namespace LifeManager.Domain.Habits
             string? targetUnit = null,
             int? targetStep = null,
             decimal? relapseCost = null,
-            HabitAutoTrigger autoTrigger = HabitAutoTrigger.None)
+            HabitAutoTrigger autoTrigger = HabitAutoTrigger.None,
+            int? reminderHour = null)
         {
             var habit = new Habit(
                 new UserId(idUser),
@@ -359,7 +373,8 @@ namespace LifeManager.Domain.Habits
                 targetUnit,
                 targetStep,
                 relapseCost,
-                autoTrigger);
+                autoTrigger,
+                reminderHour);
             habit.AssignId(id);
 
             return habit;
@@ -383,7 +398,8 @@ namespace LifeManager.Domain.Habits
             string? targetUnit,
             int? targetStep,
             decimal? relapseCost,
-            HabitAutoTrigger autoTrigger)
+            HabitAutoTrigger autoTrigger,
+            int? reminderHour)
         {
             var nameResult = HabitName.Create(name);
             if (!nameResult.IsSuccess)
@@ -424,7 +440,16 @@ namespace LifeManager.Domain.Habits
             if (autoTrigger != HabitAutoTrigger.None && (kind != HabitKind.Positive || targetResult.Value is not null))
                 return HabitErrors.AutoTriggerNotAllowed;
 
-            return new ValidatedValues(nameResult.Value, descriptionResult.Value, triggerResult.Value, frequencyResult.Value, targetResult.Value, relapseCostResult.Value);
+            var reminderHourResult = HabitReminderHour.Create(reminderHour);
+            if (!reminderHourResult.IsSuccess)
+                return reminderHourResult.Error;
+
+            if (reminderHourResult.Value is not null && kind != HabitKind.Positive)
+                return HabitErrors.ReminderNotAllowed;
+
+            return new ValidatedValues(
+                nameResult.Value, descriptionResult.Value, triggerResult.Value, frequencyResult.Value, targetResult.Value, relapseCostResult.Value,
+                reminderHourResult.Value);
         }
 
         private record ValidatedValues(
@@ -433,7 +458,8 @@ namespace LifeManager.Domain.Habits
             HabitTrigger? Trigger,
             HabitFrequency Frequency,
             HabitTarget? Target,
-            HabitRelapseCost? RelapseCost);
+            HabitRelapseCost? RelapseCost,
+            HabitReminderHour? ReminderHour);
 
         public override bool Equals(object? obj)
         {
