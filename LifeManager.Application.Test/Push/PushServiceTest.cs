@@ -26,7 +26,7 @@ namespace LifeManager.Application.Test.Push
         private static readonly UserId FirstUserId = new(1);
         private static readonly UserId SecondUserId = new(2);
         private const string Endpoint = "https://fcm.googleapis.com/fcm/send/device-1";
-        private static readonly string P256dh = Base64Url(Enumerable.Repeat((byte)4, 65).ToArray());
+        private const string P256dh = "BC9qRGdfGQdHJJN39NH4P0CdqV5A1RUiRyL7Rt1aKrbBIxmHB-9N1H9alTGDlSixhx3IO9M4g_si3qv0J6Xk1GY";
         private static readonly string Auth = Base64Url(Enumerable.Repeat((byte)7, 16).ToArray());
 
         [Fact]

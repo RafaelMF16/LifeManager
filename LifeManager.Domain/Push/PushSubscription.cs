@@ -2,6 +2,7 @@ using LifeManager.Domain.Push.Errors;
 using LifeManager.Domain.Push.ValueObjects;
 using LifeManager.Domain.Shared.Results;
 using LifeManager.Domain.Users.ValueObjects;
+using System.Security.Cryptography;
 
 namespace LifeManager.Domain.Push
 {
@@ -71,7 +72,7 @@ namespace LifeManager.Domain.Push
             if (!PushServiceHosts.IsAllowed(endpoint))
                 return PushErrors.InvalidEndpoint;
 
-            if (!HasLength(p256dh, P256dhLength, firstByte: 0x04) || !HasLength(auth, AuthLength))
+            if (!TryDecode(p256dh, P256dhLength, out var publicKey) || !IsP256Point(publicKey) || !TryDecode(auth, AuthLength, out _))
                 return PushErrors.InvalidKeys;
 
             var trimmedLabel = string.IsNullOrWhiteSpace(label) ? null : label.Trim();
@@ -101,9 +102,10 @@ namespace LifeManager.Domain.Push
             Id = new PushSubscriptionId(id);
         }
 
-        /// <summary>Whether <paramref name="value"/> is base64url (padding allowed) of exactly <paramref name="length"/> bytes.</summary>
-        private static bool HasLength(string? value, int length, byte? firstByte = null)
+        /// <summary>Decodes base64url (padding allowed) of exactly <paramref name="length"/> bytes.</summary>
+        private static bool TryDecode(string? value, int length, out byte[] bytes)
         {
+            bytes = [];
             if (string.IsNullOrWhiteSpace(value) || value.Length > KeyMaxLength)
                 return false;
 
@@ -114,7 +116,32 @@ namespace LifeManager.Domain.Push
             if (!Convert.TryFromBase64String(base64, buffer, out var written) || written != length)
                 return false;
 
-            return firstByte is null || buffer[0] == firstByte;
+            bytes = buffer[..written];
+            return true;
+        }
+
+        /// <summary>
+        /// Whether the key is an uncompressed point on P-256 (0x04, X, Y): the payload is encrypted for it, and a key
+        /// that isn't one would fail on every send.
+        /// </summary>
+        private static bool IsP256Point(byte[] key)
+        {
+            if (key[0] != 0x04)
+                return false;
+
+            try
+            {
+                using var ecdh = ECDiffieHellman.Create(new ECParameters
+                {
+                    Curve = ECCurve.NamedCurves.nistP256,
+                    Q = new ECPoint { X = key[1..33], Y = key[33..] },
+                });
+                return true;
+            }
+            catch (CryptographicException)
+            {
+                return false;
+            }
         }
     }
 }

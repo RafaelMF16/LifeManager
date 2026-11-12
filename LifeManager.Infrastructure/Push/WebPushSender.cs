@@ -3,6 +3,7 @@ using Lib.Net.Http.WebPush.Authentication;
 using LifeManager.Domain.Push.Interfaces;
 using Microsoft.Extensions.Logging;
 using System.Net;
+using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace LifeManager.Infrastructure.Push
@@ -72,9 +73,10 @@ namespace LifeManager.Infrastructure.Push
                 _logger.LogError("The push service at {Host} rejected a notification: {StatusCode} {Body}", HostOf(target), (int)exception.StatusCode, exception.Body);
             }
             catch (Exception exception) when (!cancellationToken.IsCancellationRequested
-                && exception is HttpRequestException or TaskCanceledException or ArgumentException or FormatException or InvalidOperationException)
+                && exception is HttpRequestException or TaskCanceledException or CryptographicException or ArgumentException or FormatException or InvalidOperationException)
             {
-                // ArgumentException/FormatException/InvalidOperationException: keys the library can't use (a malformed subscription).
+                // Cryptographic/Argument/Format/InvalidOperation: keys the library can't encrypt with. Failed, never Gone: it
+                // may be our VAPID key, and Gone would delete every device. Subscribing already refuses a key off the curve.
                 _logger.LogError(exception, "Could not send a notification through the push service at {Host}", HostOf(target));
             }
 

@@ -41,6 +41,19 @@ namespace LifeManager.Infrastructure.Test.Push
         }
 
         [Fact]
+        public async Task SendAsync_ShouldReturnFailed_WhenTheDeviceKeyIsNotAPointOnTheCurve()
+        {
+            var called = false;
+            using var sender = CreateSender(new FakeHandler(_ => { called = true; return new HttpResponseMessage(HttpStatusCode.Created); }));
+            var notAPoint = Base64Url([0x04, .. Enumerable.Range(1, 64).Select(value => (byte)value)]);
+
+            var result = await sender.SendAsync(NewTarget() with { P256dh = notAPoint }, NewPayload(), CancellationToken.None);
+
+            Assert.Equal(PushSendResult.Failed, result);
+            Assert.False(called);
+        }
+
+        [Fact]
         public async Task SendAsync_ShouldPostAnEncryptedPayloadWithVapidAndAShortTtl()
         {
             HttpRequestMessage? sent = null;

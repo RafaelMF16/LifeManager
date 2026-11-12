@@ -70,8 +70,8 @@ namespace LifeManager.Infrastructure.Test.Seed
         }
 
         /// <summary>A transaction built by the domain, not stored: the test hands it to the repository under test.</summary>
-        /// <summary>A browser's subscription keys: 65 and 16 bytes, base64url.</summary>
-        public static readonly string PushP256dh = Convert.ToBase64String(Enumerable.Repeat((byte)4, 65).ToArray()).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+        /// <summary>A browser's subscription keys: a P-256 point (65 bytes) and a 16-byte secret, base64url.</summary>
+        public const string PushP256dh = "BC9qRGdfGQdHJJN39NH4P0CdqV5A1RUiRyL7Rt1aKrbBIxmHB-9N1H9alTGDlSixhx3IO9M4g_si3qv0J6Xk1GY";
         public static readonly string PushAuth = Convert.ToBase64String(Enumerable.Repeat((byte)7, 16).ToArray()).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 
         public static PushSubscription NewPushSubscription(User user, string endpoint, DateTimeOffset? createdAt = null, string? label = null)

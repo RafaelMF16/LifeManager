@@ -7,8 +7,8 @@ namespace LifeManager.Domain.Test.Push
     {
         private static readonly DateTimeOffset Now = new(2026, 11, 11, 15, 0, 0, TimeSpan.Zero);
 
-        // A P-256 public point (65 bytes) and a 16-byte secret, base64url without padding.
-        private static readonly string P256dh = Base64Url(Enumerable.Repeat((byte)4, 65).ToArray());
+        // A browser's P-256 public key (65 bytes, a point on the curve) and a 16-byte secret, base64url without padding.
+        private const string P256dh = "BC9qRGdfGQdHJJN39NH4P0CdqV5A1RUiRyL7Rt1aKrbBIxmHB-9N1H9alTGDlSixhx3IO9M4g_si3qv0J6Xk1GY";
         private static readonly string Auth = Base64Url(Enumerable.Repeat((byte)7, 16).ToArray());
 
         [Theory]
@@ -67,6 +67,17 @@ namespace LifeManager.Domain.Test.Push
         {
             var result = PushSubscription.Create(1, "https://fcm.googleapis.com/fcm/send/abc",
                 p256dh == "p256dh" ? P256dh : p256dh, auth == "auth" ? Auth : auth, null, Now);
+
+            Assert.Equal(PushErrors.InvalidKeys, result.Error);
+        }
+
+        [Fact]
+        public void Create_ShouldReturnInvalidKeys_WhenTheKeyIsNotAPointOnTheCurve()
+        {
+            // The right size and prefix, but not a P-256 point: encrypting for it would fail on every send.
+            var notAPoint = Base64Url([0x04, .. Enumerable.Range(1, 64).Select(value => (byte)value)]);
+
+            var result = PushSubscription.Create(1, "https://fcm.googleapis.com/fcm/send/abc", notAPoint, Auth, null, Now);
 
             Assert.Equal(PushErrors.InvalidKeys, result.Error);
         }
