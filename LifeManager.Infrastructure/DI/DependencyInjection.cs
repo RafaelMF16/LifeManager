@@ -1,3 +1,5 @@
+using LifeManager.Domain.Push.Interfaces;
+using LifeManager.Infrastructure.Push;
 using LifeManager.Domain.Achievements.Interfaces;
 using LifeManager.Infrastructure.Achievements;
 using LifeManager.Domain.AccountHolders.Interfaces;
@@ -83,6 +85,8 @@ namespace LifeManager.Infrastructure.DI
             services.AddScoped<IStatementImportRepository, StatementImportRepository>();
             services.AddScoped<ICategorizationRuleRepository, CategorizationRuleRepository>();
             services.AddScoped<IAccountHolderRepository, AccountHolderRepository>();
+            services.AddScoped<IPushSubscriptionRepository, PushSubscriptionRepository>();
+            services.AddScoped<IHabitReminderRepository, HabitReminderRepository>();
 
             return services;
         }

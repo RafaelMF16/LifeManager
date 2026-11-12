@@ -26,5 +26,27 @@ namespace LifeManager.Infrastructure.Test.Habits
 
             Assert.Equal(["Açúcar", "Ler"], habits.Select(habit => habit.Name.Value));
         }
+
+        [Fact]
+        public async Task UpdateAsync_ShouldStoreAndClearTheReminderHour()
+        {
+            await using var context = Fixture.CreateContext();
+            var user = await context.AddUserAsync();
+            var habit = await context.AddHabitAsync(user, "Ler", StartDate);
+
+            habit.Update("Ler", null, null, HabitDifficulty.Medium, HabitFrequencyType.Daily, HabitWeekDays.None, null, reminderHour: 20);
+            await using (var writeContext = Fixture.CreateContext())
+                await new HabitRepository(writeContext).UpdateAsync(habit, default);
+
+            await using (var readContext = Fixture.CreateContext())
+                Assert.Equal(20, (await new HabitRepository(readContext).GetByIdAsync(habit.Id!, user.Id!, default))!.ReminderHour);
+
+            habit.Update("Ler", null, null, HabitDifficulty.Medium, HabitFrequencyType.Daily, HabitWeekDays.None, null);
+            await using (var writeContext = Fixture.CreateContext())
+                await new HabitRepository(writeContext).UpdateAsync(habit, default);
+
+            await using (var readContext = Fixture.CreateContext())
+                Assert.Null((await new HabitRepository(readContext).GetByIdAsync(habit.Id!, user.Id!, default))!.ReminderHour);
+        }
     }
 }

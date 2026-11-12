@@ -1,3 +1,5 @@
+using LifeManager.Application.Test.Push.Mocks;
+using LifeManager.Domain.Push.Interfaces;
 using LifeManager.Application.Test.Achievements.Mocks;
 using LifeManager.Domain.Achievements.Interfaces;
 using LifeManager.Application.Test.AccountHolders.Mocks;
@@ -93,6 +95,9 @@ namespace LifeManager.Application.Test.Configurations
             services.AddScoped<IAccountHolderRepository, AccountHolderRepositoryMock>();
 
             services.AddScoped<IEmailSender, EmailSenderMock>();
+            services.AddScoped<IPushSender, PushSenderMock>();
+            services.AddScoped<IPushSubscriptionRepository, PushSubscriptionRepositoryMock>();
+            services.AddScoped<IHabitReminderRepository, HabitReminderRepositoryMock>();
             services.AddScoped<IEmailCooldownRepository, EmailCooldownRepositoryMock>();
             services.AddScoped<ILoginAttemptRepository, LoginAttemptRepositoryMock>();
             services.AddScoped<IPendingRegistrationRepository, PendingRegistrationRepositoryMock>();

@@ -53,6 +53,7 @@ namespace LifeManager.Infrastructure.Test.Users
             Assert.Equal(["Ana da Silva"], Names(root, "accountHolders"));
             Assert.Equal(2, root.GetProperty("statementImports").GetArrayLength());
             Assert.Equal(["Ler"], Names(root, "habits"));
+            Assert.Equal(20, root.GetProperty("habits")[0].GetProperty("reminderHour").GetInt32());
             Assert.Equal(1, root.GetProperty("checkIns").GetArrayLength());
             Assert.Equal(10, root.GetProperty("player").GetProperty("coins").GetInt32());
             Assert.NotEqual(0, root.GetProperty("ledger").GetArrayLength());
@@ -62,9 +63,9 @@ namespace LifeManager.Infrastructure.Test.Users
             Assert.Equal("Corrida", group.GetProperty("name").GetString());
             Assert.False(group.GetProperty("isOwner").GetBoolean());
 
-            // Nothing of Bia's (her name, her account holder) and no secret or bank id.
+            // Nothing of Bia's (her name, her account holder) and no secret, bank id or device of push notifications.
             Assert.DoesNotContain("Bia", json);
-            foreach (var forbidden in new[] { "passwordHash", "PasswordHash", "tokenHash", "hash-Ana", "externalId", "ExternalId", "$2a$" })
+            foreach (var forbidden in new[] { "passwordHash", "PasswordHash", "tokenHash", "hash-Ana", "externalId", "ExternalId", "$2a$", "fcm.googleapis.com", "p256dh", TestData.PushP256dh })
                 Assert.DoesNotContain(forbidden, json);
         }
 

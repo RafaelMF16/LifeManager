@@ -263,6 +263,54 @@ namespace LifeManager.Application.Test.Habits
         }
 
         [Fact]
+        public async Task CreateAsync_ShouldKeepTheReminderHour()
+        {
+            var dto = new HabitDto("Read", null, null, HabitKind.Positive, HabitDifficulty.Easy, HabitFrequencyType.Daily, null, null,
+                ReminderHour: 20);
+
+            var result = await _habitService.CreateAsync(dto, FirstUserId, CancellationToken.None);
+
+            Assert.Equal(20, result.Value!.ReminderHour);
+            Assert.Equal(20, Assert.Single(HabitSingleton.Instance).ReminderHour);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ShouldReturnReminderNotAllowed_WhenHabitIsToAvoid()
+        {
+            var dto = new HabitDto("Delivery", null, null, HabitKind.Negative, HabitDifficulty.Easy, HabitFrequencyType.Daily, null, null,
+                ReminderHour: 20);
+
+            var result = await _habitService.CreateAsync(dto, FirstUserId, CancellationToken.None);
+
+            Assert.Equal(HabitErrors.ReminderNotAllowed, result.Error);
+            Assert.Empty(HabitSingleton.Instance);
+        }
+
+        [Fact]
+        public async Task UpdateAsync_ShouldChangeAndRemoveTheReminderHour()
+        {
+            var created = (await _habitService.CreateAsync(Daily("Read"), FirstUserId, CancellationToken.None)).Value!;
+
+            var changed = await _habitService.UpdateAsync(created.Id, UpdateDaily("Read") with { ReminderHour = 7 }, FirstUserId, CancellationToken.None);
+            Assert.Equal(7, changed.Value!.ReminderHour);
+            Assert.Equal(7, Assert.Single(HabitSingleton.Instance).ReminderHour);
+
+            var removed = await _habitService.UpdateAsync(created.Id, UpdateDaily("Read"), FirstUserId, CancellationToken.None);
+            Assert.Null(removed.Value!.ReminderHour);
+            Assert.Null(Assert.Single(HabitSingleton.Instance).ReminderHour);
+        }
+
+        [Fact]
+        public async Task UpdateAsync_ShouldReturnInvalidReminderHour_WhenTheHourIsOutOfRange()
+        {
+            var created = (await _habitService.CreateAsync(Daily("Read"), FirstUserId, CancellationToken.None)).Value!;
+
+            var result = await _habitService.UpdateAsync(created.Id, UpdateDaily("Read") with { ReminderHour = 24 }, FirstUserId, CancellationToken.None);
+
+            Assert.Equal(HabitErrors.InvalidReminderHour, result.Error);
+        }
+
+        [Fact]
         public async Task CreateAsync_ShouldKeepTheAutoTrigger()
         {
             var dto = new HabitDto("Log my spending", null, null, HabitKind.Positive, HabitDifficulty.Easy, HabitFrequencyType.Daily, null, null,

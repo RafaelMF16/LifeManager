@@ -129,6 +129,7 @@ namespace LifeManager.Infrastructure.Habits
                     .SetProperty(storedHabit => storedHabit.TargetStep, habit.TargetStep)
                     .SetProperty(storedHabit => storedHabit.RelapseCost, habit.RelapseCost)
                     .SetProperty(storedHabit => storedHabit.AutoTrigger, habit.AutoTrigger)
+                    .SetProperty(storedHabit => storedHabit.ReminderHour, habit.ReminderHour)
                     .SetProperty(storedHabit => storedHabit.ArchivedAt, habit.ArchivedAt)
                     .SetProperty(storedHabit => storedHabit.CurrentStreak, habit.CurrentStreak)
                     .SetProperty(storedHabit => storedHabit.EvaluatedUntil, habit.EvaluatedUntil), cancellationToken);

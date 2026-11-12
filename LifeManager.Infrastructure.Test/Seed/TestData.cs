@@ -1,3 +1,4 @@
+using LifeManager.Domain.Push;
 using LifeManager.Domain.Categories;
 using LifeManager.Domain.Habits;
 using LifeManager.Domain.Habits.Enums;
@@ -69,6 +70,13 @@ namespace LifeManager.Infrastructure.Test.Seed
         }
 
         /// <summary>A transaction built by the domain, not stored: the test hands it to the repository under test.</summary>
+        /// <summary>A browser's subscription keys: a P-256 point (65 bytes) and a 16-byte secret, base64url.</summary>
+        public const string PushP256dh = "BC9qRGdfGQdHJJN39NH4P0CdqV5A1RUiRyL7Rt1aKrbBIxmHB-9N1H9alTGDlSixhx3IO9M4g_si3qv0J6Xk1GY";
+        public static readonly string PushAuth = Convert.ToBase64String(Enumerable.Repeat((byte)7, 16).ToArray()).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+
+        public static PushSubscription NewPushSubscription(User user, string endpoint, DateTimeOffset? createdAt = null, string? label = null)
+            => PushSubscription.Create(user.Id!.Value, endpoint, PushP256dh, PushAuth, label, createdAt ?? Now).Unwrap();
+
         public static Transaction NewTransaction(
             MonthlySummary month, Category category, MoneyFlowType type, decimal amount, int day = 1, string description = "Compra")
         {
@@ -79,11 +87,11 @@ namespace LifeManager.Infrastructure.Test.Seed
 
         /// <summary>A daily habit to build, started on <paramref name="startDate"/>.</summary>
         public static async Task<Habit> AddHabitAsync(
-            this LifeManagerDbContext context, User user, string name, DateOnly startDate, HabitKind kind = HabitKind.Positive)
+            this LifeManagerDbContext context, User user, string name, DateOnly startDate, HabitKind kind = HabitKind.Positive, int? reminderHour = null)
         {
             var habit = Habit.Create(
                 user.Id!.Value, name, description: null, trigger: null, kind, HabitDifficulty.Easy,
-                HabitFrequencyType.Daily, HabitWeekDays.None, timesPerWeek: null, startDate, Now).Unwrap();
+                HabitFrequencyType.Daily, HabitWeekDays.None, timesPerWeek: null, startDate, Now, reminderHour: reminderHour).Unwrap();
             context.Add(habit);
             await context.SaveChangesAsync();
 
