@@ -13,7 +13,8 @@ namespace LifeManager.Infrastructure.Users
     /// with <c>AsNoTracking</c> + <c>AsAsyncEnumerable</c> and sent as it grows. The writer fills a buffer in memory, never
     /// the response itself: <c>JsonSerializer.Serialize(writer, …)</c> flushes the writer synchronously, and Kestrel's
     /// body refuses synchronous writes. Only <see cref="SendAsync"/> touches the response, asynchronously. Each row is mapped field by field to
-    /// what may leave: every section lists its columns here, so a new column is never exported by accident.
+    /// what may leave: every section lists its columns here, so a new column is never exported by accident. Left out on
+    /// purpose: the push devices (an endpoint and keys work like a credential) and the reminders' logs.
     /// </summary>
     public class AccountDataExporter(LifeManagerDbContext dbContext) : IAccountDataExporter
     {
@@ -207,6 +208,7 @@ namespace LifeManager.Infrastructure.Users
                     habit.TargetStep,
                     habit.RelapseCost,
                     habit.AutoTrigger,
+                    habit.ReminderHour,
                     habit.StartDate,
                     habit.CreatedAt,
                     habit.ArchivedAt,

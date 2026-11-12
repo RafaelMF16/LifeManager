@@ -20,6 +20,7 @@ using LifeManager.Domain.UsersPreferences.Enums;
 using LifeManager.Infrastructure.AccountHolders;
 using LifeManager.Infrastructure.BudgetPlans;
 using LifeManager.Infrastructure.Habits;
+using LifeManager.Infrastructure.Push;
 using LifeManager.Infrastructure.Postgres;
 using LifeManager.Infrastructure.RecurringTransactions;
 using LifeManager.Infrastructure.StatementImports;
@@ -97,10 +98,18 @@ namespace LifeManager.Infrastructure.Test.Seed
             => StatementImportRow.Create(new StatementLine(new DateOnly(2026, 11, 4), "Padaria", -8m, fitid), "conta", Today).Unwrap()
                 .EditInBulk(null, category.Id!.Value, null).Unwrap();
 
-        /// <summary>A habit checked in today: the check-in, the player's profile and a ledger entry.</summary>
+        /// <summary>
+        /// A habit with a reminder, checked in today: the check-in, the player's profile, a ledger entry, the reminder's log
+        /// and a device subscribed to push notifications.
+        /// </summary>
         private static async Task SeedHabitAsync(LifeManagerDbContext context, User user)
         {
-            var habit = await context.AddHabitAsync(user, "Ler", Today.AddDays(-1));
+            var habit = await context.AddHabitAsync(user, "Ler", Today.AddDays(-1), reminderHour: 20);
+
+            context.Add(new HabitReminderLog(habit.Id!, Today));
+            await context.SaveChangesAsync();
+            await new PushSubscriptionRepository(context)
+                .SaveAsync(TestData.NewPushSubscription(user, $"https://fcm.googleapis.com/fcm/send/{user.Name.Value}"), default);
 
             await new HabitCheckInRepository(context).RecordAsync(habit, Today, HabitCheckInStatus.Done, TestData.Now, checkIn =>
             {
