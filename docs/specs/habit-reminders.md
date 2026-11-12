@@ -11,7 +11,7 @@ Um hábito pode ter um horário de lembrete. Se, nesse horário, ele tem agenda 
 - **Precisão de hora cheia.** O agendador de produção roda o `--run-jobs` uma vez por hora, no minuto 5 (`docs/deploy.md`). O lembrete é uma hora do dia (0–23, no fuso do negócio) e chega entre HH:05 e HH:10.
   - Precisão de minutos exigiria um agendador a cada 5 min (custo do Cloud Run Job) e fica fora.
 - **Web Push padrão (VAPID)**, sem Firebase Cloud Messaging: o back assina e manda direto para o serviço de push do navegador.
-  - Biblioteca: o pacote NuGet `WebPush` (dependência nova, **em discussão**).
+  - Biblioteca: o pacote NuGet `Lib.Net.Http.WebPush` (decidido em 11/11/2026, veja abaixo).
 - **Uma notificação por usuário por hora:** vários hábitos na mesma hora viram uma notificação só ("Faltam 2 hábitos: Ler, Academia"). Hábito medido mostra quanto falta ("Beber água: faltam 750 ml").
 - Só hábitos **a construir**, ativos, com agenda hoje e não feitos. Hábitos a evitar não têm lembrete neste módulo.
 
@@ -29,7 +29,7 @@ Um hábito pode ter um horário de lembrete. Se, nesse horário, ele tem agenda 
 
 ## Modelo e migration (aditiva): `AddHabitReminders`
 
-- **`Habits.ReminderHour`** (`smallint` nulo): parâmetro opcional no final de `Create`/`Update`/`FromPersistence`, como o `AutoTrigger`.
+- **`Habits.ReminderHour`** (`integer` nulo): parâmetro opcional no final de `Create`/`Update`/`FromPersistence`, como o `AutoTrigger`.
 - **Tabela `PushSubscriptions`:** `Id`, `UserId` (FK `CASCADE`), `Endpoint` (único, ≤ 1000), `P256dh`, `Auth`, `Label` (≤ 60, ex.: "Chrome · Android"), `CreatedAt`, `LastSuccessAt`.
   - Um endpoint que aparece para outro usuário (outra conta no mesmo aparelho) **muda de dono** no upsert.
 - **Tabela `HabitReminderLog`:** `(HabitId, Date)` único, FK `CASCADE`. É a trava contra lembrete duplicado: o job grava com `INSERT … ON CONFLICT DO NOTHING` **antes** de enviar, e só envia o que inseriu.
@@ -75,6 +75,13 @@ Um hábito pode ter um horário de lembrete. Se, nesse horário, ele tem agenda 
 
 ## Perguntas em aberto
 
-1. **Dependência `WebPush` e chaves VAPID no deploy:** em discussão. O módulo só começa depois dessa conversa.
+Nenhuma. Decidido em 11/11/2026, na implementação:
+
+- **Biblioteca:** `Lib.Net.Http.WebPush` 3.3.1, e não o pacote `WebPush`: este só gera o formato antigo (`aesgcm`), que o serviço da Apple recusa; o novo gera `aes128gcm` com o esquema `vapid` (RFC 8291/8292).
+- **Chaves VAPID:** `vapidPublicKey`, `vapidPrivateKey` e `vapidSubject` no Secret Manager, passadas pelo `deploy-api.ps1` ao serviço e aos dois jobs, obrigatórias fora de Development (sem elas em Development, envio desligado e `GET PublicKey` → 404 `Push.NotConfigured`).
+- **Hora perdida não é recuperada:** só `ReminderHour == hora atual`.
+- **No máximo 10 aparelhos por usuário:** salvar o 11º apaga o usado há mais tempo. Sem rate limit novo.
+- **SSRF:** o endereço do aparelho só é aceito em https nos hosts dos serviços de push conhecidos (FCM, Mozilla, Apple, Windows); as chaves são validadas como um ponto P-256 válido.
+- **Coluna `integer`** em vez de `smallint` (o tipo do `int?` do domínio, sem conversão).
 
 Decidido (09/11/2026): lembrete em **hora cheia**, com o agendador atual.

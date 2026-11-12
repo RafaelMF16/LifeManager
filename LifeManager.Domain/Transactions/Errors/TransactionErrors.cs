@@ -12,6 +12,7 @@ namespace LifeManager.Domain.Transactions.Errors
         public static readonly Error AmountNotPositive = Error.Validation("Transaction.AmountNotPositive", "TransactionAmount must be greater than zero");
         public static readonly Error AmountTooManyDecimals = Error.Validation("Transaction.AmountTooManyDecimals", "TransactionAmount cannot have more than 2 decimal places");
         public static readonly Error AmountTooLarge = Error.Validation("Transaction.AmountTooLarge", "TransactionAmount is too large");
+        public static readonly Error GoalRequiresInvestment = Error.Validation("Transaction.GoalRequiresInvestment", "Only an investment can count towards a savings goal");
         public static readonly Error DateOutsideMonth = Error.Validation("Transaction.DateOutsideMonth", "Transaction date must be inside the month of its monthly summary");
     }
 }

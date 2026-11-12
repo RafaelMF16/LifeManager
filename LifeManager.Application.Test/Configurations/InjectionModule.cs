@@ -1,3 +1,5 @@
+using LifeManager.Application.Test.Push.Mocks;
+using LifeManager.Domain.Push.Interfaces;
 using LifeManager.Application.Test.Achievements.Mocks;
 using LifeManager.Domain.Achievements.Interfaces;
 using LifeManager.Application.Test.AccountHolders.Mocks;
@@ -14,6 +16,7 @@ using LifeManager.Application.Test.RecurringTransactions.Mocks;
 using LifeManager.Application.Test.BudgetPlans.Mocks;
 using LifeManager.Application.Test.Habits.Mocks;
 using LifeManager.Application.Test.Rewards.Mocks;
+using LifeManager.Application.Test.SavingsGoals.Mocks;
 using LifeManager.Application.Test.GameItems.Mocks;
 using LifeManager.Domain.GameItems.Interfaces;
 using LifeManager.Application.Test.Ranking.Mocks;
@@ -24,6 +27,7 @@ using LifeManager.Application.Test.StatementImports.Mocks;
 using LifeManager.Domain.StatementImports.Interfaces;
 using LifeManager.Domain.Categorization.Interfaces;
 using LifeManager.Domain.Rewards.Interfaces;
+using LifeManager.Domain.SavingsGoals.Interfaces;
 using LifeManager.Domain.BudgetPlans.Interfaces;
 using LifeManager.Domain.Habits.Interfaces;
 using LifeManager.Domain.RecurringTransactions.Interfaces;
@@ -77,6 +81,7 @@ namespace LifeManager.Application.Test.Configurations
             services.AddScoped<IGameLedgerRepository, GameLedgerRepositoryMock>();
             services.AddScoped<IRewardRepository, RewardRepositoryMock>();
             services.AddScoped<IRewardRedemptionRepository, RewardRedemptionRepositoryMock>();
+            services.AddScoped<ISavingsGoalRepository, SavingsGoalRepositoryMock>();
             services.AddScoped<IGameItemPurchaseRepository, GameItemPurchaseRepositoryMock>();
             services.AddScoped<IAchievementRepository, AchievementRepositoryMock>();
             services.AddScoped<IWeeklyScoreRepository, WeeklyScoreRepositoryMock>();
@@ -90,6 +95,9 @@ namespace LifeManager.Application.Test.Configurations
             services.AddScoped<IAccountHolderRepository, AccountHolderRepositoryMock>();
 
             services.AddScoped<IEmailSender, EmailSenderMock>();
+            services.AddScoped<IPushSender, PushSenderMock>();
+            services.AddScoped<IPushSubscriptionRepository, PushSubscriptionRepositoryMock>();
+            services.AddScoped<IHabitReminderRepository, HabitReminderRepositoryMock>();
             services.AddScoped<IEmailCooldownRepository, EmailCooldownRepositoryMock>();
             services.AddScoped<ILoginAttemptRepository, LoginAttemptRepositoryMock>();
             services.AddScoped<IPendingRegistrationRepository, PendingRegistrationRepositoryMock>();

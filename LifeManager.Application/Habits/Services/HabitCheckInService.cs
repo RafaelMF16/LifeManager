@@ -256,7 +256,8 @@ namespace LifeManager.Application.Habits.Services
                 HabitTargetDto.From(habit.Target),
                 entries.Sum(entry => entry.Value),
                 [.. entries.Select(HabitProgressEntryDto.From)],
-                habit.AutoTrigger);
+                habit.AutoTrigger,
+                habit.ReminderHour);
         }
     }
 }

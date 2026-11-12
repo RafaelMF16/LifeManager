@@ -14,9 +14,9 @@ GitHub Actions (merge na main) ──► testes ──► deploy-api.ps1
 ```
 
 - **Uma origem só.** O Firebase Hosting repassa `/api/**` para o Cloud Run, então o navegador fala só com `web.app`. Não há CORS em produção, e o cookie do refresh token é de primeira parte. O Hosting só repassa o cookie chamado `__session`, por isso esse é o nome do cookie (`RefreshTokenCookie`).
-- **A API escala a zero.** Sem tráfego, nenhuma instância fica ligada. Por isso os jobs de hora em hora não rodam dentro da API (`backgroundJobs__enabled=false`): o Cloud Scheduler dispara um Cloud Run Job com a mesma imagem e o argumento `--run-jobs`, que roda recorrências, fechamento do dia, o fechamento da semana do ranking em grupos, a limpeza de importações de extrato abandonadas (rascunhos com mais de 30 dias) e a limpeza da autenticação por e-mail (cadastros pendentes e links de recuperação vencidos há mais de 7 dias, controles de reenvio com mais de 1 dia) e a exclusão definitiva das contas cujo prazo de 7 dias venceu, uma vez e sai. O job de exclusão não pede configuração nova.
+- **A API escala a zero.** Sem tráfego, nenhuma instância fica ligada. Por isso os jobs de hora em hora não rodam dentro da API (`backgroundJobs__enabled=false`): o Cloud Scheduler dispara um Cloud Run Job com a mesma imagem e o argumento `--run-jobs`, que roda os lembretes de hábitos (primeiro, para chegarem o mais perto possível da hora), recorrências, fechamento do dia, o fechamento da semana do ranking em grupos, a limpeza de importações de extrato abandonadas (rascunhos com mais de 30 dias) e a limpeza da autenticação por e-mail (cadastros pendentes e links de recuperação vencidos há mais de 7 dias, controles de reenvio com mais de 1 dia) e a exclusão definitiva das contas cujo prazo de 7 dias venceu, uma vez e sai. O job de exclusão não pede configuração nova.
 - **As migrations rodam no deploy.** Antes de atualizar o serviço, o script de deploy executa o Cloud Run Job `lifemanager-migrate`, que roda a mesma imagem com `--migrate`. Se ele falhar, nada mais muda (veja [Migrations](#migrations)).
-- **Segredos** ficam no Secret Manager e chegam como variáveis de ambiente com os mesmos nomes que a API já lê: `lifeManagerConnectionString`, `accessTokenSecretKey`, `refreshTokenSecretKey`, `brevoApiKey` e `emailSenderAddress`.
+- **Segredos** ficam no Secret Manager e chegam como variáveis de ambiente com os mesmos nomes que a API já lê: `lifeManagerConnectionString`, `accessTokenSecretKey`, `refreshTokenSecretKey`, `brevoApiKey`, `emailSenderAddress` e as chaves VAPID dos lembretes (`vapidPublicKey`, `vapidPrivateKey`, `vapidSubject`).
 - **E-mails** (confirmação de cadastro, recuperação de senha e aviso de exclusão da conta) saem pelo [Brevo](https://www.brevo.com), no plano gratuito (300 e-mails por dia). Os links apontam para `frontendBaseUrl`, que o script de deploy define como `https://<projeto>.web.app` (parâmetro `-FrontendBaseUrl`). O serviço **e os dois jobs** recebem essas chaves, porque todos montam os mesmos serviços na inicialização, e a API não sobe fora de Development sem elas.
 - **Região:** `southamerica-east1` (São Paulo) para tudo.
 
@@ -102,6 +102,9 @@ Set-Secret 'accessTokenSecretKey' (New-RandomSecret)
 Set-Secret 'refreshTokenSecretKey' (New-RandomSecret)
 Set-Secret 'brevoApiKey' '<chave da API do Brevo>'          # veja "E-mail (Brevo)" abaixo
 Set-Secret 'emailSenderAddress' '<remetente verificado no Brevo>'
+Set-Secret 'vapidPublicKey' '<chave pública VAPID>'          # veja "Lembretes de hábitos (Web Push)" abaixo
+Set-Secret 'vapidPrivateKey' '<chave privada VAPID>'
+Set-Secret 'vapidSubject' 'mailto:<seu e-mail>'
 ```
 
 - Nunca reaproveite as chaves de desenvolvimento.
@@ -122,6 +125,18 @@ Sem domínio próprio, o remetente é um endereço comum (ex.: um Gmail) verific
 - Os secrets precisam existir **antes** do deploy que passa a usá-los. Se faltarem, o `gcloud run jobs deploy lifemanager-migrate` falha e nada muda em produção.
 - Uma falha de envio (chave inválida, limite diário) não aparece para o usuário: a API registra o erro no log (`Brevo rejected the e-mail` / `Could not reach Brevo`) e responde normalmente.
 - Os limites por IP (endpoints de e-mail e login) usam o IP do cliente que chega pelos cabeçalhos repassados. A API lê só a última entrada do `X-Forwarded-For` (`ForwardLimit = 1`), a que quem chama não consegue forjar: a URL `*.run.app` é pública, e ler mais entradas deixaria uma chamada direta inventar o próprio IP e escapar de todos os limites. O aviso `Rate limit hit on <rota> for <IP> (X-Forwarded-For left: <...>; X-Original-For: <...>)` só aparece quando um limite é atingido e mostra o resto da cadeia. Se o IP real do usuário aparecer em `X-Forwarded-For left`, o IP usado é o do Firebase Hosting e todos os usuários dividem os limites por IP. Por isso o do login é folgado (100 a cada 10 min), o do refresh é por sessão e o bloqueio de senhas erradas é por e-mail + IP.
+
+#### Lembretes de hábitos (Web Push)
+
+Os lembretes saem direto do back para o serviço de push do navegador (FCM no Chrome/Android, Mozilla no Firefox, Apple no Safari/iPhone), assinados com um par de chaves **VAPID**. Não há conta nem custo.
+
+1. Gere o par uma vez (qualquer máquina com Node): `npx web-push generate-vapid-keys`. Saem a *Public Key* e a *Private Key*, em base64url.
+2. Grave-as nos secrets `vapidPublicKey` e `vapidPrivateKey`, e `vapidSubject` = `mailto:` de um e-mail seu (os serviços de push usam esse contato se algo der errado).
+3. **Não troque o par depois**: as assinaturas dos aparelhos são feitas com a chave pública, então um par novo faz todos os aparelhos pararem de receber até o usuário ativar os lembretes de novo.
+
+- Os secrets precisam existir **antes** do deploy que passa a usá-los (o mesmo cuidado do Brevo): sem eles o `lifemanager-migrate` falha e nada muda em produção. Fora de Development a API não sobe sem as três chaves. Em Development, sem elas, os lembretes ficam desligados com um aviso no log e `GET /api/Push/PublicKey` responde 404 `Push.NotConfigured`.
+- O lembrete é de hora cheia e chega entre HH:05 e HH:10, porque o `lifemanager-jobs` roda no minuto 5 e os lembretes são o primeiro passo dele.
+- Um envio que falha é registrado no log (`The push service at <host> rejected a notification`) e não é refeito. Um aparelho que o serviço diz que não existe mais (404/410) é apagado. O log só registra o host, nunca a URL do aparelho.
 
 ### 4. Service accounts
 

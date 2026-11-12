@@ -36,8 +36,9 @@ $image = "$Region-docker.pkg.dev/$ProjectId/lifemanager/api:$tag"
 $sqlInstance = "${ProjectId}:${Region}:lifemanager-db"
 $serviceAccount = "lifemanager-run@$ProjectId.iam.gserviceaccount.com"
 # The service and both jobs build the same services at startup (AddApiServices), so all of them get every key, e-mail
-# settings included. The sender address is a secret only to keep it out of this public repository.
-$secrets = 'lifeManagerConnectionString=lifeManagerConnectionString:latest,accessTokenSecretKey=accessTokenSecretKey:latest,refreshTokenSecretKey=refreshTokenSecretKey:latest,brevoApiKey=brevoApiKey:latest,emailSenderAddress=emailSenderAddress:latest'
+# settings and the VAPID keys of the habit reminders included. The sender address and the VAPID subject are secrets only
+# to keep them out of this public repository.
+$secrets = 'lifeManagerConnectionString=lifeManagerConnectionString:latest,accessTokenSecretKey=accessTokenSecretKey:latest,refreshTokenSecretKey=refreshTokenSecretKey:latest,brevoApiKey=brevoApiKey:latest,emailSenderAddress=emailSenderAddress:latest,vapidPublicKey=vapidPublicKey:latest,vapidPrivateKey=vapidPrivateKey:latest,vapidSubject=vapidSubject:latest'
 $envVars = "frontendBaseUrl=$FrontendBaseUrl"
 
 if (git -C $repoRoot status --porcelain) {

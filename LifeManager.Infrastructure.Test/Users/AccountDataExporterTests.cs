@@ -17,7 +17,7 @@ namespace LifeManager.Infrastructure.Test.Users
         private static readonly string[] Sections =
         [
             "version", "exportedAt", "user", "preferences",
-            "categories", "months", "transactions", "recurringTransactions", "budgetPlans", "accountHolders", "statementImports",
+            "categories", "months", "transactions", "recurringTransactions", "budgetPlans", "savingsGoals", "accountHolders", "statementImports",
             "habits", "checkIns", "progressEntries", "challenges",
             "player", "ledger", "rewards", "redemptions", "gameItemPurchases", "achievements",
             "rankingGroups",
@@ -44,13 +44,16 @@ namespace LifeManager.Infrastructure.Test.Users
             Assert.Equal("Dark", root.GetProperty("preferences").GetProperty("theme").GetString());
             Assert.Equal(["Mercado"], Names(root, "categories"));
             Assert.Equal(1, root.GetProperty("months").GetArrayLength());
-            // The hand-typed one, the recurrence's and the import's.
-            Assert.Equal(3, root.GetProperty("transactions").GetArrayLength());
+            // The hand-typed one, the savings goal's investment, the recurrence's and the import's.
+            Assert.Equal(4, root.GetProperty("transactions").GetArrayLength());
+            Assert.Equal(["Viagem"], Names(root, "savingsGoals"));
+            Assert.Single(root.GetProperty("transactions").EnumerateArray(), item => item.GetProperty("savingsGoalId").ValueKind == JsonValueKind.Number);
             Assert.Equal(["Academia"], root.GetProperty("recurringTransactions").EnumerateArray().Select(item => item.GetProperty("description").GetString()));
             Assert.Equal(1, root.GetProperty("budgetPlans")[0].GetProperty("slices").GetArrayLength());
             Assert.Equal(["Ana da Silva"], Names(root, "accountHolders"));
             Assert.Equal(2, root.GetProperty("statementImports").GetArrayLength());
             Assert.Equal(["Ler"], Names(root, "habits"));
+            Assert.Equal(20, root.GetProperty("habits")[0].GetProperty("reminderHour").GetInt32());
             Assert.Equal(1, root.GetProperty("checkIns").GetArrayLength());
             Assert.Equal(10, root.GetProperty("player").GetProperty("coins").GetInt32());
             Assert.NotEqual(0, root.GetProperty("ledger").GetArrayLength());
@@ -60,9 +63,9 @@ namespace LifeManager.Infrastructure.Test.Users
             Assert.Equal("Corrida", group.GetProperty("name").GetString());
             Assert.False(group.GetProperty("isOwner").GetBoolean());
 
-            // Nothing of Bia's (her name, her account holder) and no secret or bank id.
+            // Nothing of Bia's (her name, her account holder) and no secret, bank id or device of push notifications.
             Assert.DoesNotContain("Bia", json);
-            foreach (var forbidden in new[] { "passwordHash", "PasswordHash", "tokenHash", "hash-Ana", "externalId", "ExternalId", "$2a$" })
+            foreach (var forbidden in new[] { "passwordHash", "PasswordHash", "tokenHash", "hash-Ana", "externalId", "ExternalId", "$2a$", "fcm.googleapis.com", "p256dh", TestData.PushP256dh })
                 Assert.DoesNotContain(forbidden, json);
         }
 

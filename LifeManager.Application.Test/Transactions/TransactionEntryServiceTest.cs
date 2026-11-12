@@ -9,6 +9,8 @@ using LifeManager.Domain.Habits;
 using LifeManager.Domain.Habits.Enums;
 using LifeManager.Domain.MonthlySummaries;
 using LifeManager.Domain.MonthlySummaries.Errors;
+using LifeManager.Domain.SavingsGoals;
+using LifeManager.Domain.SavingsGoals.Errors;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Transactions.Errors;
 using LifeManager.Domain.Users.ValueObjects;
@@ -45,6 +47,7 @@ namespace LifeManager.Application.Test.Transactions
             HabitCheckInSingleton.Instance.Clear();
             PlayerProfileSingleton.Instance.Clear();
             GameLedgerEntrySingleton.Instance.Clear();
+            SavingsGoalSingleton.Instance.Clear();
             HabitCheckInRepositoryMock.FailNextRecord = null;
 
             SeedCategory(MarketCategoryId, FirstUserId, "Mercado");
@@ -201,6 +204,30 @@ namespace LifeManager.Application.Test.Transactions
             var category = Category.Create(userId.Value, name).Value!;
             category.AssignId(id);
             CategorySingleton.Instance.Add(category);
+        }
+
+        [Fact]
+        public async Task CreateQuickAsync_ShouldNotOpenTheMonth_WhenTheGoalIsArchived()
+        {
+            SavingsGoalSingleton.Instance.Add(SavingsGoal.FromPersistence(
+                1, FirstUserId.Value, "Viagem", 1000m, null, 0m, null, DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch, completedAt: null));
+            var dto = new TransactionDto(MoneyFlowType.Investment, MarketCategoryId, 100m, "Aporte", Today, SavingsGoalId: 1);
+
+            var result = await CreateQuick(dto);
+
+            Assert.Equal(SavingsGoalErrors.Archived, result.Error);
+            AssertNothingStored();
+        }
+
+        [Fact]
+        public async Task CreateQuickAsync_ShouldReturnTheGoal_WhenTheInvestmentIsLinked()
+        {
+            SavingsGoalSingleton.Instance.Add(SavingsGoal.FromPersistence(
+                1, FirstUserId.Value, "Viagem", 1000m, null, 0m, null, DateTimeOffset.UnixEpoch, null, completedAt: null));
+
+            var result = await CreateQuick(new TransactionDto(MoneyFlowType.Investment, MarketCategoryId, 100m, "Aporte", Today, SavingsGoalId: 1));
+
+            Assert.Equal(1, result.Value!.SavingsGoalId);
         }
     }
 }

@@ -52,6 +52,9 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
             // HabitAutoTrigger as a number; the migration fills 0 (None) for the habits that existed before it.
             builder.Property(habit => habit.AutoTrigger).IsRequired();
 
+            // The hour (0–23) of the reminder; null without one.
+            builder.Property(habit => habit.ReminderHour);
+
             builder.Property(habit => habit.StartDate).IsRequired();
             builder.Property(habit => habit.CreatedAt).IsRequired();
             builder.Property(habit => habit.ArchivedAt);
@@ -73,6 +76,10 @@ namespace LifeManager.Infrastructure.Postgres.Configurations
             // Serves a finance event's lookup of the user's automatic habits.
             builder.HasIndex(habit => new { habit.UserId, habit.AutoTrigger })
                 .HasFilter("\"AutoTrigger\" <> 0 AND \"ArchivedAt\" IS NULL");
+
+            // Serves the reminders job's "habits of this hour" lookup.
+            builder.HasIndex(habit => habit.ReminderHour)
+                .HasFilter("\"ReminderHour\" IS NOT NULL AND \"ArchivedAt\" IS NULL");
 
             // Serves the day close's "what is behind" query: only active habits are judged.
             builder.HasIndex(habit => habit.EvaluatedUntil)

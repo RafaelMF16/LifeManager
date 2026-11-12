@@ -1,3 +1,5 @@
+using LifeManager.Domain.Push.Interfaces;
+using LifeManager.Infrastructure.Push;
 using LifeManager.Domain.Achievements.Interfaces;
 using LifeManager.Infrastructure.Achievements;
 using LifeManager.Domain.AccountHolders.Interfaces;
@@ -25,6 +27,8 @@ using LifeManager.Domain.RankingGroups.Interfaces;
 using LifeManager.Infrastructure.RankingGroups;
 using LifeManager.Domain.Rewards.Interfaces;
 using LifeManager.Infrastructure.Rewards;
+using LifeManager.Domain.SavingsGoals.Interfaces;
+using LifeManager.Infrastructure.SavingsGoals;
 using LifeManager.Domain.StatementImports.Interfaces;
 using LifeManager.Infrastructure.StatementImports;
 using LifeManager.Domain.Categorization.Interfaces;
@@ -69,6 +73,7 @@ namespace LifeManager.Infrastructure.DI
             services.AddScoped<IGameLedgerRepository, GameLedgerRepository>();
             services.AddScoped<IRewardRepository, RewardRepository>();
             services.AddScoped<IRewardRedemptionRepository, RewardRedemptionRepository>();
+            services.AddScoped<ISavingsGoalRepository, SavingsGoalRepository>();
             services.AddScoped<IGameItemPurchaseRepository, GameItemPurchaseRepository>();
             services.AddScoped<IAchievementRepository, AchievementRepository>();
             services.AddScoped<IWeeklyScoreRepository, WeeklyScoreRepository>();
@@ -80,6 +85,8 @@ namespace LifeManager.Infrastructure.DI
             services.AddScoped<IStatementImportRepository, StatementImportRepository>();
             services.AddScoped<ICategorizationRuleRepository, CategorizationRuleRepository>();
             services.AddScoped<IAccountHolderRepository, AccountHolderRepository>();
+            services.AddScoped<IPushSubscriptionRepository, PushSubscriptionRepository>();
+            services.AddScoped<IHabitReminderRepository, HabitReminderRepository>();
 
             return services;
         }

@@ -168,6 +168,7 @@ namespace LifeManager.Application.Test.Habits.Mocks
                 habit.TargetUnit,
                 habit.TargetStep,
                 habit.RelapseCost,
-                habit.AutoTrigger);
+                habit.AutoTrigger,
+                habit.ReminderHour);
     }
 }

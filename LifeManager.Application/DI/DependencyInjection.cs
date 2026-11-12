@@ -1,3 +1,5 @@
+using LifeManager.Application.Habits.Reminders;
+using LifeManager.Application.Push.Services;
 using LifeManager.Application.Achievements.Services;
 ﻿using LifeManager.Application.AccountHolders.Services;
 using LifeManager.Application.Auth.Services;
@@ -12,6 +14,7 @@ using LifeManager.Application.RankingGroups.Services;
 using LifeManager.Application.MonthlySummaries.Services;
 using LifeManager.Application.RecurringTransactions.Services;
 using LifeManager.Application.Rewards.Services;
+using LifeManager.Application.SavingsGoals.Services;
 using LifeManager.Application.Shared.Time;
 using LifeManager.Application.StatementImports.Services;
 using LifeManager.Application.Transactions.Services;
@@ -29,6 +32,8 @@ namespace LifeManager.Application.DI
         {
             services.TryAddSingleton(new PasswordHashingOptions());
             services.AddScoped<AuthService>();
+            services.AddScoped<PushService>();
+            services.AddScoped<HabitReminderService>();
             services.AddScoped<TokenService>();
             services.AddScoped<UserService>();
             services.AddScoped<UserAccountService>();
@@ -43,6 +48,7 @@ namespace LifeManager.Application.DI
             services.AddScoped<CategoryService>();
             services.AddScoped<MonthlySummaryService>();
             services.AddScoped<TransactionService>();
+            services.AddScoped<TransactionExportService>();
             services.AddScoped<FinanceDashboardService>();
             services.AddScoped<RecurringTransactionService>();
             services.AddScoped<RecurringTransactionPostingService>();
@@ -59,6 +65,8 @@ namespace LifeManager.Application.DI
             services.AddScoped<GameLedgerService>();
             services.AddScoped<RewardService>();
             services.AddScoped<RewardRedemptionService>();
+            services.AddScoped<SavingsGoalService>();
+            services.AddScoped<SavingsGoalCompletion>();
             services.AddScoped<GameItemService>();
             services.AddScoped<AchievementService>();
             services.AddScoped<ChallengeService>();

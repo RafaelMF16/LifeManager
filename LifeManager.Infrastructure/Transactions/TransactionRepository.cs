@@ -1,6 +1,8 @@
+using System.Runtime.CompilerServices;
 using LifeManager.Domain.Categories;
 using LifeManager.Domain.Categories.ValueObjects;
 using LifeManager.Domain.MonthlySummaries.ValueObjects;
+using LifeManager.Domain.SavingsGoals.ValueObjects;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.Paging;
 using LifeManager.Domain.Transactions;
@@ -34,10 +36,18 @@ namespace LifeManager.Infrastructure.Transactions
         {
             var row = await WithCategory(_dbContext.Transactions.AsNoTracking()
                     .Where(transaction => transaction.Id == transactionId && transaction.MonthlySummaryId == monthlySummaryId))
-                .Select(row => new { row.Transaction, CategoryName = row.Category.Name })
+                .Select(row => new
+                {
+                    row.Transaction,
+                    CategoryName = row.Category.Name,
+                    SavingsGoalName = _dbContext.SavingsGoals
+                        .Where(goal => goal.Id == row.Transaction.SavingsGoalId)
+                        .Select(goal => goal.Name)
+                        .FirstOrDefault(),
+                })
                 .SingleOrDefaultAsync(cancellationToken);
 
-            return row is null ? null : new TransactionListItem(row.Transaction, row.CategoryName.Value);
+            return row is null ? null : new TransactionListItem(row.Transaction, row.CategoryName.Value, row.SavingsGoalName?.Value);
         }
 
         public async Task<PagedList<TransactionListItem>> GetPagedAsync(
@@ -46,6 +56,7 @@ namespace LifeManager.Infrastructure.Transactions
             TransactionTypeFilter typeFilter,
             CategoryId? categoryId,
             DateOnly? date,
+            SavingsGoalId? savingsGoalId,
             string? normalizedSearch,
             TransactionSortBy sortBy,
             SortDirection sortDirection,
@@ -69,6 +80,9 @@ namespace LifeManager.Infrastructure.Transactions
             if (date is not null)
                 transactions = transactions.Where(transaction => transaction.TransactionDate == date);
 
+            if (savingsGoalId is not null)
+                transactions = transactions.Where(transaction => transaction.SavingsGoalId == savingsGoalId);
+
             if (!string.IsNullOrEmpty(normalizedSearch))
             {
                 var pattern = QueryablePagingExtensions.ToContainsLikePattern(normalizedSearch);
@@ -76,10 +90,42 @@ namespace LifeManager.Infrastructure.Transactions
             }
 
             var page = await Order(WithCategory(transactions), sortBy, sortDirection)
-                .Select(row => new { row.Transaction, CategoryName = row.Category.Name })
+                .Select(row => new
+                {
+                    row.Transaction,
+                    CategoryName = row.Category.Name,
+                    SavingsGoalName = _dbContext.SavingsGoals
+                        .Where(goal => goal.Id == row.Transaction.SavingsGoalId)
+                        .Select(goal => goal.Name)
+                        .FirstOrDefault(),
+                })
                 .ToPagedListAsync(pageRequest, cancellationToken);
 
-            return page.Map(row => new TransactionListItem(row.Transaction, row.CategoryName.Value));
+            return page.Map(row => new TransactionListItem(row.Transaction, row.CategoryName.Value, row.SavingsGoalName?.Value));
+        }
+
+        public async Task<PagedList<TransactionListItem>> GetPagedBySavingsGoalAsync(
+            SavingsGoalId savingsGoalId, PageRequest pageRequest, CancellationToken cancellationToken)
+        {
+            var transactions = _dbContext.Transactions
+                .AsNoTracking()
+                .Where(transaction => transaction.SavingsGoalId == savingsGoalId);
+
+            var page = await WithCategory(transactions)
+                .OrderByDescending(row => row.Transaction.TransactionDate)
+                .ThenByDescending(row => row.Transaction.Id)
+                .Select(row => new
+                {
+                    row.Transaction,
+                    CategoryName = row.Category.Name,
+                    SavingsGoalName = _dbContext.SavingsGoals
+                        .Where(goal => goal.Id == row.Transaction.SavingsGoalId)
+                        .Select(goal => goal.Name)
+                        .FirstOrDefault(),
+                })
+                .ToPagedListAsync(pageRequest, cancellationToken);
+
+            return page.Map(row => new TransactionListItem(row.Transaction, row.CategoryName.Value, row.SavingsGoalName?.Value));
         }
 
         public async Task<TransactionCounts> CountByTypeAsync(MonthlySummaryId monthlySummaryId, CancellationToken cancellationToken)
@@ -161,7 +207,8 @@ namespace LifeManager.Infrastructure.Transactions
                         .SetProperty(storedTransaction => storedTransaction.SignedAmount, transaction.SignedAmount)
                         .SetProperty(storedTransaction => storedTransaction.Description, transaction.Description)
                         .SetProperty(storedTransaction => storedTransaction.NormalizedDescription, transaction.NormalizedDescription)
-                        .SetProperty(storedTransaction => storedTransaction.TransactionDate, transaction.TransactionDate), cancellationToken);
+                        .SetProperty(storedTransaction => storedTransaction.TransactionDate, transaction.TransactionDate)
+                        .SetProperty(storedTransaction => storedTransaction.SavingsGoalId, transaction.SavingsGoalId), cancellationToken);
                 return true;
             }, cancellationToken);
         }
@@ -195,6 +242,59 @@ namespace LifeManager.Infrastructure.Transactions
             await databaseTransaction.CommitAsync(cancellationToken);
 
             return result;
+        }
+
+        public Task<int> CountForExportAsync(UserId userId, DateOnly from, DateOnly to, TransactionTypeFilter typeFilter, CancellationToken cancellationToken)
+            => ForExport(userId, from, to, typeFilter).CountAsync(cancellationToken);
+
+        public async IAsyncEnumerable<TransactionExportRow> StreamForExportAsync(
+            UserId userId,
+            DateOnly from,
+            DateOnly to,
+            TransactionTypeFilter typeFilter,
+            [EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            var rows = WithCategory(ForExport(userId, from, to, typeFilter))
+                .OrderBy(row => row.Transaction.TransactionDate)
+                .ThenBy(row => row.Transaction.Id)
+                .Select(row => new
+                {
+                    row.Transaction,
+                    CategoryName = row.Category.Name,
+                    IsRewardExpense = _dbContext.RewardRedemptions.Any(redemption => redemption.TransactionId == row.Transaction.Id),
+                })
+                .AsAsyncEnumerable()
+                .WithCancellation(cancellationToken);
+
+            await foreach (var row in rows)
+            {
+                var transaction = row.Transaction;
+                yield return new TransactionExportRow(
+                    transaction.TransactionDate,
+                    transaction.Description.Value,
+                    row.CategoryName.Value,
+                    transaction.Type,
+                    transaction.SignedAmount,
+                    transaction.Origin(row.IsRewardExpense));
+            }
+        }
+
+        /// <summary>The user's transactions (owned through their month, like the dashboard) dated inside the period, of the type asked.</summary>
+        private IQueryable<Transaction> ForExport(UserId userId, DateOnly from, DateOnly to, TransactionTypeFilter typeFilter)
+        {
+            var transactions = _dbContext.Transactions
+                .AsNoTracking()
+                .Where(transaction => transaction.TransactionDate >= from
+                    && transaction.TransactionDate <= to
+                    && _dbContext.MonthlySummaries.Any(monthlySummary => monthlySummary.Id == transaction.MonthlySummaryId && monthlySummary.UserId == userId));
+
+            return typeFilter switch
+            {
+                TransactionTypeFilter.Income => transactions.Where(transaction => transaction.Type == MoneyFlowType.Income),
+                TransactionTypeFilter.Expense => transactions.Where(transaction => transaction.Type == MoneyFlowType.Expense),
+                TransactionTypeFilter.Investment => transactions.Where(transaction => transaction.Type == MoneyFlowType.Investment),
+                _ => transactions
+            };
         }
 
         private IQueryable<TransactionWithCategory> WithCategory(IQueryable<Transaction> transactions)

@@ -1,6 +1,8 @@
+using System.Runtime.CompilerServices;
 using LifeManager.Application.Test.Configurations.SingletonLists;
 using LifeManager.Domain.Categories.ValueObjects;
 using LifeManager.Domain.MonthlySummaries.ValueObjects;
+using LifeManager.Domain.SavingsGoals.ValueObjects;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.Paging;
 using LifeManager.Domain.Transactions;
@@ -54,6 +56,7 @@ namespace LifeManager.Application.Test.Transactions.Mocks
             TransactionTypeFilter typeFilter,
             CategoryId? categoryId,
             DateOnly? date,
+            SavingsGoalId? savingsGoalId,
             string? normalizedSearch,
             TransactionSortBy sortBy,
             SortDirection sortDirection,
@@ -75,11 +78,27 @@ namespace LifeManager.Application.Test.Transactions.Mocks
             if (date is not null)
                 query = query.Where(transaction => transaction.TransactionDate == date);
 
+            if (savingsGoalId is not null)
+                query = query.Where(transaction => transaction.SavingsGoalId == savingsGoalId);
+
             if (!string.IsNullOrEmpty(normalizedSearch))
                 query = query.Where(transaction => transaction.NormalizedDescription.Contains(normalizedSearch, StringComparison.Ordinal));
 
             var matching = Order(query.Select(ToListItem), sortBy, sortDirection).ToList();
             IReadOnlyList<TransactionListItem> items = [.. matching.Skip(pageRequest.Skip).Take(pageRequest.PageSize)];
+
+            return Task.FromResult(new PagedList<TransactionListItem>(items, matching.Count, pageRequest.Page, pageRequest.PageSize));
+        }
+
+        public Task<PagedList<TransactionListItem>> GetPagedBySavingsGoalAsync(
+            SavingsGoalId savingsGoalId, PageRequest pageRequest, CancellationToken cancellationToken)
+        {
+            var matching = _instance
+                .Where(transaction => transaction.SavingsGoalId == savingsGoalId)
+                .OrderByDescending(transaction => transaction.TransactionDate)
+                .ThenByDescending(transaction => transaction.Id!.Value)
+                .ToList();
+            IReadOnlyList<TransactionListItem> items = [.. matching.Skip(pageRequest.Skip).Take(pageRequest.PageSize).Select(ToListItem)];
 
             return Task.FromResult(new PagedList<TransactionListItem>(items, matching.Count, pageRequest.Page, pageRequest.PageSize));
         }
@@ -140,6 +159,52 @@ namespace LifeManager.Application.Test.Transactions.Mocks
                     group.Max(transaction => transaction.TransactionDate)))];
 
             return Task.FromResult(history);
+        }
+
+        // Mirrors TransactionRepository: owned through the month, dated inside the period, by date then id.
+        public Task<int> CountForExportAsync(UserId userId, DateOnly from, DateOnly to, TransactionTypeFilter typeFilter, CancellationToken cancellationToken)
+            => Task.FromResult(ForExport(userId, from, to, typeFilter).Count());
+
+        public async IAsyncEnumerable<TransactionExportRow> StreamForExportAsync(
+            UserId userId,
+            DateOnly from,
+            DateOnly to,
+            TransactionTypeFilter typeFilter,
+            [EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            var rows = ForExport(userId, from, to, typeFilter)
+                .OrderBy(transaction => transaction.TransactionDate)
+                .ThenBy(transaction => transaction.Id!.Value)
+                .ToList();
+
+            foreach (var transaction in rows)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await Task.Yield();
+
+                yield return new TransactionExportRow(
+                    transaction.TransactionDate,
+                    transaction.Description.Value,
+                    CategorySingleton.Instance.Single(category => category.Id == transaction.CategoryId).Name.Value,
+                    transaction.Type,
+                    transaction.SignedAmount,
+                    transaction.Origin(RewardRedemptionSingleton.Instance.Any(redemption => redemption.TransactionId == transaction.Id)));
+            }
+        }
+
+        private IEnumerable<Transaction> ForExport(UserId userId, DateOnly from, DateOnly to, TransactionTypeFilter typeFilter)
+        {
+            var query = _instance.Where(transaction => transaction.TransactionDate >= from
+                && transaction.TransactionDate <= to
+                && BelongsTo(transaction, userId));
+
+            return typeFilter switch
+            {
+                TransactionTypeFilter.Income => query.Where(transaction => transaction.Type == MoneyFlowType.Income),
+                TransactionTypeFilter.Expense => query.Where(transaction => transaction.Type == MoneyFlowType.Expense),
+                TransactionTypeFilter.Investment => query.Where(transaction => transaction.Type == MoneyFlowType.Investment),
+                _ => query
+            };
         }
 
         public Task UpdateAsync(Transaction transaction, CancellationToken cancellationToken)
@@ -218,7 +283,10 @@ namespace LifeManager.Application.Test.Transactions.Mocks
         private static TransactionListItem ToListItem(Transaction transaction)
             => new(
                 ToDetachedCopy(transaction),
-                CategorySingleton.Instance.Single(category => category.Id == transaction.CategoryId).Name.Value);
+                CategorySingleton.Instance.Single(category => category.Id == transaction.CategoryId).Name.Value,
+                transaction.SavingsGoalId is null
+                    ? null
+                    : SavingsGoalSingleton.Instance.SingleOrDefault(goal => goal.Id == transaction.SavingsGoalId)?.Name.Value);
 
         internal static Transaction ToDetachedCopy(Transaction transaction)
             => Transaction.FromPersistence(
@@ -231,6 +299,7 @@ namespace LifeManager.Application.Test.Transactions.Mocks
                 transaction.TransactionDate,
                 transaction.RecurringTransactionId?.Value,
                 transaction.StatementImportId?.Value,
-                transaction.ExternalId);
+                transaction.ExternalId,
+                transaction.SavingsGoalId?.Value);
     }
 }

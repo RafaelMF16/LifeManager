@@ -5,11 +5,13 @@ using LifeManager.Domain.RecurringTransactions;
 using LifeManager.Domain.RecurringTransactions.ValueObjects;
 using LifeManager.Domain.Rewards;
 using LifeManager.Domain.Rewards.Errors;
+using LifeManager.Domain.SavingsGoals.ValueObjects;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.Results;
 using LifeManager.Domain.StatementImports;
 using LifeManager.Domain.StatementImports.Errors;
 using LifeManager.Domain.StatementImports.ValueObjects;
+using LifeManager.Domain.Transactions.Enums;
 using LifeManager.Domain.Transactions.Errors;
 using LifeManager.Domain.Transactions.ValueObjects;
 
@@ -33,6 +35,9 @@ namespace LifeManager.Domain.Transactions
 
         /// <summary>The bank line it came from (<see cref="ImportExternalId"/>), so importing the same statement again finds it.</summary>
         public string? ExternalId { get; private set; }
+
+        /// <summary>The savings goal this investment counts towards; null when it counts towards none. Only investments have one.</summary>
+        public SavingsGoalId? SavingsGoalId { get; private set; }
 
         /// <summary>
         /// Persisted copy of <see cref="TransactionDescription.NormalizedValue"/>, kept as its own column so it can be
@@ -66,22 +71,30 @@ namespace LifeManager.Domain.Transactions
         }
 
         /// <summary>Records money coming in or going out of the given month; the date must fall inside that month.</summary>
+        /// <param name="idSavingsGoal">
+        /// The savings goal an investment counts towards (checked by the caller to be the user's and active); only an
+        /// <see cref="MoneyFlowType.Investment"/> takes one.
+        /// </param>
         public static Result<Transaction> Create(
             MoneyFlowType type,
             int idCategory,
             decimal amount,
             string description,
             DateOnly transactionDate,
-            MonthlySummary monthlySummary)
+            MonthlySummary monthlySummary,
+            int? idSavingsGoal = null)
         {
-            return Validate(type, amount, description, transactionDate, monthlySummary)
+            return Validate(type, amount, description, transactionDate, monthlySummary, idSavingsGoal)
                 .Map(values => new Transaction(
                     monthlySummary.Id!,
                     type,
                     new CategoryId(idCategory),
                     values.Amount,
                     values.Description,
-                    transactionDate));
+                    transactionDate)
+                {
+                    SavingsGoalId = ToSavingsGoalId(idSavingsGoal)
+                });
         }
 
         /// <summary>
@@ -132,16 +145,36 @@ namespace LifeManager.Domain.Transactions
             return Create(MoneyFlowType.Expense, reward.ExpenseCategoryId!.Value, reward.ExpenseAmount!.Value, reward.Name.Value, date, monthlySummary);
         }
 
-        /// <summary>Changes every field except the month: a transaction always stays in the month it was created in.</summary>
+        /// <summary>
+        /// Where the transaction came from: its recurrence first, then its import (the import's id, or the bank line once
+        /// the import left the history), then a reward redemption pointing to it (<paramref name="isRewardExpense"/>,
+        /// stored on the redemption), otherwise typed by hand.
+        /// </summary>
+        public TransactionOrigin Origin(bool isRewardExpense)
+        {
+            if (RecurringTransactionId is not null)
+                return TransactionOrigin.Recurring;
+
+            if (StatementImportId is not null || ExternalId is not null)
+                return TransactionOrigin.Import;
+
+            return isRewardExpense ? TransactionOrigin.Reward : TransactionOrigin.Manual;
+        }
+
+        /// <summary>
+        /// Changes every field except the month: a transaction always stays in the month it was created in. A null
+        /// <paramref name="idSavingsGoal"/> unlinks it from its goal.
+        /// </summary>
         public Result<Transaction> Update(
             MoneyFlowType type,
             int idCategory,
             decimal amount,
             string description,
             DateOnly transactionDate,
-            MonthlySummary monthlySummary)
+            MonthlySummary monthlySummary,
+            int? idSavingsGoal = null)
         {
-            return Validate(type, amount, description, transactionDate, monthlySummary)
+            return Validate(type, amount, description, transactionDate, monthlySummary, idSavingsGoal)
                 .Map(values =>
                 {
                     Type = type;
@@ -151,6 +184,7 @@ namespace LifeManager.Domain.Transactions
                     NormalizedDescription = values.Description.NormalizedValue;
                     TransactionDate = transactionDate;
                     SignedAmount = ToSignedAmount(type, values.Amount);
+                    SavingsGoalId = ToSavingsGoalId(idSavingsGoal);
                     return this;
                 });
         }
@@ -166,7 +200,8 @@ namespace LifeManager.Domain.Transactions
             DateOnly transactionDate,
             int? idRecurringTransaction = null,
             int? idStatementImport = null,
-            string? externalId = null)
+            string? externalId = null,
+            int? idSavingsGoal = null)
         {
             var transaction = new Transaction(
                 new MonthlySummaryId(idMonthlySummary),
@@ -178,7 +213,8 @@ namespace LifeManager.Domain.Transactions
             {
                 RecurringTransactionId = idRecurringTransaction is null ? null : new RecurringTransactionId(idRecurringTransaction.Value),
                 StatementImportId = idStatementImport is null ? null : new StatementImportId(idStatementImport.Value),
-                ExternalId = externalId
+                ExternalId = externalId,
+                SavingsGoalId = ToSavingsGoalId(idSavingsGoal)
             };
             transaction.AssignId(id);
 
@@ -195,10 +231,14 @@ namespace LifeManager.Domain.Transactions
             decimal amount,
             string description,
             DateOnly transactionDate,
-            MonthlySummary monthlySummary)
+            MonthlySummary monthlySummary,
+            int? idSavingsGoal)
         {
             if (!Enum.IsDefined(type))
                 return TransactionErrors.InvalidType;
+
+            if (idSavingsGoal is not null && type != MoneyFlowType.Investment)
+                return TransactionErrors.GoalRequiresInvestment;
 
             var descriptionResult = TransactionDescription.Create(description);
             if (!descriptionResult.IsSuccess)
@@ -213,6 +253,9 @@ namespace LifeManager.Domain.Transactions
 
             return new ValidatedValues(amountResult.Value, descriptionResult.Value);
         }
+
+        private static SavingsGoalId? ToSavingsGoalId(int? idSavingsGoal)
+            => idSavingsGoal is null ? null : new SavingsGoalId(idSavingsGoal.Value);
 
         private static decimal ToSignedAmount(MoneyFlowType type, TransactionAmount amount)
             => type == MoneyFlowType.Income ? amount.Value : -amount.Value;

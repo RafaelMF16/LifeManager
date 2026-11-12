@@ -17,6 +17,9 @@ namespace LifeManager.Application.Transactions.DTOs
         /// <summary>One day of the month ("yyyy-MM-dd"); null means every day.</summary>
         public DateOnly? Date { get; init; }
 
+        /// <summary>Only the transactions linked to this savings goal; null means no filter.</summary>
+        public int? SavingsGoalId { get; init; }
+
         public string? Search { get; init; }
         public TransactionSortBy SortBy { get; init; } = TransactionSortBy.Date;
         public SortDirection SortDirection { get; init; } = SortDirection.Desc;

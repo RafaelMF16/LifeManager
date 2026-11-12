@@ -40,7 +40,8 @@ namespace LifeManager.Application.Habits.Services
                 habitDto.TargetUnit,
                 habitDto.TargetStep,
                 habitDto.RelapseCost,
-                habitDto.AutoTrigger);
+                habitDto.AutoTrigger,
+                habitDto.ReminderHour);
             if (!habitResult.IsSuccess)
                 return habitResult.Error;
 
@@ -101,7 +102,8 @@ namespace LifeManager.Application.Habits.Services
                 habitDto.TargetUnit,
                 habitDto.TargetStep,
                 habitDto.RelapseCost,
-                habitDto.AutoTrigger);
+                habitDto.AutoTrigger,
+                habitDto.ReminderHour);
             if (!updateResult.IsSuccess)
                 return updateResult.Error;
 

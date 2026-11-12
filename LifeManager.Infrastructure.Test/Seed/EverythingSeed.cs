@@ -20,6 +20,7 @@ using LifeManager.Domain.UsersPreferences.Enums;
 using LifeManager.Infrastructure.AccountHolders;
 using LifeManager.Infrastructure.BudgetPlans;
 using LifeManager.Infrastructure.Habits;
+using LifeManager.Infrastructure.Push;
 using LifeManager.Infrastructure.Postgres;
 using LifeManager.Infrastructure.RecurringTransactions;
 using LifeManager.Infrastructure.StatementImports;
@@ -33,7 +34,7 @@ namespace LifeManager.Infrastructure.Test.Seed
     {
         private static readonly DateOnly Today = new(2026, 11, 10);
 
-        /// <summary>A user with data in every module: finance, recurrences, budget, imports and rules, habits and the game, rewards, account holders, auth.</summary>
+        /// <summary>A user with data in every module: finance, savings goals, recurrences, budget, imports and rules, habits and the game, rewards, account holders, auth.</summary>
         public static async Task<User> AddUserWithEverythingAsync(this LifeManagerDbContext context, string name)
         {
             var user = await context.AddUserAsync(name);
@@ -46,8 +47,14 @@ namespace LifeManager.Infrastructure.Test.Seed
             context.Add(Reward.Create(userId, "Cinema", 50, null, TestData.Now, category.Id!.Value, 40m).Unwrap());
             await context.SaveChangesAsync();
 
-            await new TransactionRepository(context)
-                .AddAsync(TestData.NewTransaction(month, category, MoneyFlowType.Expense, 25m), default);
+            var transactions = new TransactionRepository(context);
+            await transactions.AddAsync(TestData.NewTransaction(month, category, MoneyFlowType.Expense, 25m), default);
+
+            // A savings goal with a linked investment: deleting the user takes both, through two cascades and a SET NULL.
+            var goal = await context.AddSavingsGoalAsync(user, "Viagem");
+            await transactions.AddAsync(
+                Transaction.Create(MoneyFlowType.Investment, category.Id!.Value, 300m, "Aporte", new DateOnly(2026, 11, 5), month, goal.Id!.Value).Unwrap(),
+                default);
 
             var recurrence = RecurringTransaction
                 .Create(userId, MoneyFlowType.Expense, category.Id!.Value, 100m, "Academia", 1, "2026-11", null, Today).Unwrap();
@@ -91,10 +98,18 @@ namespace LifeManager.Infrastructure.Test.Seed
             => StatementImportRow.Create(new StatementLine(new DateOnly(2026, 11, 4), "Padaria", -8m, fitid), "conta", Today).Unwrap()
                 .EditInBulk(null, category.Id!.Value, null).Unwrap();
 
-        /// <summary>A habit checked in today: the check-in, the player's profile and a ledger entry.</summary>
+        /// <summary>
+        /// A habit with a reminder, checked in today: the check-in, the player's profile, a ledger entry, the reminder's log
+        /// and a device subscribed to push notifications.
+        /// </summary>
         private static async Task SeedHabitAsync(LifeManagerDbContext context, User user)
         {
-            var habit = await context.AddHabitAsync(user, "Ler", Today.AddDays(-1));
+            var habit = await context.AddHabitAsync(user, "Ler", Today.AddDays(-1), reminderHour: 20);
+
+            context.Add(new HabitReminderLog(habit.Id!, Today));
+            await context.SaveChangesAsync();
+            await new PushSubscriptionRepository(context)
+                .SaveAsync(TestData.NewPushSubscription(user, $"https://fcm.googleapis.com/fcm/send/{user.Name.Value}"), default);
 
             await new HabitCheckInRepository(context).RecordAsync(habit, Today, HabitCheckInStatus.Done, TestData.Now, checkIn =>
             {

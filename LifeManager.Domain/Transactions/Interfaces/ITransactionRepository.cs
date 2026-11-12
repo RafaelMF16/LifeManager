@@ -1,5 +1,6 @@
 using LifeManager.Domain.Categories.ValueObjects;
 using LifeManager.Domain.MonthlySummaries.ValueObjects;
+using LifeManager.Domain.SavingsGoals.ValueObjects;
 using LifeManager.Domain.Shared.Enums;
 using LifeManager.Domain.Shared.Paging;
 using LifeManager.Domain.Transactions.Enums;
@@ -19,6 +20,7 @@ namespace LifeManager.Domain.Transactions.Interfaces
 
         /// <param name="categoryId">Null means every category.</param>
         /// <param name="date">Null means every day.</param>
+        /// <param name="savingsGoalId">Null means linked to any goal or none.</param>
         /// <param name="normalizedSearch">Already normalized (see <c>SearchText.Normalize</c>); null or empty means no filter.</param>
         Task<PagedList<TransactionListItem>> GetPagedAsync(
             MonthlySummaryId monthlySummaryId,
@@ -26,10 +28,17 @@ namespace LifeManager.Domain.Transactions.Interfaces
             TransactionTypeFilter typeFilter,
             CategoryId? categoryId,
             DateOnly? date,
+            SavingsGoalId? savingsGoalId,
             string? normalizedSearch,
             TransactionSortBy sortBy,
             SortDirection sortDirection,
             CancellationToken cancellationToken);
+
+        /// <summary>
+        /// The transactions linked to a savings goal, across every month, newest first (date, then id). The caller
+        /// checks the goal is the user's.
+        /// </summary>
+        Task<PagedList<TransactionListItem>> GetPagedBySavingsGoalAsync(SavingsGoalId savingsGoalId, PageRequest pageRequest, CancellationToken cancellationToken);
 
         Task<TransactionCounts> CountByTypeAsync(MonthlySummaryId monthlySummaryId, CancellationToken cancellationToken);
 
@@ -52,6 +61,15 @@ namespace LifeManager.Domain.Transactions.Interfaces
         /// count and latest date): what category suggestions learn from.
         /// </summary>
         Task<IReadOnlyList<CategoryHistoryEntry>> GetCategoryHistoryAsync(UserId userId, CancellationToken cancellationToken);
+
+        /// <summary>How many of the user's transactions dated from <paramref name="from"/> to <paramref name="to"/> the export writes.</summary>
+        Task<int> CountForExportAsync(UserId userId, DateOnly from, DateOnly to, TransactionTypeFilter typeFilter, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// The user's transactions dated from <paramref name="from"/> to <paramref name="to"/>, by date then id, read one
+        /// at a time so a long period is never held in memory.
+        /// </summary>
+        IAsyncEnumerable<TransactionExportRow> StreamForExportAsync(UserId userId, DateOnly from, DateOnly to, TransactionTypeFilter typeFilter, CancellationToken cancellationToken);
 
         Task UpdateAsync(Transaction transaction, CancellationToken cancellationToken);
         Task<bool> DeleteAsync(TransactionId transactionId, MonthlySummaryId monthlySummaryId, CancellationToken cancellationToken);
