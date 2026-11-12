@@ -17,6 +17,10 @@ namespace LifeManager.Application.Shared.Time
         public DateOnly Today()
             => DateOf(_timeProvider.GetUtcNow());
 
+        /// <summary>The hour of the day (0–23) in the business time zone, e.g. for the habit reminders.</summary>
+        public int CurrentHour()
+            => TimeZoneInfo.ConvertTime(_timeProvider.GetUtcNow(), _timeZone).Hour;
+
         /// <summary>The business day <paramref name="moment"/> fell on (e.g. the day a habit was archived).</summary>
         public DateOnly DateOf(DateTimeOffset moment)
             => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(moment, _timeZone).DateTime);
