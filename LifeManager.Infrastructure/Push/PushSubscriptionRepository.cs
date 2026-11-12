@@ -1,5 +1,6 @@
 using LifeManager.Domain.Push;
 using LifeManager.Domain.Push.Interfaces;
+using LifeManager.Domain.Push.ValueObjects;
 using LifeManager.Domain.Users.ValueObjects;
 using LifeManager.Infrastructure.Postgres;
 using Microsoft.EntityFrameworkCore;
@@ -49,6 +50,29 @@ namespace LifeManager.Infrastructure.Push
             await _dbContext.PushSubscriptions
                 .Where(subscription => subscription.UserId == userId && subscription.Endpoint == endpoint)
                 .ExecuteDeleteAsync(cancellationToken);
+        }
+
+        public async Task<IReadOnlyList<PushSubscription>> GetByUserIdAsync(UserId userId, CancellationToken cancellationToken)
+        {
+            return await _dbContext.PushSubscriptions
+                .AsNoTracking()
+                .Where(subscription => subscription.UserId == userId)
+                .OrderBy(subscription => subscription.Id)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task DeleteByIdAsync(PushSubscriptionId id, UserId userId, CancellationToken cancellationToken)
+        {
+            await _dbContext.PushSubscriptions
+                .Where(subscription => subscription.Id == id && subscription.UserId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
+        }
+
+        public async Task MarkSuccessAsync(PushSubscriptionId id, DateTimeOffset at, CancellationToken cancellationToken)
+        {
+            await _dbContext.PushSubscriptions
+                .Where(subscription => subscription.Id == id)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(subscription => subscription.LastSuccessAt, at), cancellationToken);
         }
     }
 }

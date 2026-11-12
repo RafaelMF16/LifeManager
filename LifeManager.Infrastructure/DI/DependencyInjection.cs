@@ -86,6 +86,7 @@ namespace LifeManager.Infrastructure.DI
             services.AddScoped<ICategorizationRuleRepository, CategorizationRuleRepository>();
             services.AddScoped<IAccountHolderRepository, AccountHolderRepository>();
             services.AddScoped<IPushSubscriptionRepository, PushSubscriptionRepository>();
+            services.AddScoped<IHabitReminderRepository, HabitReminderRepository>();
 
             return services;
         }

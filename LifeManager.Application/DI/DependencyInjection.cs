@@ -1,3 +1,4 @@
+using LifeManager.Application.Habits.Reminders;
 using LifeManager.Application.Push.Services;
 using LifeManager.Application.Achievements.Services;
 ﻿using LifeManager.Application.AccountHolders.Services;
@@ -32,6 +33,7 @@ namespace LifeManager.Application.DI
             services.TryAddSingleton(new PasswordHashingOptions());
             services.AddScoped<AuthService>();
             services.AddScoped<PushService>();
+            services.AddScoped<HabitReminderService>();
             services.AddScoped<TokenService>();
             services.AddScoped<UserService>();
             services.AddScoped<UserAccountService>();

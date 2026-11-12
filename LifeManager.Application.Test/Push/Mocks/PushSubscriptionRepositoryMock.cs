@@ -1,6 +1,7 @@
 using LifeManager.Application.Test.Configurations.SingletonLists;
 using LifeManager.Domain.Push;
 using LifeManager.Domain.Push.Interfaces;
+using LifeManager.Domain.Push.ValueObjects;
 using LifeManager.Domain.Users.ValueObjects;
 
 namespace LifeManager.Application.Test.Push.Mocks
@@ -45,6 +46,34 @@ namespace LifeManager.Application.Test.Push.Mocks
         public Task DeleteAsync(UserId userId, string endpoint, CancellationToken cancellationToken)
         {
             _instance.RemoveAll(existing => existing.UserId == userId && existing.Endpoint == endpoint);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<PushSubscription>> GetByUserIdAsync(UserId userId, CancellationToken cancellationToken)
+        {
+            IReadOnlyList<PushSubscription> subscriptions = [.. _instance
+                .Where(subscription => subscription.UserId == userId)
+                .OrderBy(subscription => subscription.Id!.Value)];
+
+            return Task.FromResult(subscriptions);
+        }
+
+        public Task DeleteByIdAsync(PushSubscriptionId id, UserId userId, CancellationToken cancellationToken)
+        {
+            _instance.RemoveAll(subscription => subscription.Id == id && subscription.UserId == userId);
+            return Task.CompletedTask;
+        }
+
+        public Task MarkSuccessAsync(PushSubscriptionId id, DateTimeOffset at, CancellationToken cancellationToken)
+        {
+            var index = _instance.FindIndex(subscription => subscription.Id == id);
+            if (index >= 0)
+            {
+                var stored = _instance[index];
+                _instance[index] = PushSubscription.FromPersistence(
+                    id.Value, stored.UserId.Value, stored.Endpoint, stored.P256dh, stored.Auth, stored.Label, stored.CreatedAt, at);
+            }
+
             return Task.CompletedTask;
         }
     }

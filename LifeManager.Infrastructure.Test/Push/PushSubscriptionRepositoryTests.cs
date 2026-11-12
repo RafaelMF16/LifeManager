@@ -79,5 +79,26 @@ namespace LifeManager.Infrastructure.Test.Push
             await new PushSubscriptionRepository(Fixture.CreateContext()).DeleteAsync(owner.Id!, Endpoint, default);
             Assert.Equal(0, await Fixture.CreateContext().PushSubscriptions.CountAsync());
         }
+
+        [Fact]
+        public async Task MarkSuccessAsync_AndDeleteByIdAsync_ShouldTouchOnlyThatDevice()
+        {
+            await using var context = Fixture.CreateContext();
+            var owner = await context.AddUserAsync("Ana");
+            var stranger = await context.AddUserAsync("Bia");
+            await new PushSubscriptionRepository(Fixture.CreateContext()).SaveAsync(TestData.NewPushSubscription(owner, Endpoint), default);
+            await new PushSubscriptionRepository(Fixture.CreateContext()).SaveAsync(TestData.NewPushSubscription(owner, Endpoint + "-2"), default);
+            var devices = await new PushSubscriptionRepository(Fixture.CreateContext()).GetByUserIdAsync(owner.Id!, default);
+
+            await new PushSubscriptionRepository(Fixture.CreateContext()).MarkSuccessAsync(devices[0].Id!, TestData.Now.AddHours(1), default);
+            await new PushSubscriptionRepository(Fixture.CreateContext()).DeleteByIdAsync(devices[1].Id!, stranger.Id!, default);
+            Assert.Equal(2, (await new PushSubscriptionRepository(Fixture.CreateContext()).GetByUserIdAsync(owner.Id!, default)).Count);
+
+            await new PushSubscriptionRepository(Fixture.CreateContext()).DeleteByIdAsync(devices[1].Id!, owner.Id!, default);
+
+            var left = Assert.Single(await new PushSubscriptionRepository(Fixture.CreateContext()).GetByUserIdAsync(owner.Id!, default));
+            Assert.Equal(Endpoint, left.Endpoint);
+            Assert.Equal(TestData.Now.AddHours(1), left.LastSuccessAt);
+        }
     }
 }
