@@ -96,6 +96,7 @@ namespace LifeManager.Application.Test.Configurations
 
             services.AddScoped<IEmailSender, EmailSenderMock>();
             services.AddScoped<IPushSender, PushSenderMock>();
+            services.AddScoped<IPushSubscriptionRepository, PushSubscriptionRepositoryMock>();
             services.AddScoped<IEmailCooldownRepository, EmailCooldownRepositoryMock>();
             services.AddScoped<ILoginAttemptRepository, LoginAttemptRepositoryMock>();
             services.AddScoped<IPendingRegistrationRepository, PendingRegistrationRepositoryMock>();

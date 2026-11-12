@@ -1,3 +1,4 @@
+using LifeManager.Domain.Push;
 using LifeManager.Domain.Categories;
 using LifeManager.Domain.Habits;
 using LifeManager.Domain.Habits.Enums;
@@ -69,6 +70,13 @@ namespace LifeManager.Infrastructure.Test.Seed
         }
 
         /// <summary>A transaction built by the domain, not stored: the test hands it to the repository under test.</summary>
+        /// <summary>A browser's subscription keys: 65 and 16 bytes, base64url.</summary>
+        public static readonly string PushP256dh = Convert.ToBase64String(Enumerable.Repeat((byte)4, 65).ToArray()).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+        public static readonly string PushAuth = Convert.ToBase64String(Enumerable.Repeat((byte)7, 16).ToArray()).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+
+        public static PushSubscription NewPushSubscription(User user, string endpoint, DateTimeOffset? createdAt = null, string? label = null)
+            => PushSubscription.Create(user.Id!.Value, endpoint, PushP256dh, PushAuth, label, createdAt ?? Now).Unwrap();
+
         public static Transaction NewTransaction(
             MonthlySummary month, Category category, MoneyFlowType type, decimal amount, int day = 1, string description = "Compra")
         {

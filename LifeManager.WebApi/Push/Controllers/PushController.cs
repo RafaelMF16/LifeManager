@@ -1,3 +1,4 @@
+using LifeManager.Application.Push.DTOs;
 using LifeManager.Application.Push.Services;
 using LifeManager.WebApi.Extensions;
 using Microsoft.AspNetCore.Authorization;
@@ -15,5 +16,18 @@ namespace LifeManager.WebApi.Push.Controllers
         [HttpGet("PublicKey")]
         public IActionResult GetPublicKey()
             => _pushService.GetPublicKey().Match(Ok);
+
+        /// <summary>Subscribes this device (upsert by endpoint; a device of another account changes owner).</summary>
+        [HttpPut("Subscriptions")]
+        public async Task<IActionResult> SaveSubscription([FromBody] PushSubscriptionDto dto, CancellationToken cancellationToken)
+            => (await _pushService.SaveSubscriptionAsync(dto, User.GetUserId(), cancellationToken)).Match(NoContent);
+
+        /// <summary>Unsubscribes this device; always 204.</summary>
+        [HttpDelete("Subscriptions")]
+        public async Task<IActionResult> DeleteSubscription([FromBody] PushSubscriptionDeleteDto dto, CancellationToken cancellationToken)
+        {
+            await _pushService.DeleteSubscriptionAsync(dto, User.GetUserId(), cancellationToken);
+            return NoContent();
+        }
     }
 }
