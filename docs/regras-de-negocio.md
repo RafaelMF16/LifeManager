@@ -23,6 +23,7 @@ Quem mantém o código: ao mudar uma regra, atualize este documento junto.
   - [Frequências](#frequências)
   - [Check-in (hábitos para construir)](#check-in-hábitos-para-construir)
   - [Check-in automático (rotinas financeiras)](#check-in-automático-rotinas-financeiras)
+  - [Lembretes](#lembretes)
   - [Meta diária (hábitos mensuráveis)](#meta-diária-hábitos-mensuráveis)
   - [Recaídas (hábitos para evitar)](#recaídas-hábitos-para-evitar)
   - [Economia (hábitos para evitar)](#economia-hábitos-para-evitar)
@@ -375,6 +376,33 @@ Regras:
 - A ação financeira **nunca falha** por causa do hábito: se o check-in automático der erro, a transação, a importação ou o orçamento são salvos do mesmo jeito.
 - Apagar a transação ou desfazer a importação **não** desmarca o hábito. O usuário pode desfazer o check-in à mão, e a próxima ação do dia marca de novo.
 - Hábitos para evitar e hábitos com meta diária não podem ter gatilho.
+
+### Lembretes
+
+Um hábito para construir pode ter uma **hora de lembrete** (0 a 23, no horário de Brasília). Nessa hora, o usuário recebe uma notificação no celular ou no navegador em que ativou as notificações, se o hábito ainda estiver pendente.
+
+Quando o lembrete chega:
+
+- Só se o hábito estiver **devido hoje e ainda não feito**: exatamente o que a tela Hoje mostra como pendente. Um hábito "vezes por semana" com a meta da semana já batida não lembra.
+- Hábito com meta diária lembra quanto falta ("Beber água: faltam 750 ml").
+- Vários hábitos da mesma hora viram **uma notificação só** por usuário ("Faltam 3 hábitos: Ler, Academia, Beber água (750 ml)"). A lista longa é cortada com "+N".
+- O texto vai no idioma das preferências da conta.
+- A notificação abre a tela Hoje.
+
+Quando ele não chega:
+
+- Hábitos para evitar, arquivados ou sem hora de lembrete não lembram.
+- Cada hábito lembra **no máximo uma vez por dia**, mesmo que a verificação rode de novo.
+- O envio é feito de hora em hora, alguns minutos depois da hora cheia (por volta de HH:05 a HH:10). Se essa rodada falhar ou atrasar além da hora, o lembrete daquela hora **não** é enviado depois. É um aviso de melhor esforço.
+- Uma conta com exclusão pendente não recebe lembretes.
+
+Aparelhos:
+
+- Cada navegador ou celular em que o usuário ativa as notificações vira um aparelho da conta. Cada conta guarda **no máximo 10**; ao ativar o 11º, o usado há mais tempo sai.
+- Se outra conta ativar as notificações no mesmo navegador, o aparelho passa para essa conta.
+- Um aparelho que o serviço de notificações diz não existir mais é removido sozinho.
+- Desativar as notificações remove o aparelho da conta.
+- Os aparelhos não entram na exportação dos dados.
 
 ### Meta diária (hábitos mensuráveis)
 
@@ -806,11 +834,22 @@ O `type` define o status HTTP: `Validation` → 400, `Unauthorized` → 401, `No
 | `Habit.TooManyProgressEntries` | Validation | Mais de 50 registros de progresso no dia |
 | `Habit.ProgressRequired` | Validation | Check-in de um toque num hábito com meta |
 | `Habit.ProgressEntryNotFound` | NotFound | Remover um registro de progresso que não existe (ou de outro hábito) |
+| `Habit.InvalidReminderHour` | Validation | Hora de lembrete fora de 0 a 23 |
+| `Habit.ReminderNotAllowed` | Validation | Hora de lembrete num hábito para evitar |
 | `PlayerProfile.StreakFreezesFull` | Conflict | O jogador já tem o máximo de proteções |
 | `PlayerProfile.NoStreakFreeze` | Conflict | Uso de proteção sem ter nenhuma |
 | `PlayerProfile.UnknownAvatar` | Validation | Avatar fora da lista fixa |
 | `PlayerProfile.TitleLocked` | Validation | Título de uma conquista não desbloqueada |
 | `PlayerProfile.UnknownEvolutionRange` | Validation | Período da evolução que não é `Month`, `Quarter` nem `Year` |
+
+### Notificações
+
+| Código | Tipo | Quando acontece |
+|---|---|---|
+| `Push.InvalidEndpoint` | Validation | Endereço do aparelho ausente, longo demais ou fora dos serviços de notificação aceitos |
+| `Push.InvalidKeys` | Validation | Chaves do aparelho ausentes ou inválidas |
+| `Push.LabelTooLong` | Validation | Nome do aparelho com mais de 60 caracteres |
+| `Push.NotConfigured` | NotFound | Notificações não configuradas no servidor (só em desenvolvimento) |
 
 ### Desafios
 
