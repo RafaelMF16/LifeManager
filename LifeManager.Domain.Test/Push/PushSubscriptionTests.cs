@@ -40,6 +40,9 @@ namespace LifeManager.Domain.Test.Push
         [InlineData("https://notify.windows.com.attacker.net/abc")]
         [InlineData("https://user:pass@fcm.googleapis.com/abc")]
         [InlineData("https://fcm.googleapis.com:8443/abc")]
+        [InlineData("https://push.apple.com/abc")]
+        [InlineData("https://evilpush.apple.com/abc")]
+        [InlineData("https://xnotify.windows.com/w/?token=abc")]
         public void Create_ShouldReturnInvalidEndpoint_WhenItIsNotAKnownPushService(string? endpoint)
         {
             var result = PushSubscription.Create(1, endpoint, P256dh, Auth, null, Now);

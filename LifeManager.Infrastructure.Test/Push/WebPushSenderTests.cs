@@ -1,5 +1,6 @@
 using LifeManager.Domain.Push.Interfaces;
 using LifeManager.Infrastructure.Push;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Net;
 using System.Security.Cryptography;
@@ -7,7 +8,7 @@ using System.Security.Cryptography;
 namespace LifeManager.Infrastructure.Test.Push
 {
     /// <summary>
-    /// The adapter over the <c>WebPush</c> package, against a fake push service (no network, no database): how each answer
+    /// The adapter over the <c>Lib.Net.Http.WebPush</c> package, against a fake push service (no network, no database): how each answer
     /// maps to <see cref="PushSendResult"/> and what the request carries.
     /// </summary>
     public class WebPushSenderTests
@@ -28,6 +29,23 @@ namespace LifeManager.Infrastructure.Test.Push
             var result = await sender.SendAsync(NewTarget(), NewPayload(), CancellationToken.None);
 
             Assert.Equal(expected, result);
+        }
+
+        [Fact]
+        public async Task SendAsync_ShouldLogOnlyTheStartOfTheAnswer_WhenThePushServiceSendsALongBody()
+        {
+            var body = new string('x', 5000);
+            var handler = new FakeHandler(_ => new HttpResponseMessage(HttpStatusCode.BadRequest) { Content = new StringContent(body) });
+            var logger = new ListLogger();
+            using var sender = new WebPushSender(new HttpClient(handler), NewSettings(), logger);
+
+            var result = await sender.SendAsync(NewTarget(), NewPayload(), CancellationToken.None);
+
+            Assert.Equal(PushSendResult.Failed, result);
+            var message = Assert.Single(logger.Messages);
+            Assert.Contains(new string('x', WebPushSender.MaxLoggedBodyLength) + "…", message);
+            Assert.DoesNotContain(new string('x', WebPushSender.MaxLoggedBodyLength + 1), message);
+            Assert.DoesNotContain("/fcm/send/abc", message);
         }
 
         [Fact]
@@ -115,6 +133,18 @@ namespace LifeManager.Infrastructure.Test.Push
 
         private static string Base64Url(byte[] bytes)
             => Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+
+        private sealed class ListLogger : ILogger<WebPushSender>
+        {
+            public List<string> Messages { get; } = [];
+
+            public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+            public bool IsEnabled(LogLevel logLevel) => true;
+
+            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+                => Messages.Add(formatter(state, exception));
+        }
 
         private sealed class FakeHandler(Func<HttpRequestMessage, HttpResponseMessage> answer) : HttpMessageHandler
         {

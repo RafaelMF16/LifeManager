@@ -68,10 +68,10 @@ namespace LifeManager.Infrastructure.Push
                 .ExecuteDeleteAsync(cancellationToken);
         }
 
-        public async Task MarkSuccessAsync(PushSubscriptionId id, DateTimeOffset at, CancellationToken cancellationToken)
+        public async Task MarkSuccessAsync(PushSubscriptionId id, UserId userId, DateTimeOffset at, CancellationToken cancellationToken)
         {
             await _dbContext.PushSubscriptions
-                .Where(subscription => subscription.Id == id)
+                .Where(subscription => subscription.Id == id && subscription.UserId == userId)
                 .ExecuteUpdateAsync(setters => setters.SetProperty(subscription => subscription.LastSuccessAt, at), cancellationToken);
         }
     }

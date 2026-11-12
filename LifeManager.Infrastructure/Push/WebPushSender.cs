@@ -25,6 +25,9 @@ namespace LifeManager.Infrastructure.Push
         /// </summary>
         public const int TimeToLiveSeconds = 60 * 60;
 
+        /// <summary>How much of a push service's error body goes to the log: enough for its reason, never an unbounded third-party text.</summary>
+        public const int MaxLoggedBodyLength = 200;
+
         private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
         private readonly PushServiceClient _client;
@@ -70,7 +73,7 @@ namespace LifeManager.Infrastructure.Push
             }
             catch (PushServiceClientException exception)
             {
-                _logger.LogError("The push service at {Host} rejected a notification: {StatusCode} {Body}", HostOf(target), (int)exception.StatusCode, exception.Body);
+                _logger.LogError("The push service at {Host} rejected a notification: {StatusCode} {Body}", HostOf(target), (int)exception.StatusCode, Clip(exception.Body));
             }
             catch (Exception exception) when (!cancellationToken.IsCancellationRequested
                 && exception is HttpRequestException or TaskCanceledException or CryptographicException or ArgumentException or FormatException or InvalidOperationException)
@@ -85,6 +88,9 @@ namespace LifeManager.Infrastructure.Push
 
         public void Dispose()
             => _authentication.Dispose();
+
+        private static string Clip(string? body)
+            => body is null || body.Length <= MaxLoggedBodyLength ? body ?? "" : body[..MaxLoggedBodyLength] + "…";
 
         // The endpoint's path identifies the device, so only the host goes to the log.
         private static string HostOf(PushTarget target)

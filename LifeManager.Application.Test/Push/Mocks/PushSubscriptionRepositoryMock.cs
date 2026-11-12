@@ -64,9 +64,9 @@ namespace LifeManager.Application.Test.Push.Mocks
             return Task.CompletedTask;
         }
 
-        public Task MarkSuccessAsync(PushSubscriptionId id, DateTimeOffset at, CancellationToken cancellationToken)
+        public Task MarkSuccessAsync(PushSubscriptionId id, UserId userId, DateTimeOffset at, CancellationToken cancellationToken)
         {
-            var index = _instance.FindIndex(subscription => subscription.Id == id);
+            var index = _instance.FindIndex(subscription => subscription.Id == id && subscription.UserId == userId);
             if (index >= 0)
             {
                 var stored = _instance[index];

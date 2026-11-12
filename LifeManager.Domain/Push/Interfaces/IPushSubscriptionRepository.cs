@@ -20,7 +20,7 @@ namespace LifeManager.Domain.Push.Interfaces
         /// <summary>Deletes a dead device, only while it is still the user's (another account may have taken it over).</summary>
         Task DeleteByIdAsync(PushSubscriptionId id, UserId userId, CancellationToken cancellationToken);
 
-        /// <summary>Records that the push service accepted a notification for the device.</summary>
-        Task MarkSuccessAsync(PushSubscriptionId id, DateTimeOffset at, CancellationToken cancellationToken);
+        /// <summary>Records that the push service accepted a notification for the device, only while it is still the user's.</summary>
+        Task MarkSuccessAsync(PushSubscriptionId id, UserId userId, DateTimeOffset at, CancellationToken cancellationToken);
     }
 }

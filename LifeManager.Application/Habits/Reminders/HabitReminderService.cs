@@ -53,8 +53,7 @@ namespace LifeManager.Application.Habits.Reminders
         /// <summary>The day and hour are read once, so a run that crosses the hour still judges the hour it started in.</summary>
         public async Task<HabitReminderRun> GetDueAsync(CancellationToken cancellationToken)
         {
-            var date = _appClock.Today();
-            var hour = _appClock.CurrentHour();
+            var (date, hour) = _appClock.CurrentHour();
 
             if (!IsEnabled)
                 return new HabitReminderRun(date, hour, []);
@@ -99,7 +98,7 @@ namespace LifeManager.Application.Habits.Reminders
 
                 if (result == PushSendResult.Sent)
                 {
-                    await _pushSubscriptionRepository.MarkSuccessAsync(subscription.Id!, _timeProvider.GetUtcNow(), cancellationToken);
+                    await _pushSubscriptionRepository.MarkSuccessAsync(subscription.Id!, userId, _timeProvider.GetUtcNow(), cancellationToken);
                     sent++;
                 }
                 else if (result == PushSendResult.Gone)
